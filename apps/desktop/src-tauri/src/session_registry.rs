@@ -690,6 +690,36 @@ fn update_session_state(registry: &mut SessionRegistry, session_id: &str, state:
     }
 }
 
+fn update_host_observed(registry: &mut SessionRegistry, host_id: &str, status: Option<&str>, last_seen_at: Option<&str>) {
+    if let Some(host) = registry.hosts.iter_mut().find(|host| host.id == host_id) {
+        if let Some(status) = status {
+            host.observed.status = status.into();
+        }
+        if let Some(last_seen_at) = last_seen_at {
+            host.observed.last_seen_at = last_seen_at.into();
+        }
+        let _ = save_hosts(&registry.hosts);
+    }
+}
+
+fn update_host_observed_for_session(
+    registry: &mut SessionRegistry,
+    session_id: &str,
+    status: Option<&str>,
+    touch_last_seen: bool,
+) {
+    let host_id = registry
+        .managed_sessions
+        .iter()
+        .find(|session| session.id == session_id)
+        .map(|session| session.host_id.clone());
+
+    if let Some(host_id) = host_id {
+        let last_seen = if touch_last_seen { Some(now_iso()) } else { None };
+        update_host_observed(registry, &host_id, status, last_seen.as_deref());
+    }
+}
+
 fn update_session_metadata(registry: &mut SessionRegistry, session_id: &str, shell: Option<&str>, cwd: Option<&str>) {
     if let Some(session) = registry.managed_sessions.iter_mut().find(|session| session.id == session_id) {
         if let Some(shell) = shell {
@@ -763,6 +793,7 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
                         let cwd = cwd.trim();
                         update_session_metadata(&mut state, &session_id, None, Some(cwd));
                         update_session_state(&mut state, &session_id, "connected");
+                        update_host_observed_for_session(&mut state, &session_id, Some("healthy"), true);
                         clear_connection_issue(&mut state, &session_id);
                         push_event(
                             &mut state,
@@ -830,6 +861,12 @@ fn start_stderr_reader(session_id: String, host: Host, stderr: ChildStderr) {
                     if let Some((kind, title, summary, operator_action, suggested_command)) =
                         classify_connection_issue(&host, &line)
                     {
+                        let observed_status = if kind == "auth" || kind == "host-trust" {
+                            "warning"
+                        } else {
+                            "critical"
+                        };
+                        update_host_observed_for_session(&mut state, &session_id, Some(observed_status), true);
                         set_connection_issue(
                             &mut state,
                             &session_id,
@@ -937,6 +974,7 @@ fn launch_runtime(
                 .get(&session_id)
                 .and_then(|runtime| runtime.askpass_path.clone());
             update_session_state(&mut state, &session_id, "disconnected");
+            update_host_observed_for_session(&mut state, &session_id, Some("warning"), true);
             state.runtimes.remove(&session_id);
             drop(state);
             if let Some(path) = askpass_path {
@@ -1046,6 +1084,12 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
             update_session_state(&mut registry, &record.id, "disconnected");
             let (kind, title, summary, operator_action, suggested_command) =
                 classify_local_connection_error(host, &error);
+            let observed_status = if kind == "auth" || kind == "host-trust" {
+                "warning"
+            } else {
+                "critical"
+            };
+            update_host_observed(&mut registry, &host.id, Some(observed_status), Some(&now_iso()));
             set_connection_issue(
                 &mut registry,
                 &record.id,
@@ -1172,6 +1216,7 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
         let mut registry = registry().lock().expect("session registry lock poisoned");
         registry.active_commands.remove(session_id);
         let pid = registry.runtimes.get(session_id).map(|runtime| runtime.pid);
+        update_host_observed_for_session(&mut registry, session_id, Some("warning"), true);
         push_event(
             &mut registry,
             session_id,
@@ -1209,6 +1254,7 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
         None => {
             let mut registry = registry().lock().expect("session registry lock poisoned");
             update_session_state(&mut registry, session_id, "disconnected");
+            update_host_observed_for_session(&mut registry, session_id, Some("warning"), true);
             push_event(
                 &mut registry,
                 session_id,
