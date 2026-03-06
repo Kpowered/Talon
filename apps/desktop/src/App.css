@@ -1123,3 +1123,112 @@ button {
     min-height: 320px;
   }
 }
+
+.topbar-host-switch select {
+  min-width: 180px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: #dbe3f6;
+}
+
+.workspace-grid.connected {
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+
+.panel-hosts.compact-panel {
+  gap: 10px;
+}
+
+.main-workspace {
+  gap: 10px;
+}
+
+.compact-panel .panel-kicker {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+}
+
+.compact-panel h2 {
+  font-size: 1.05rem;
+}
+
+.compact-host-list {
+  max-height: 280px;
+}
+
+.compact-summary-block,
+.collapsible-block {
+  padding: 12px;
+}
+
+.host-card p,
+.section-note,
+.event-card p,
+.diagnosis-card p,
+.insight-card p {
+  font-size: 0.82rem;
+}
+
+.compact-tabs .tab {
+  padding: 6px 10px;
+}
+
+.compact-terminal-window {
+  min-height: 500px;
+  border-radius: 16px;
+}
+
+.workspace-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.diagnosis-view,
+.artifacts-view {
+  overflow: auto;
+}
+
+.compact-insight-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.artifact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.artifact-card {
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  border-radius: 14px;
+  padding: 10px 12px;
+  color: #c7d0e4;
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1280px) {
+  .workspace-grid.connected {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel-hosts.compact-panel {
+    max-height: 320px;
+  }
+}
+
+@media (max-width: 900px) {
+  .compact-insight-grid-two {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-host-switch select {
+    width: 100%;
+  }
+}
