@@ -3,6 +3,159 @@ use crate::session_store::{
     DiagnosisMessage, DiagnosisResponse, FailureContext, SuggestedAction, TimelineEvent,
 };
 
+fn stderr_class_causes(stderr_class: Option<&str>) -> Vec<String> {
+    match stderr_class {
+        Some("filesystem") => vec![
+            "The captured stderr points to filesystem capacity or writeability problems on the remote host.".into(),
+            "Inspect disk usage, mount flags, and quota state before retrying the failing command.".into(),
+        ],
+        Some("resource-pressure") => vec![
+            "The captured stderr points to memory pressure or process termination under resource exhaustion.".into(),
+            "Inspect memory availability and recent process kills before rerunning workload-heavy commands.".into(),
+        ],
+        Some("network-path") => vec![
+            "The captured stderr points to a network-path or upstream reachability failure during command execution.".into(),
+            "Verify DNS, target ports, and remote dependency reachability from the affected host.".into(),
+        ],
+        Some("permission") => vec![
+            "The captured stderr points to permissions or execution policy preventing the command from completing.".into(),
+            "Verify execution identity, file ownership, and required privileges before retrying.".into(),
+        ],
+        _ => vec![
+            "The remote command returned a non-zero status and needs context-specific inspection.".into(),
+            "Use the captured stdout/stderr tails to decide whether the failure is environmental, auth-related, or command-specific.".into(),
+        ],
+    }
+}
+
+fn stderr_class_message(stderr_class: Option<&str>) -> (String, String) {
+    match stderr_class {
+        Some("filesystem") => (
+            "Filesystem pressure detected".into(),
+            "Read-only checks should focus on disk usage, mount state, and quota or read-only filesystem signals.".into(),
+        ),
+        Some("resource-pressure") => (
+            "Resource pressure detected".into(),
+            "Read-only checks should focus on memory availability, recent kills, and workload pressure on the host.".into(),
+        ),
+        Some("network-path") => (
+            "Network-path failure detected".into(),
+            "Read-only checks should focus on outbound connectivity, dependency ports, and name resolution from the remote host.".into(),
+        ),
+        Some("permission") => (
+            "Permission failure detected".into(),
+            "Read-only checks should focus on who is running the command, effective groups, and file or directory permissions.".into(),
+        ),
+        _ => (
+            "Suggested next step".into(),
+            "Inspect read-only environment and command context before re-running or mutating anything on the target host.".into(),
+        ),
+    }
+}
+
+fn stderr_class_actions(stderr_class: Option<&str>) -> Vec<SuggestedAction> {
+    match stderr_class {
+        Some("filesystem") => vec![
+            SuggestedAction {
+                id: "action-check-disk-usage".into(),
+                label: "Check disk usage".into(),
+                command: "df -h && df -i".into(),
+                rationale: "Inspect capacity and inode pressure without mutating host state.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+            SuggestedAction {
+                id: "action-check-mount-flags".into(),
+                label: "Check mount flags".into(),
+                command: "mount | tail -n +1".into(),
+                rationale: "Confirm whether the target filesystem is mounted read-only or under an unexpected device.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+        ],
+        Some("resource-pressure") => vec![
+            SuggestedAction {
+                id: "action-check-memory".into(),
+                label: "Check memory".into(),
+                command: "free -h && vmstat 1 5".into(),
+                rationale: "Inspect current memory pressure and reclaim behavior without changing host state.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+            SuggestedAction {
+                id: "action-check-dmesg-kills".into(),
+                label: "Check recent kills".into(),
+                command: "dmesg | tail -n 50".into(),
+                rationale: "Look for OOM or kernel kill signals around the failure window.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+        ],
+        Some("network-path") => vec![
+            SuggestedAction {
+                id: "action-check-resolver".into(),
+                label: "Check resolver".into(),
+                command: "getent hosts localhost && cat /etc/resolv.conf".into(),
+                rationale: "Inspect name-resolution baseline from the remote host.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+            SuggestedAction {
+                id: "action-check-sockets".into(),
+                label: "Check sockets".into(),
+                command: "ss -tuna | tail -n 30".into(),
+                rationale: "Inspect recent socket state before assuming the dependency is reachable.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+        ],
+        Some("permission") => vec![
+            SuggestedAction {
+                id: "action-check-identity".into(),
+                label: "Check identity".into(),
+                command: "id && umask".into(),
+                rationale: "Verify the effective user, groups, and default permission mask.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+            SuggestedAction {
+                id: "action-check-target-perms".into(),
+                label: "Check target perms".into(),
+                command: "pwd && ls -ld . && ls -l".into(),
+                rationale: "Inspect the current directory and nearby file permissions without modifying state.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+        ],
+        _ => vec![
+            SuggestedAction {
+                id: "action-print-working-dir".into(),
+                label: "Print working directory".into(),
+                command: "pwd".into(),
+                rationale: "Confirm the shell remained in the directory Talon captured at failure time.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+            SuggestedAction {
+                id: "action-inspect-identity".into(),
+                label: "Inspect user and shell".into(),
+                command: "whoami && echo $SHELL".into(),
+                rationale: "Validate execution identity and shell assumptions before deeper diagnosis.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+            SuggestedAction {
+                id: "action-check-last-status".into(),
+                label: "Check last status context".into(),
+                command: "printf 'cwd=%s shell=%s\n' \"$PWD\" \"${SHELL:-sh}\"".into(),
+                rationale: "Reconfirm shell context without changing remote state.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+        ],
+    }
+}
+
 pub fn build_failure_context(
     session_id: &str,
     session: Option<&ManagedSessionRecord>,
@@ -49,6 +202,11 @@ pub fn build_failure_context(
 }
 
 pub fn build_diagnosis_from_failure(failure: &FailureContext) -> DiagnosisResponse {
+    let stderr_class = failure.stderr_class.as_deref();
+    let likely_causes = stderr_class_causes(stderr_class);
+    let (next_title, next_body) = stderr_class_message(stderr_class);
+    let suggested_actions = stderr_class_actions(stderr_class);
+
     DiagnosisResponse {
         id: format!("diag-{}", failure.id),
         session_id: failure.session_id.clone(),
@@ -64,14 +222,7 @@ pub fn build_diagnosis_from_failure(failure: &FailureContext) -> DiagnosisRespon
                 .map(|class| format!(" with {} stderr signals", class))
                 .unwrap_or_default()
         ),
-        likely_causes: vec![
-            failure
-                .stderr_class
-                .as_ref()
-                .map(|class| format!("The captured stderr matched Talon's '{}' failure classifier.", class))
-                .unwrap_or_else(|| "The remote command returned a non-zero status and needs context-specific inspection.".into()),
-            "Use the captured stdout/stderr tails to decide whether the failure is environmental, auth-related, or command-specific.".into(),
-        ],
+        likely_causes,
         messages: vec![
             DiagnosisMessage {
                 id: format!("message-{}-capture", failure.id),
@@ -93,36 +244,11 @@ pub fn build_diagnosis_from_failure(failure: &FailureContext) -> DiagnosisRespon
                 id: format!("message-{}-next", failure.id),
                 source: "system".into(),
                 tone: "warning".into(),
-                title: "Suggested next step".into(),
-                body: "Inspect read-only environment and command context before re-running or mutating anything on the target host.".into(),
+                title: next_title,
+                body: next_body,
             },
         ],
-        suggested_actions: vec![
-            SuggestedAction {
-                id: "action-print-working-dir".into(),
-                label: "Print working directory".into(),
-                command: "pwd".into(),
-                rationale: "Confirm the shell remained in the directory Talon captured at failure time.".into(),
-                safety_level: "read-only".into(),
-                status: "ready".into(),
-            },
-            SuggestedAction {
-                id: "action-inspect-identity".into(),
-                label: "Inspect user and shell".into(),
-                command: "whoami && echo $SHELL".into(),
-                rationale: "Validate execution identity and shell assumptions before deeper diagnosis.".into(),
-                safety_level: "read-only".into(),
-                status: "ready".into(),
-            },
-            SuggestedAction {
-                id: "action-check-last-status".into(),
-                label: "Check last status context".into(),
-                command: "printf 'cwd=%s shell=%s\\n' \"$PWD\" \"${SHELL:-sh}\"".into(),
-                rationale: "Reconfirm shell context without changing remote state.".into(),
-                safety_level: "read-only".into(),
-                status: "ready".into(),
-            },
-        ],
+        suggested_actions,
         generated_at: failure.captured_at.clone(),
     }
 }
@@ -244,4 +370,44 @@ pub fn timeline_for_session(
     }
 
     timeline
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_diagnosis_from_failure;
+    use crate::session_store::FailureContext;
+
+    fn sample_failure(stderr_class: Option<&str>) -> FailureContext {
+        FailureContext {
+            id: "failure-1".into(),
+            session_id: "session-1".into(),
+            host_id: "host-1".into(),
+            command_id: "cmd-1".into(),
+            summary: "failed".into(),
+            severity: "critical".into(),
+            stderr_class: stderr_class.map(|value| value.into()),
+            cwd: "/srv/app".into(),
+            shell: "/bin/bash".into(),
+            exit_code: 1,
+            stdout_tail: Vec::new(),
+            stderr_tail: Vec::new(),
+            related_artifacts: Vec::new(),
+            captured_at: "2026-03-07T00:00:00Z".into(),
+        }
+    }
+
+    #[test]
+    fn builds_filesystem_specific_actions() {
+        let diagnosis = build_diagnosis_from_failure(&sample_failure(Some("filesystem")));
+        assert!(diagnosis.summary.contains("filesystem"));
+        assert_eq!(diagnosis.suggested_actions[0].command, "df -h && df -i");
+        assert!(diagnosis.likely_causes[0].contains("filesystem"));
+    }
+
+    #[test]
+    fn falls_back_to_generic_actions_without_stderr_class() {
+        let diagnosis = build_diagnosis_from_failure(&sample_failure(None));
+        assert_eq!(diagnosis.suggested_actions[0].command, "pwd");
+        assert!(diagnosis.messages[1].title.contains("Suggested next step"));
+    }
 }
