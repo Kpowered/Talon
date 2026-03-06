@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type {
   DiagnosisMessage,
@@ -132,6 +132,7 @@ function App() {
   const [connectionUsername, setConnectionUsername] = useState("");
   const [connectionAuthMethod, setConnectionAuthMethod] = useState<ConnectionAuthMethod>("agent");
   const [connectionPassword, setConnectionPassword] = useState("");
+  const initializedConnectionHostId = useRef<string | null>(null);
 
   async function refreshWorkspace() {
     const state = await invoke<TalonWorkspaceState>("get_workspace_state");
@@ -204,6 +205,7 @@ function App() {
   useEffect(() => {
     const nextHost = workspace?.hosts.find((host: Host) => host.id === selectedHostId) ?? workspace?.hosts[0];
     if (!nextHost) return;
+    if (initializedConnectionHostId.current === nextHost.id) return;
 
     const nextConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === nextHost.id) ?? null;
     const derivedUsername = nextHost.address.includes("@") ? nextHost.address.split("@")[0] : nextConfig?.username ?? "";
@@ -212,6 +214,7 @@ function App() {
     setConnectionUsername(nextConfig?.username ?? derivedUsername);
     setConnectionAuthMethod((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
     setConnectionPassword("");
+    initializedConnectionHostId.current = nextHost.id;
   }, [workspace?.hosts, selectedHostId, hostConfigs]);
 
   const activeSession = useMemo(
@@ -267,7 +270,7 @@ function App() {
     if (activeTab === "timeline") {
       return timeline.map(
         (item: TimelineEvent) =>
-          `${formatTime(item.occurredAt)}  ${item.title}\n${item.detail}${item.exitCode !== undefined ? ` | exit ${item.exitCode}` : ""}`,
+          `${formatTime(item.occurredAt)}  ${item.title}\n${item.detail}${item.exitCode != null ? ` | exit ${item.exitCode}` : ""}`,
       );
     }
     return failure?.relatedArtifacts ?? [];
@@ -658,7 +661,7 @@ function App() {
                   <p>{item.detail}</p>
                 </div>
                 <div className={`exit-code ${item.exitCode === 0 ? "ok" : "fail"}`}>
-                  {item.exitCode === undefined ? item.kind : `exit ${item.exitCode}`}
+                  {item.exitCode == null ? item.kind : `exit ${item.exitCode}`}
                 </div>
               </article>
             ))}

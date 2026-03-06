@@ -94,7 +94,7 @@ export interface TimelineEvent {
   title: string;
   detail: string;
   occurredAt: string;
-  exitCode?: number;
+  exitCode?: number | null;
 }
 
 export interface TerminalSnapshot {
