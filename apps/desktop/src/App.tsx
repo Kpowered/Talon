@@ -279,6 +279,13 @@ function App() {
     }
     return counts;
   }, [timeline]);
+  const repeatedSignals = useMemo(
+    () =>
+      Array.from(repeatedSignalCounts.entries())
+        .filter(([, count]) => count >= 2)
+        .sort((left, right) => right[1] - left[1]),
+    [repeatedSignalCounts],
+  );
 
   const metrics = useMemo(() => {
     if (!workspace || !diagnosis || !failure) return [];
@@ -878,6 +885,16 @@ function App() {
             </div>
             <span className="pill subtle">Captured {formatTime(failure.capturedAt)}</span>
           </div>
+
+          {repeatedSignals.length > 0 ? (
+            <div className="timeline-signal-summary">
+              {repeatedSignals.map(([signal, count]) => (
+                <span key={signal} className="timeline-summary-pill">
+                  {stderrClassLabel(signal)} x{count}
+                </span>
+              ))}
+            </div>
+          ) : null}
 
           <div className="timeline">
             {timeline.map((item: TimelineEvent) => (
