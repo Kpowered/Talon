@@ -4,7 +4,7 @@
 Build Talon into an AI-native SSH troubleshooting desktop app that captures failed commands, packages incident context, and keeps remediation operator-confirmed.
 
 ## Current Stage
-As of 2026-03-06, the repository has moved from a scenario demo toward a product-shaped skeleton with a backend-managed session registry and command stream scaffolding.
+As of 2026-03-06, the repository has moved from a scenario demo to a backend-managed product skeleton with real SSH process lifecycle management wired through the Tauri backend.
 
 ## Completed
 - Connected the local workspace to `origin/main` and synced the repository.
@@ -15,22 +15,26 @@ As of 2026-03-06, the repository has moved from a scenario demo toward a product
 - Added a preview session connect flow in the desktop UI so session events are now visible in the product shell.
 - Added an in-memory backend session registry with host connection config, managed session records, active session tracking, and recent lifecycle events.
 - Added terminal buffer and command submission scaffolding so managed sessions now accept commands through stable Tauri APIs.
+- Replaced preview-only session connect behavior with a real `ssh.exe`-backed backend session transport.
+- Added backend-managed SSH process lifecycle tracking, stdout/stderr reader threads, remote shell metadata probes, and stricter host key / batch-mode connection defaults.
+- Added desktop polling so asynchronous backend session state and terminal updates are reflected without a reload.
 
 ## In Progress
-- Keeping mock workspace/session state behind a reusable backend session manager boundary.
-- Defining the first SSH package contracts for host config, session lifecycle, command streaming, and failure capture hooks.
-- Writing project status documents so progress, scope, and next steps remain easy to follow.
+- Replacing preview terminal output with structured live stream handling on top of the real SSH transport.
+- Detecting command completion and non-zero exits from the managed remote shell stream.
+- Converting live failures into structured capture packets instead of leaving diagnosis state on the static mock payload.
 
 ## Next Steps
-1. Replace the managed preview command flow with a real SSH-backed connection and stream implementation.
-2. Emit stdout/stderr incrementally from the backend instead of appending preview lines.
-3. Detect command completion and capture non-zero exits into structured failure context.
-4. Introduce an agent-facing context builder and structured diagnosis contract.
+1. Wrap submitted commands with backend control markers so start/end boundaries and exit codes are detected reliably.
+2. Track stdout/stderr tails per command and persist the last completed command record per session.
+3. Build structured failure context from live command metadata, host/session metadata, and output tails.
+4. Swap the static diagnosis placeholder for an agent-facing context contract built from captured runtime state.
 
 ## Risks And Open Questions
-- The local shell currently does not expose `npm` or `cargo` on PATH, so build verification is blocked in this environment.
-- The SSH runtime choice is still open at implementation level; the product docs favor a Tauri-native backend, but the exact crate stack has not been selected yet.
-- The command-boundary and exit-code detection strategy needs to be reliable across interactive shell behavior.
+- `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
+- Strict host key checking is enabled, so first-contact hosts without an existing known-hosts entry will fail until Talon exposes an explicit operator-confirmed trust flow.
+- Password auth is still unsupported in the backend; the current real path assumes agent or private-key auth.
+- Frontend verification is available via Node, but full desktop runtime verification beyond `cargo check` still depends on local operator access to reachable SSH targets.
 
 ## Working Rules
 - Keep execution human-confirmed.

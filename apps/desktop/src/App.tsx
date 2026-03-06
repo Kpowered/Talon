@@ -151,6 +151,22 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!workspace?.activeSessionId) return;
+
+    const interval = window.setInterval(() => {
+      void refreshWorkspace();
+      void refreshRegistry();
+      void invoke<TerminalSnapshot>("get_terminal_snapshot", { sessionId: workspace.activeSessionId }).then((snapshot) => {
+        setTerminalTail(snapshot.lines);
+      });
+    }, 1500);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [workspace?.activeSessionId]);
+
   const activeSession = useMemo(
     () => workspace?.sessions.find((session) => session.id === workspace.activeSessionId) ?? null,
     [workspace],

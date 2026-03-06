@@ -1,9 +1,18 @@
 use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock};
+use std::env;
+use std::io::{BufRead, BufReader, Write};
+use std::path::PathBuf;
+use std::process::{ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::thread;
 
 use serde::Serialize;
 
 use crate::session_store::{self, Host, Session, TalonWorkspaceState, TerminalSnapshot};
+
+const META_SHELL_PREFIX: &str = "__TALON_META_SHELL__";
+const META_CWD_PREFIX: &str = "__TALON_META_CWD__";
+const CONNECT_TIMEOUT_SECONDS: u64 = 8;
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,16 +53,35 @@ pub struct CommandHistoryEntry {
     pub occurred_at: String,
 }
 
+struct SessionRuntimeHandle {
+    stdin: Arc<Mutex<ChildStdin>>,
+}
+
 pub struct SessionRegistry {
     pub host_configs: Vec<HostConnectionConfig>,
     pub managed_sessions: Vec<ManagedSessionRecord>,
     pub active_session_id: String,
     pub recent_events: Vec<SessionLifecycleEvent>,
     pub terminal_buffers: HashMap<String, Vec<String>>,
-    pub command_history: Vec<CommandHistoryEntry>,
+    command_history: Vec<CommandHistoryEntry>,
+    runtimes: HashMap<String, SessionRuntimeHandle>,
+    event_counter: usize,
 }
 
 static REGISTRY: OnceLock<Mutex<SessionRegistry>> = OnceLock::new();
+
+fn now_iso() -> String {
+    let output = Command::new("powershell")
+        .arg("-NoProfile")
+        .arg("-Command")
+        .arg("[DateTime]::UtcNow.ToString('o')")
+        .output();
+
+    match output {
+        Ok(output) if output.status.success() => String::from_utf8_lossy(&output.stdout).trim().to_string(),
+        _ => "2026-03-06T00:00:00.0000000Z".into(),
+    }
+}
 
 fn default_host_configs() -> Vec<HostConnectionConfig> {
     vec![
@@ -85,7 +113,7 @@ fn default_session() -> ManagedSessionRecord {
     ManagedSessionRecord {
         id: "session-a91f".into(),
         host_id: "host-prod-web-1".into(),
-        state: "connected".into(),
+        state: "disconnected".into(),
         shell: "bash".into(),
         cwd: "/etc/nginx".into(),
         connected_at: "2026-03-06T13:36:02Z".into(),
@@ -95,37 +123,17 @@ fn default_session() -> ManagedSessionRecord {
 }
 
 fn default_events() -> Vec<SessionLifecycleEvent> {
-    vec![
-        SessionLifecycleEvent {
-            id: "event-bootstrap-connected".into(),
-            session_id: "session-a91f".into(),
-            event_type: "connected".into(),
-            detail: "Bootstrap mock session loaded for prod-web-1".into(),
-            occurred_at: "2026-03-06T13:36:02Z".into(),
-        },
-        SessionLifecycleEvent {
-            id: "event-bootstrap-capture".into(),
-            session_id: "session-a91f".into(),
-            event_type: "capture-mode".into(),
-            detail: "Automatic failure capture armed for non-zero exits".into(),
-            occurred_at: "2026-03-06T13:36:03Z".into(),
-        },
-    ]
+    vec![SessionLifecycleEvent {
+        id: "event-bootstrap-session-registry".into(),
+        session_id: "session-a91f".into(),
+        event_type: "bootstrap".into(),
+        detail: "Session registry initialized. Real SSH transport is now wired through ssh.exe.".into(),
+        occurred_at: "2026-03-06T13:36:02Z".into(),
+    }]
 }
 
 fn default_terminal_buffer() -> Vec<String> {
-    vec![
-        "$ sudo systemctl restart nginx".into(),
-        "Job for nginx.service failed because the control process exited with error code.".into(),
-        "See systemctl status nginx.service and journalctl -xeu nginx.service for details.".into(),
-        "".into(),
-        "$ sudo journalctl -u nginx -n 40 --no-pager".into(),
-        "nginx[18421]: bind() to 0.0.0.0:80 failed (98: Address already in use)".into(),
-        "nginx[18421]: still could not bind()".into(),
-        "".into(),
-        "$ sudo ss -ltnp | grep :80".into(),
-        "LISTEN 0 4096 0.0.0.0:80 0.0.0.0:* users:((\"docker-proxy\",pid=17302,fd=7))".into(),
-    ]
+    vec!["Talon session registry ready. Connect a host to start a real SSH shell.".into()]
 }
 
 fn registry() -> &'static Mutex<SessionRegistry> {
@@ -141,12 +149,24 @@ fn registry() -> &'static Mutex<SessionRegistry> {
             recent_events: default_events(),
             terminal_buffers,
             command_history: Vec::new(),
+            runtimes: HashMap::new(),
+            event_counter: 0,
         })
     })
 }
 
 pub fn list_host_configs() -> Vec<HostConnectionConfig> {
     registry().lock().expect("session registry lock poisoned").host_configs.clone()
+}
+
+pub fn host_config_for(host_id: &str) -> Option<HostConnectionConfig> {
+    registry()
+        .lock()
+        .expect("session registry lock poisoned")
+        .host_configs
+        .iter()
+        .find(|config| config.host_id == host_id)
+        .cloned()
 }
 
 pub fn recent_events() -> Vec<SessionLifecycleEvent> {
@@ -168,104 +188,397 @@ pub fn terminal_snapshot(session_id: &str) -> TerminalSnapshot {
     }
 }
 
-pub fn connect_host(host: &Host) -> ManagedSessionRecord {
-    let mut registry = registry().lock().expect("session registry lock poisoned");
-    let session_id = format!("session-{}", host.id);
-
-    let record = ManagedSessionRecord {
-        id: session_id.clone(),
-        host_id: host.id.clone(),
-        state: if host.status == "critical" {
-            "degraded".into()
-        } else {
-            "connected".into()
-        },
-        shell: "bash".into(),
-        cwd: format!("/srv/{}", host.label),
-        connected_at: "2026-03-06T14:15:10Z".into(),
-        last_command_at: "2026-03-06T14:15:10Z".into(),
-        auto_capture_enabled: true,
-    };
-
-    registry.managed_sessions.retain(|session| session.host_id != host.id);
-    registry.managed_sessions.insert(0, record.clone());
-    registry.active_session_id = record.id.clone();
-    registry.terminal_buffers.insert(
-        record.id.clone(),
-        vec![
-            format!("$ ssh {}@{}", record.shell, host.address),
-            format!("Connected to {} on port 22", host.address),
-            format!("{} ready in {}", record.shell, record.cwd),
-        ],
-    );
-    registry.recent_events = vec![
-        SessionLifecycleEvent {
-            id: format!("event-connect-start-{}", host.id),
-            session_id: record.id.clone(),
-            event_type: "connected".into(),
-            detail: format!("Connected managed preview session to {}", host.address),
-            occurred_at: "2026-03-06T14:15:10Z".into(),
-        },
-        SessionLifecycleEvent {
-            id: format!("event-shell-ready-{}", host.id),
-            session_id: record.id.clone(),
-            event_type: "shell-ready".into(),
-            detail: format!("Shell {} ready in {}", record.shell, record.cwd),
-            occurred_at: "2026-03-06T14:15:11Z".into(),
-        },
-        SessionLifecycleEvent {
-            id: format!("event-capture-mode-{}", host.id),
-            session_id: record.id.clone(),
-            event_type: "capture-mode".into(),
-            detail: "Automatic failure capture armed for non-zero exits".into(),
-            occurred_at: "2026-03-06T14:15:12Z".into(),
-        },
-    ];
-
-    record
+fn next_event_id(registry: &mut SessionRegistry, session_id: &str, event_type: &str) -> String {
+    registry.event_counter += 1;
+    format!("event-{}-{}-{}", session_id, event_type, registry.event_counter)
 }
 
-pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
-    let mut registry = registry().lock().expect("session registry lock poisoned");
-    let trimmed = command.trim();
+fn push_event(registry: &mut SessionRegistry, session_id: &str, event_type: &str, detail: String) {
+    let event = SessionLifecycleEvent {
+        id: next_event_id(registry, session_id, event_type),
+        session_id: session_id.into(),
+        event_type: event_type.into(),
+        detail,
+        occurred_at: now_iso(),
+    };
+    registry.recent_events.insert(0, event);
+    registry.recent_events.truncate(24);
+}
+
+fn push_terminal_line(registry: &mut SessionRegistry, session_id: &str, line: String) {
     let lines = registry
         .terminal_buffers
         .entry(session_id.into())
         .or_insert_with(Vec::new);
+    lines.push(line);
+    if lines.len() > 400 {
+        let drain = lines.len() - 400;
+        lines.drain(0..drain);
+    }
+}
 
-    lines.push(format!("$ {}", trimmed));
-    lines.push(format!("preview: command '{}' accepted by managed session", trimmed));
-    lines.push("preview: live SSH output will stream here once the backend transport is wired".into());
-
-    registry.command_history.insert(
-        0,
-        CommandHistoryEntry {
-            session_id: session_id.into(),
-            command: trimmed.into(),
-            occurred_at: "2026-03-06T14:22:10Z".into(),
-        },
-    );
-
+fn update_session_state(registry: &mut SessionRegistry, session_id: &str, state: &str) {
     if let Some(session) = registry.managed_sessions.iter_mut().find(|session| session.id == session_id) {
-        session.last_command_at = "2026-03-06T14:22:10Z".into();
+        session.state = state.into();
+        if state == "connected" {
+            session.connected_at = now_iso();
+        }
+    }
+}
+
+fn update_session_metadata(registry: &mut SessionRegistry, session_id: &str, shell: Option<&str>, cwd: Option<&str>) {
+    if let Some(session) = registry.managed_sessions.iter_mut().find(|session| session.id == session_id) {
+        if let Some(shell) = shell {
+            session.shell = shell.into();
+        }
+        if let Some(cwd) = cwd {
+            session.cwd = cwd.into();
+        }
+    }
+}
+
+fn parse_host_target(host: &Host, config: Option<&HostConnectionConfig>) -> (String, String) {
+    let fallback_username = config
+        .map(|value| value.username.clone())
+        .unwrap_or_else(|| "root".into());
+
+    let address = host.address.trim();
+    if let Some((username, hostname)) = address.split_once('@') {
+        return (username.to_string(), hostname.to_string());
     }
 
-    registry.recent_events.insert(
-        0,
-        SessionLifecycleEvent {
-            id: format!("event-command-{}", registry.command_history.len()),
-            session_id: session_id.into(),
-            event_type: "command-submitted".into(),
-            detail: format!("Queued command: {}", trimmed),
-            occurred_at: "2026-03-06T14:22:10Z".into(),
-        },
+    (fallback_username, address.to_string())
+}
+
+fn resolve_private_key_path(host_id: &str) -> Option<PathBuf> {
+    let env_key = format!(
+        "TALON_SSH_KEY_PATH_{}",
+        host_id.replace('-', "_").to_ascii_uppercase()
     );
-    registry.recent_events.truncate(12);
 
-    TerminalSnapshot {
-        session_id: session_id.into(),
-        lines: lines.clone(),
+    if let Ok(path) = env::var(&env_key) {
+        let path = PathBuf::from(path);
+        if path.exists() {
+            return Some(path);
+        }
     }
+
+    let home = env::var("USERPROFILE").ok().map(PathBuf::from)?;
+    for candidate in ["id_ed25519", "id_rsa"] {
+        let path = home.join(".ssh").join(candidate);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+
+    None
+}
+
+fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
+    thread::spawn(move || {
+        let mut reader = BufReader::new(stdout);
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => break,
+                Ok(_) => {
+                    let line = line.trim_end_matches(['\r', '\n']).to_string();
+                    if line.is_empty() {
+                        let mut state = registry().lock().expect("session registry lock poisoned");
+                        push_terminal_line(&mut state, &session_id, String::new());
+                        continue;
+                    }
+
+                    let mut state = registry().lock().expect("session registry lock poisoned");
+                    if let Some(shell) = line.strip_prefix(META_SHELL_PREFIX) {
+                        update_session_metadata(&mut state, &session_id, Some(shell.trim()), None);
+                        continue;
+                    }
+
+                    if let Some(cwd) = line.strip_prefix(META_CWD_PREFIX) {
+                        let cwd = cwd.trim();
+                        update_session_metadata(&mut state, &session_id, None, Some(cwd));
+                        update_session_state(&mut state, &session_id, "connected");
+                        push_event(
+                            &mut state,
+                            &session_id,
+                            "shell-ready",
+                            format!("Remote shell is ready in {}", cwd),
+                        );
+                        push_terminal_line(
+                            &mut state,
+                            &session_id,
+                            format!("Connected. Remote shell ready in {}", cwd),
+                        );
+                        continue;
+                    }
+
+                    push_terminal_line(&mut state, &session_id, line.clone());
+                    push_event(&mut state, &session_id, "stdout", line);
+                }
+                Err(error) => {
+                    let mut state = registry().lock().expect("session registry lock poisoned");
+                    update_session_state(&mut state, &session_id, "degraded");
+                    push_event(
+                        &mut state,
+                        &session_id,
+                        "stream-error",
+                        format!("stdout reader failed: {}", error),
+                    );
+                    break;
+                }
+            }
+        }
+    });
+}
+
+fn start_stderr_reader(session_id: String, stderr: ChildStderr) {
+    thread::spawn(move || {
+        let mut reader = BufReader::new(stderr);
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => break,
+                Ok(_) => {
+                    let line = line.trim_end_matches(['\r', '\n']).to_string();
+                    let mut state = registry().lock().expect("session registry lock poisoned");
+                    push_terminal_line(&mut state, &session_id, format!("stderr: {}", line));
+                    push_event(&mut state, &session_id, "stderr", line);
+                }
+                Err(error) => {
+                    let mut state = registry().lock().expect("session registry lock poisoned");
+                    push_event(
+                        &mut state,
+                        &session_id,
+                        "stream-error",
+                        format!("stderr reader failed: {}", error),
+                    );
+                    break;
+                }
+            }
+        }
+    });
+}
+
+fn launch_runtime(session_id: String, host: Host, config: HostConnectionConfig) -> Result<SessionRuntimeHandle, String> {
+    let (username, hostname) = parse_host_target(&host, Some(&config));
+    let mut command = Command::new("ssh");
+
+    command
+        .arg("-T")
+        .arg("-o")
+        .arg("BatchMode=yes")
+        .arg("-o")
+        .arg("StrictHostKeyChecking=yes")
+        .arg("-o")
+        .arg(format!("ConnectTimeout={}", CONNECT_TIMEOUT_SECONDS))
+        .arg("-p")
+        .arg(config.port.to_string())
+        .arg(format!("{}@{}", username, hostname))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    if config.auth_method == "private-key" {
+        let key_path = resolve_private_key_path(&host.id)
+            .ok_or_else(|| format!("No SSH private key found for host {}", host.id))?;
+        command.arg("-i").arg(key_path);
+    }
+
+    if config.auth_method == "password" {
+        return Err("Password authentication is not supported in the current backend.".into());
+    }
+
+    let mut child = command.spawn().map_err(|error| error.to_string())?;
+    let stdin = child.stdin.take().ok_or_else(|| "failed to open ssh stdin".to_string())?;
+    let stdout = child.stdout.take().ok_or_else(|| "failed to open ssh stdout".to_string())?;
+    let stderr = child.stderr.take().ok_or_else(|| "failed to open ssh stderr".to_string())?;
+    let stdin = Arc::new(Mutex::new(stdin));
+
+    start_stdout_reader(session_id.clone(), stdout);
+    start_stderr_reader(session_id.clone(), stderr);
+
+    {
+        let mut guard = stdin.lock().expect("ssh stdin lock poisoned");
+        guard
+            .write_all(b"printf '__TALON_META_SHELL__%s\\n' \"${SHELL:-sh}\"\npwd | sed 's#^#__TALON_META_CWD__#'\n")
+            .map_err(|error| error.to_string())?;
+        guard.flush().map_err(|error| error.to_string())?;
+    }
+
+    thread::spawn(move || match child.wait() {
+        Ok(status) => {
+            let mut state = registry().lock().expect("session registry lock poisoned");
+            update_session_state(&mut state, &session_id, "disconnected");
+            state.runtimes.remove(&session_id);
+            push_event(
+                &mut state,
+                &session_id,
+                "disconnected",
+                format!("ssh process exited with status {}", status),
+            );
+            push_terminal_line(
+                &mut state,
+                &session_id,
+                format!("SSH session closed with status {}", status),
+            );
+        }
+        Err(error) => {
+            let mut state = registry().lock().expect("session registry lock poisoned");
+            update_session_state(&mut state, &session_id, "degraded");
+            state.runtimes.remove(&session_id);
+            push_event(
+                &mut state,
+                &session_id,
+                "disconnected",
+                format!("ssh process wait failed: {}", error),
+            );
+        }
+    });
+
+    Ok(SessionRuntimeHandle { stdin })
+}
+
+pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>) -> ManagedSessionRecord {
+    let host_config = config.cloned().unwrap_or(HostConnectionConfig {
+        host_id: host.id.clone(),
+        port: 22,
+        username: "root".into(),
+        auth_method: "agent".into(),
+        fingerprint_hint: "unknown".into(),
+    });
+
+    let session_id = format!("session-{}", host.id);
+    let now = now_iso();
+    let record = ManagedSessionRecord {
+        id: session_id.clone(),
+        host_id: host.id.clone(),
+        state: "degraded".into(),
+        shell: "sh".into(),
+        cwd: "~".into(),
+        connected_at: now.clone(),
+        last_command_at: now,
+        auto_capture_enabled: true,
+    };
+
+    {
+        let mut registry = registry().lock().expect("session registry lock poisoned");
+        registry.managed_sessions.retain(|session| session.host_id != host.id);
+        registry.runtimes.remove(&session_id);
+        registry.managed_sessions.insert(0, record.clone());
+        registry.active_session_id = record.id.clone();
+        registry.terminal_buffers.insert(
+            record.id.clone(),
+            vec![
+                format!("Opening SSH transport to {}", host.address),
+                format!(
+                    "Auth: {} on port {} with strict host key checking",
+                    host_config.auth_method, host_config.port
+                ),
+            ],
+        );
+        push_event(
+            &mut registry,
+            &record.id,
+            "connecting",
+            format!("Launching ssh.exe for {}", host.address),
+        );
+    }
+
+    match launch_runtime(record.id.clone(), host.clone(), host_config) {
+        Ok(runtime) => {
+            let mut registry = registry().lock().expect("session registry lock poisoned");
+            registry.runtimes.insert(record.id.clone(), runtime);
+            push_event(
+                &mut registry,
+                &record.id,
+                "transport-ready",
+                "ssh.exe process started. Waiting for remote shell metadata.".into(),
+            );
+        }
+        Err(error) => {
+            let mut registry = registry().lock().expect("session registry lock poisoned");
+            update_session_state(&mut registry, &record.id, "disconnected");
+            push_terminal_line(&mut registry, &record.id, format!("Connection failed: {}", error));
+            push_event(&mut registry, &record.id, "connection-error", error);
+        }
+    }
+
+    registry()
+        .lock()
+        .expect("session registry lock poisoned")
+        .managed_sessions
+        .iter()
+        .find(|session| session.id == record.id)
+        .cloned()
+        .expect("connected session must exist")
+}
+
+pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
+    let trimmed = command.trim();
+    let stdin = {
+        let mut registry = registry().lock().expect("session registry lock poisoned");
+        registry.command_history.insert(
+            0,
+            CommandHistoryEntry {
+                session_id: session_id.into(),
+                command: trimmed.into(),
+                occurred_at: now_iso(),
+            },
+        );
+        push_event(
+            &mut registry,
+            session_id,
+            "command-submitted",
+            format!("Queued command: {}", trimmed),
+        );
+
+        if let Some(session) = registry.managed_sessions.iter_mut().find(|session| session.id == session_id) {
+            session.last_command_at = now_iso();
+        }
+
+        registry
+            .runtimes
+            .get(session_id)
+            .map(|runtime| runtime.stdin.clone())
+    };
+
+    if let Some(stdin) = stdin {
+        let mut guard = stdin.lock().expect("ssh stdin lock poisoned");
+        let write_result = guard
+            .write_all(format!("{}\n", trimmed).as_bytes())
+            .and_then(|_| guard.flush());
+
+        if let Err(error) = write_result {
+            let mut registry = registry().lock().expect("session registry lock poisoned");
+            push_terminal_line(
+                &mut registry,
+                session_id,
+                format!("Command dispatch failed: {}", error),
+            );
+            push_event(
+                &mut registry,
+                session_id,
+                "command-error",
+                format!("Failed to write to remote shell: {}", error),
+            );
+        }
+    } else {
+        let mut registry = registry().lock().expect("session registry lock poisoned");
+        push_terminal_line(
+            &mut registry,
+            session_id,
+            "Command rejected: no active SSH transport for this session.".into(),
+        );
+        push_event(
+            &mut registry,
+            session_id,
+            "command-error",
+            "No active SSH transport for this session.".into(),
+        );
+    }
+
+    terminal_snapshot(session_id)
 }
 
 pub fn workspace_state() -> TalonWorkspaceState {

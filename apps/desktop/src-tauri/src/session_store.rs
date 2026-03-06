@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SuggestedActionRequest {
     pub session_id: String,
     pub action_id: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunbookActionResponse {
     pub session_id: String,
@@ -17,7 +17,7 @@ pub struct RunbookActionResponse {
     pub appended_terminal_lines: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TalonWorkspaceState {
     pub hosts: Vec<Host>,
@@ -29,7 +29,7 @@ pub struct TalonWorkspaceState {
     pub terminal: TerminalSnapshot,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Host {
     pub id: String,
@@ -44,7 +44,7 @@ pub struct Host {
     pub last_seen_at: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Session {
     pub id: String,
@@ -57,7 +57,7 @@ pub struct Session {
     pub auto_capture_enabled: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FailureContext {
     pub id: String,
@@ -75,7 +75,7 @@ pub struct FailureContext {
     pub captured_at: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosisResponse {
     pub id: String,
@@ -89,7 +89,7 @@ pub struct DiagnosisResponse {
     pub generated_at: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosisMessage {
     pub id: String,
@@ -99,7 +99,7 @@ pub struct DiagnosisMessage {
     pub body: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SuggestedAction {
     pub id: String,
@@ -110,7 +110,7 @@ pub struct SuggestedAction {
     pub status: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimelineEvent {
     pub id: String,
@@ -121,7 +121,7 @@ pub struct TimelineEvent {
     pub exit_code: Option<i32>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalSnapshot {
     pub session_id: String,

@@ -3,9 +3,10 @@ mod session_registry;
 mod session_store;
 
 use session_manager::{
-    connect_session as open_preview_session, get_session_events, get_session_registry,
-    get_terminal_snapshot, get_workspace_state as load_workspace_state,
-    run_suggested_action as execute_suggested_action, submit_session_command,
+    connect_session as open_preview_session, get_session_events as load_session_events,
+    get_session_registry as load_session_registry, get_terminal_snapshot as load_terminal_snapshot,
+    get_workspace_state as load_workspace_state, run_suggested_action as execute_suggested_action,
+    submit_session_command as dispatch_session_command,
     ConnectSessionRequest, ConnectSessionResponse, SessionEventListResponse, SessionRegistryResponse,
     SubmitCommandRequest, SubmitCommandResponse,
 };
@@ -18,17 +19,17 @@ fn get_workspace_state() -> TalonWorkspaceState {
 
 #[tauri::command]
 fn get_session_registry() -> SessionRegistryResponse {
-    get_session_registry()
+    load_session_registry()
 }
 
 #[tauri::command]
 fn get_session_events() -> SessionEventListResponse {
-    get_session_events()
+    load_session_events()
 }
 
 #[tauri::command]
 fn get_terminal_snapshot(session_id: String) -> TerminalSnapshot {
-    get_terminal_snapshot(session_id)
+    load_terminal_snapshot(session_id)
 }
 
 #[tauri::command]
@@ -38,7 +39,7 @@ fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
 
 #[tauri::command]
 fn submit_session_command(payload: SubmitCommandRequest) -> SubmitCommandResponse {
-    submit_session_command(payload)
+    dispatch_session_command(payload)
 }
 
 #[tauri::command]

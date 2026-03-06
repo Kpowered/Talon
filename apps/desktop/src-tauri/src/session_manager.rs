@@ -86,8 +86,9 @@ pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse
         .find(|host| host.id == payload.host_id)
         .or_else(|| state.hosts.first())
         .expect("workspace state must include at least one host");
+    let host_config = session_registry::host_config_for(&host.id);
 
-    let session = session_registry::connect_host(host);
+    let session = session_registry::connect_host(host, host_config.as_ref());
 
     ConnectSessionResponse {
         session: SessionSummary {
