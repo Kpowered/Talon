@@ -663,11 +663,8 @@ fn complete_active_command(registry: &mut SessionRegistry, session_id: &str, com
         format!("{} exited with code {} in {}", command.command, exit_code, cwd),
     );
 
-    if exit_code == 0 {
-        update_host_observed_for_session(registry, session_id, Some("healthy"), true);
-    } else {
-        update_host_observed_for_session(registry, session_id, Some("warning"), true);
-    }
+    let observed_status = host_health_from_recent_commands(registry, session_id);
+    update_host_observed_for_session(registry, session_id, Some(observed_status), true);
 
     if exit_code != 0 {
         let session = registry.managed_sessions.iter().find(|session| session.id == session_id);
@@ -742,6 +739,26 @@ fn capture_connect_latency_ms(registry: &SessionRegistry, session_id: &str) -> O
         .runtimes
         .get(session_id)
         .map(|runtime| runtime.started_at.elapsed().as_millis().min(u128::from(u32::MAX)) as u32)
+}
+
+fn host_health_from_recent_commands(registry: &SessionRegistry, session_id: &str) -> &'static str {
+    let mut consecutive_failures = 0;
+
+    for entry in registry.command_history.iter().filter(|entry| entry.session_id == session_id) {
+        if entry.exit_code == 0 {
+            break;
+        }
+        consecutive_failures += 1;
+        if consecutive_failures >= 3 {
+            return "critical";
+        }
+    }
+
+    if consecutive_failures > 0 {
+        "warning"
+    } else {
+        "healthy"
+    }
 }
 
 fn update_session_metadata(registry: &mut SessionRegistry, session_id: &str, shell: Option<&str>, cwd: Option<&str>) {
