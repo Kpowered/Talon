@@ -159,6 +159,7 @@ function App() {
   const [hostFingerprintHintInput, setHostFingerprintHintInput] = useState("Pending trust");
   const [isSavingHostConfig, setIsSavingHostConfig] = useState(false);
   const [isDeletingHostConfig, setIsDeletingHostConfig] = useState(false);
+  const [activeTimelineSignalFilter, setActiveTimelineSignalFilter] = useState<string | null>(null);
 
   async function refreshWorkspace() {
     const state = await invoke<TalonWorkspaceState>("get_workspace_state");
@@ -286,6 +287,11 @@ function App() {
         .sort((left, right) => right[1] - left[1]),
     [repeatedSignalCounts],
   );
+  const visibleTimeline = useMemo(
+    () =>
+      activeTimelineSignalFilter ? timeline.filter((item) => item.stderrClass === activeTimelineSignalFilter) : timeline,
+    [timeline, activeTimelineSignalFilter],
+  );
 
   const metrics = useMemo(() => {
     if (!workspace || !diagnosis || !failure) return [];
@@ -324,13 +330,13 @@ function App() {
     if (!workspace) return [];
     if (activeTab === "shell") return terminalTail;
     if (activeTab === "timeline") {
-      return timeline.map(
+      return visibleTimeline.map(
         (item: TimelineEvent) =>
           `${formatTime(item.occurredAt)}  ${item.title}\n${item.detail}${item.exitCode != null ? ` | exit ${item.exitCode}` : ""}`,
       );
     }
     return failure?.relatedArtifacts ?? [];
-  }, [workspace, activeTab, terminalTail, timeline, failure]);
+  }, [workspace, activeTab, terminalTail, visibleTimeline, failure]);
 
   async function connectSelectedHost() {
     if (!selectedHost) return;
@@ -889,15 +895,28 @@ function App() {
           {repeatedSignals.length > 0 ? (
             <div className="timeline-signal-summary">
               {repeatedSignals.map(([signal, count]) => (
-                <span key={signal} className="timeline-summary-pill">
+                <button
+                  key={signal}
+                  className={`timeline-summary-pill ${activeTimelineSignalFilter === signal ? "active" : ""}`}
+                  onClick={() => setActiveTimelineSignalFilter((current) => (current === signal ? null : signal))}
+                >
                   {stderrClassLabel(signal)} x{count}
-                </span>
+                </button>
               ))}
             </div>
           ) : null}
 
+          {activeTimelineSignalFilter ? (
+            <div className="timeline-filter-state">
+              Showing only {stderrClassLabel(activeTimelineSignalFilter)} signals.
+              <button className="ghost-button small" onClick={() => setActiveTimelineSignalFilter(null)}>
+                Clear filter
+              </button>
+            </div>
+          ) : null}
+
           <div className="timeline">
-            {timeline.map((item: TimelineEvent) => (
+            {visibleTimeline.map((item: TimelineEvent) => (
               <article
                 key={item.id}
                 className={`timeline-item ${

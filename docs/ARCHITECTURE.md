@@ -122,6 +122,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - timeline events now carry structured `stderr_class` / `stderr_evidence` metadata, which the desktop UI uses to badge and highlight repeated failure signals within the current timeline window
   - connection-issue timeline events now also map `issue.kind` / `issue.summary` into that structured signal metadata so pre-shell failures participate in the same UI treatment
   - the desktop timeline now renders a compact summary row above the event list for repeated signal classes within the current incident window
+  - those summary pills now act as a frontend-only filter over the current timeline window, allowing operators to isolate a single repeated signal class without changing backend state
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
 - Command framing:

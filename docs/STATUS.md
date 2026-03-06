@@ -53,6 +53,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added structured `stderr_class` / `stderr_evidence` timeline fields and frontend repeated-signal highlighting so recurring failure classes stand out in the current incident window.
 - Extended the same structured signal treatment to connection-issue timeline events, so pre-shell failures now badge and repeat-highlight consistently with command failures.
 - Added a compact timeline signal summary row that surfaces repeated failure classes in the current incident window without scanning each event card.
+- Made timeline signal summary pills interactive so operators can toggle the visible timeline down to a single repeated `stderr_class` and clear the filter in place.
 
 ## In Progress
 - Reducing the remaining placeholder responsibilities in `session_store` now that host inventory is registry-backed.
@@ -60,7 +61,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 ## Next Steps
 1. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
 2. Continue reducing mock `session_store` responsibilities as more runtime state becomes authoritative.
-3. Decide whether repeated signal highlighting and the summary row should stay timeline-window scoped or graduate into a broader incident-history summary once more runtime history is available.
+3. Decide whether repeated signal highlighting, summary pills, and filtering should stay timeline-window scoped or graduate into a broader incident-history summary once more runtime history is available.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
