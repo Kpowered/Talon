@@ -160,6 +160,8 @@ function App() {
   const [isSavingHostConfig, setIsSavingHostConfig] = useState(false);
   const [isDeletingHostConfig, setIsDeletingHostConfig] = useState(false);
   const [activeTimelineSignalFilter, setActiveTimelineSignalFilter] = useState<string | null>(null);
+  const [isSavedConfigExpanded, setIsSavedConfigExpanded] = useState(false);
+  const [isSessionOverrideExpanded, setIsSessionOverrideExpanded] = useState(false);
 
   async function refreshWorkspace() {
     const state = await invoke<TalonWorkspaceState>("get_workspace_state");
@@ -272,6 +274,7 @@ function App() {
   const timeline = workspace?.timeline ?? [];
   const activeAction = diagnosis?.suggestedActions.find((action: SuggestedAction) => action.status === "ready") ?? null;
   const activeSessionBusy = activeSession ? busySessionIds.includes(activeSession.id) : false;
+  const showOperationalPanels = activeSession?.state !== "disconnected";
   const repeatedSignalCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const item of timeline) {
@@ -314,6 +317,11 @@ function App() {
     if (timeline.some((item) => item.stderrClass === activeTimelineSignalFilter)) return;
     setActiveTimelineSignalFilter(null);
   }, [timeline, activeTimelineSignalFilter]);
+
+  useEffect(() => {
+    if (!activeConnectionIssue) return;
+    setIsSessionOverrideExpanded(true);
+  }, [activeConnectionIssue]);
 
   const metrics = useMemo(() => {
     if (!workspace || !diagnosis || !failure) return [];
@@ -571,268 +579,294 @@ function App() {
 
   return (
     <main className="app-shell">
-      <header className="topbar">
-        <div className="brand-block">
+      <header className="topbar compact-topbar">
+        <div className="brand-block compact-brand">
           <div className="brand-mark">T</div>
           <div>
             <p className="eyebrow">AI-native SSH troubleshooting</p>
-            <div className="title-row">
+            <div className="title-row compact">
               <h1>Talon</h1>
-              <span className="release-badge">Command Stream Skeleton</span>
-              <span className="backend-badge">Registry API live</span>
+              <span className="release-badge">SSH live</span>
+              <span className="backend-badge">session registry</span>
             </div>
-            <p className="subtitle">
-              The desktop shell now talks to a backend-managed session registry with host connection config,
-              active session tracking, recent lifecycle events, and command submission scaffolding.
-            </p>
           </div>
         </div>
 
-        <div className="topbar-actions">
-          <button className="ghost-button" onClick={() => void createHost()} disabled={isSavingHostConfig}>
+        <div className="topbar-status">
+          <span className="pill subtle">{selectedHost.config.label}</span>
+          <span className="pill subtle">{selectedHost.config.address}</span>
+          <span className={`live-dot status-${showOperationalPanels ? "healthy" : "warning"}`}>
+            {showOperationalPanels ? sessionStateLabel(activeSession.state) : "Ready to connect"}
+          </span>
+        </div>
+
+        <div className="topbar-actions compact-actions">
+          <button className="ghost-button small" onClick={() => void createHost()} disabled={isSavingHostConfig}>
             {isSavingHostConfig ? "Saving..." : "New host"}
           </button>
-          <button className="ghost-button">Incident history</button>
-          <button className="ghost-button" onClick={() => void reconnectActiveSession()} disabled={isReconnectingSession}>
+          <button className="ghost-button small" onClick={() => void reconnectActiveSession()} disabled={isReconnectingSession}>
             {isReconnectingSession ? "Reconnecting..." : "Reconnect"}
           </button>
-          <button className="ghost-button" onClick={() => void disconnectActiveSession()} disabled={isDisconnectingSession}>
+          <button className="ghost-button small" onClick={() => void disconnectActiveSession()} disabled={isDisconnectingSession}>
             {isDisconnectingSession ? "Disconnecting..." : "Disconnect"}
           </button>
-          <button className="primary-button" onClick={() => void connectSelectedHost()} disabled={isConnectingSession}>
-            {isConnectingSession ? "Connecting..." : "Connect session"}
+          <button className="primary-button small" onClick={() => void connectSelectedHost()} disabled={isConnectingSession}>
+            {isConnectingSession ? "Connecting..." : "Connect"}
           </button>
         </div>
       </header>
 
-      <section className="metrics-grid">
-        {metrics.map((metric) => (
-          <article key={metric.label} className={`metric-card tone-${metric.tone}`}>
-            <p>{metric.label}</p>
-            <h3>{metric.value}</h3>
-            <span>{metric.detail}</span>
-          </article>
-        ))}
-      </section>
+      {showOperationalPanels ? (
+        <section className="status-strip">
+          {metrics.map((metric) => (
+            <article key={metric.label} className={`status-chip tone-${metric.tone}`}>
+              <span className="status-chip-label">{metric.label}</span>
+              <strong>{metric.value}</strong>
+              <span className="status-chip-detail">{metric.detail}</span>
+            </article>
+          ))}
+        </section>
+      ) : null}
 
-      <section className="workspace-grid">
-        <aside className="panel panel-hosts">
-          <div className="panel-header">
-            <div>
-              <p className="panel-kicker">Hosts</p>
-              <h2>Fleet overview</h2>
+      <section className={`workspace-grid ${showOperationalPanels ? "connected" : "session-first"}`}>
+        {showOperationalPanels ? (
+          <aside className="panel panel-hosts compact-panel">
+            <div className="panel-header compact-panel-header">
+              <div>
+                <p className="panel-kicker">Hosts</p>
+                <h2>Inventory</h2>
+              </div>
+              <span className="pill">{hosts.length}</span>
             </div>
-            <span className="pill">{hosts.length} tracked</span>
-          </div>
 
-          <div className="search-box">
-            <span>Host</span>
-            <input value={selectedHost.config.label} readOnly aria-label="Selected host" />
-          </div>
+            <div className="search-box compact-search-box">
+              <span>Selected</span>
+              <input value={selectedHost.config.label} readOnly aria-label="Selected host" />
+            </div>
 
-          <div className="host-list">
-            {hosts.map((host: Host) => (
-              <button
-                key={host.id}
-                className={`host-card status-${host.observed.status} ${host.id === selectedHost.id ? "selected" : ""}`}
-                onClick={() => setSelectedHostId(host.id)}
-              >
-                <div className="host-row">
-                  <div>
-                    <h3>{host.config.label}</h3>
-                    <p>{host.config.address}</p>
+            <div className="host-list compact-host-list">
+              {hosts.map((host: Host) => (
+                <button
+                  key={host.id}
+                  className={`host-card compact-host-card status-${host.observed.status} ${host.id === selectedHost.id ? "selected" : ""}`}
+                  onClick={() => setSelectedHostId(host.id)}
+                >
+                  <div className="host-row">
+                    <div>
+                      <h3>{host.config.label}</h3>
+                      <p>{host.config.address}</p>
+                    </div>
+                    <span className={`status-badge status-${host.observed.status}`}>{statusLabel(host.observed.status)}</span>
                   </div>
-                  <span className={`status-badge status-${host.observed.status}`}>{statusLabel(host.observed.status)}</span>
-                </div>
-                <div className="host-details">
-                  <span>{host.config.region}</span>
-                  <span>{host.observed.latencyMs}ms</span>
-                  <span>CPU {host.observed.cpuPercent}%</span>
-                  <span>RAM {host.observed.memoryPercent}%</span>
-                </div>
-                <div className="host-meta">Last seen {formatTime(host.observed.lastSeenAt)}</div>
-              </button>
-            ))}
-          </div>
-
-          <div className="section-block">
-            <div className="section-title-row">
-              <div>
-                <p className="panel-kicker">Saved host config</p>
-                <h2>Persistent defaults</h2>
-              </div>
-              <span className="pill subtle">{selectedHostConfig?.authMethod ?? "unmapped"}</span>
-            </div>
-            <div className="session-facts">
-              <span>{selectedHostConfig?.username ?? "unknown"}</span>
-              <span>port {selectedHostConfig?.port ?? 0}</span>
-              <span>{selectedHostConfig?.fingerprintHint ?? "no fingerprint"}</span>
-            </div>
-            <p className="section-note">
-              These values are saved locally for this host and become the default connection baseline.
-            </p>
-            <div className="connection-form">
-              <label className="connection-field">
-                <span>Label</span>
-                <input value={hostLabelInput} onChange={(event) => setHostLabelInput(event.target.value)} />
-              </label>
-              <label className="connection-field">
-                <span>Saved address</span>
-                <input value={hostAddressInput} onChange={(event) => setHostAddressInput(event.target.value)} />
-              </label>
-              <div className="connection-grid">
-                <label className="connection-field">
-                  <span>Region</span>
-                  <input value={hostRegionInput} onChange={(event) => setHostRegionInput(event.target.value)} />
-                </label>
-                <label className="connection-field">
-                  <span>Tags</span>
-                  <input
-                    value={hostTagsInput}
-                    onChange={(event) => setHostTagsInput(event.target.value)}
-                    placeholder="production, api"
-                  />
-                </label>
-              </div>
-              <div className="connection-grid">
-                <label className="connection-field">
-                  <span>Saved port</span>
-                  <input value={hostPortInput} onChange={(event) => setHostPortInput(event.target.value)} inputMode="numeric" />
-                </label>
-                <label className="connection-field">
-                  <span>Saved user</span>
-                  <input value={hostUsernameInput} onChange={(event) => setHostUsernameInput(event.target.value)} />
-                </label>
-              </div>
-              <label className="connection-field">
-                <span>Saved auth</span>
-                <select value={hostAuthMethodInput} onChange={(event) => setHostAuthMethodInput(event.target.value as ConnectionAuthMethod)}>
-                  <option value="agent">agent</option>
-                  <option value="private-key">private-key</option>
-                  <option value="password">password</option>
-                </select>
-              </label>
-              <label className="connection-field">
-                <span>Fingerprint trust</span>
-                <input
-                  value={hostFingerprintHintInput}
-                  onChange={(event) => setHostFingerprintHintInput(event.target.value)}
-                  placeholder="SHA256:... or Pending trust"
-                />
-              </label>
-              <div className="host-config-actions">
-                <button className="ghost-button small" onClick={() => void updateSelectedHost()} disabled={isSavingHostConfig}>
-                  {isSavingHostConfig ? "Saving..." : "Save host"}
+                  <div className="host-details">
+                    <span>{host.config.region}</span>
+                    <span>{host.observed.latencyMs}ms</span>
+                    <span>last {formatTime(host.observed.lastSeenAt)}</span>
+                  </div>
                 </button>
-                <button className="ghost-button small destructive" onClick={() => void deleteSelectedHost()} disabled={isDeletingHostConfig}>
-                  {isDeletingHostConfig ? "Deleting..." : "Delete host"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="section-block">
-            <div className="section-title-row">
-              <div>
-                <p className="panel-kicker">Session connect override</p>
-                <h2>Next connection only</h2>
-              </div>
-              <span className="pill subtle">Not saved</span>
-            </div>
-            <div className="override-banner">
-              <strong>Saved host config stays unchanged.</strong>
-              <p>Edit these fields only when the next connect or reconnect should differ from the saved host defaults.</p>
-            </div>
-            <div className="connection-form">
-              <label className="connection-field">
-                <span>Address</span>
-                <input value={connectionAddress} onChange={(event) => setConnectionAddress(event.target.value)} />
-              </label>
-              <div className="connection-grid">
-                <label className="connection-field">
-                  <span>Port</span>
-                  <input value={connectionPort} onChange={(event) => setConnectionPort(event.target.value)} inputMode="numeric" />
-                </label>
-                <label className="connection-field">
-                  <span>User</span>
-                  <input value={connectionUsername} onChange={(event) => setConnectionUsername(event.target.value)} />
-                </label>
-              </div>
-              <label className="connection-field">
-                <span>Auth</span>
-                <select value={connectionAuthMethod} onChange={(event) => setConnectionAuthMethod(event.target.value as ConnectionAuthMethod)}>
-                  <option value="agent">agent</option>
-                  <option value="private-key">private-key</option>
-                  <option value="password">password</option>
-                </select>
-              </label>
-              {connectionAuthMethod === "password" ? (
-                <label className="connection-field">
-                  <span>Password</span>
-                  <input
-                    type="password"
-                    value={connectionPassword}
-                    onChange={(event) => setConnectionPassword(event.target.value)}
-                    placeholder="Operator-provided password"
-                  />
-                </label>
-              ) : null}
-              <div className="host-config-actions">
-                <button className="ghost-button small" onClick={resetConnectionOverride}>
-                  Use saved host defaults
-                </button>
-              </div>
-            </div>
-            <p className="section-note">
-              These values apply only to the next connect or reconnect action. The password is never persisted.
-            </p>
-            {activeConnectionIssue ? (
-              <div className={`connection-issue issue-${activeConnectionIssue.kind}`}>
-                <strong>{activeConnectionIssue.title}</strong>
-                <p>{activeConnectionIssue.summary}</p>
-                <span>{activeConnectionIssue.operatorAction}</span>
-                <code>{activeConnectionIssue.suggestedCommand}</code>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="section-block">
-            <div className="section-title-row">
-              <div>
-                <p className="panel-kicker">Session</p>
-                <h2>Active shell</h2>
-              </div>
-              <span className="pill subtle">{sessionStateLabel(activeSession.state)}</span>
-            </div>
-            <div className="session-facts">
-              <span>{activeSession.shell}</span>
-              <span>{activeSession.cwd}</span>
-              <span>{activeSession.autoCaptureEnabled ? "Auto-capture on" : "Auto-capture off"}</span>
-            </div>
-          </div>
-
-          <div className="section-block">
-            <div className="section-title-row">
-              <div>
-                <p className="panel-kicker">Lifecycle</p>
-                <h2>Recent events</h2>
-              </div>
-              <span className="pill subtle">{sessionEvents.length} events</span>
-            </div>
-            <div className="event-list">
-              {sessionEvents.length === 0 ? <p className="empty-copy">No managed session opened yet.</p> : null}
-              {sessionEvents.map((event) => (
-                <article key={event.id} className="event-card">
-                  <strong>{event.eventType}</strong>
-                  <p>{event.detail}</p>
-                  <span>{formatTime(event.occurredAt)}</span>
-                </article>
               ))}
             </div>
-          </div>
-        </aside>
 
-        <section className="panel panel-terminal">
+            <div className="section-block compact-summary-block">
+              <div className="section-title-row compact-section-title">
+                <div>
+                  <p className="panel-kicker">Selected host</p>
+                  <h2>{selectedHost.config.label}</h2>
+                </div>
+                <span className={`status-badge status-${selectedHost.observed.status}`}>{statusLabel(selectedHost.observed.status)}</span>
+              </div>
+              <div className="session-facts compact-facts">
+                <span>{selectedHost.config.address}</span>
+                <span>{selectedHostConfig?.username ?? "unknown"}</span>
+                <span>port {selectedHostConfig?.port ?? 22}</span>
+                <span>{selectedHostConfig?.authMethod ?? "agent"}</span>
+              </div>
+            </div>
+
+            <div className="section-block collapsible-block">
+              <button className="section-toggle" onClick={() => setIsSavedConfigExpanded((current) => !current)}>
+                <div>
+                  <p className="panel-kicker">Saved host config</p>
+                  <h2>Persistent defaults</h2>
+                </div>
+                <span className="pill subtle">{isSavedConfigExpanded ? "Hide" : "Edit"}</span>
+              </button>
+              <div className="session-facts compact-facts">
+                <span>{selectedHostConfig?.username ?? "unknown"}</span>
+                <span>port {selectedHostConfig?.port ?? 0}</span>
+                <span>{selectedHostConfig?.fingerprintHint ?? "no fingerprint"}</span>
+              </div>
+              {isSavedConfigExpanded ? (
+                <>
+                  <p className="section-note">These values are saved locally for this host and become the default connection baseline.</p>
+                  <div className="connection-form compact-form">
+                    <label className="connection-field">
+                      <span>Label</span>
+                      <input value={hostLabelInput} onChange={(event) => setHostLabelInput(event.target.value)} />
+                    </label>
+                    <label className="connection-field">
+                      <span>Saved address</span>
+                      <input value={hostAddressInput} onChange={(event) => setHostAddressInput(event.target.value)} />
+                    </label>
+                    <div className="connection-grid">
+                      <label className="connection-field">
+                        <span>Region</span>
+                        <input value={hostRegionInput} onChange={(event) => setHostRegionInput(event.target.value)} />
+                      </label>
+                      <label className="connection-field">
+                        <span>Tags</span>
+                        <input value={hostTagsInput} onChange={(event) => setHostTagsInput(event.target.value)} placeholder="production, api" />
+                      </label>
+                    </div>
+                    <div className="connection-grid">
+                      <label className="connection-field">
+                        <span>Saved port</span>
+                        <input value={hostPortInput} onChange={(event) => setHostPortInput(event.target.value)} inputMode="numeric" />
+                      </label>
+                      <label className="connection-field">
+                        <span>Saved user</span>
+                        <input value={hostUsernameInput} onChange={(event) => setHostUsernameInput(event.target.value)} />
+                      </label>
+                    </div>
+                    <label className="connection-field">
+                      <span>Saved auth</span>
+                      <select value={hostAuthMethodInput} onChange={(event) => setHostAuthMethodInput(event.target.value as ConnectionAuthMethod)}>
+                        <option value="agent">agent</option>
+                        <option value="private-key">private-key</option>
+                        <option value="password">password</option>
+                      </select>
+                    </label>
+                    <label className="connection-field">
+                      <span>Fingerprint trust</span>
+                      <input
+                        value={hostFingerprintHintInput}
+                        onChange={(event) => setHostFingerprintHintInput(event.target.value)}
+                        placeholder="SHA256:... or Pending trust"
+                      />
+                    </label>
+                    <div className="host-config-actions">
+                      <button className="ghost-button small" onClick={() => void updateSelectedHost()} disabled={isSavingHostConfig}>
+                        {isSavingHostConfig ? "Saving..." : "Save host"}
+                      </button>
+                      <button className="ghost-button small destructive" onClick={() => void deleteSelectedHost()} disabled={isDeletingHostConfig}>
+                        {isDeletingHostConfig ? "Deleting..." : "Delete host"}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            <div className="section-block collapsible-block">
+              <button className="section-toggle" onClick={() => setIsSessionOverrideExpanded((current) => !current)}>
+                <div>
+                  <p className="panel-kicker">Session override</p>
+                  <h2>Next connect only</h2>
+                </div>
+                <span className="pill subtle">{isSessionOverrideExpanded ? "Hide" : "Edit"}</span>
+              </button>
+              <div className="session-facts compact-facts">
+                <span>{connectionUsername || "user"}</span>
+                <span>port {connectionPort || "22"}</span>
+                <span>{connectionAuthMethod}</span>
+              </div>
+              {isSessionOverrideExpanded ? (
+                <>
+                  <div className="override-banner compact-override-banner">
+                    <strong>Saved host config stays unchanged.</strong>
+                    <p>Use these fields only when the next connect or reconnect should differ from the saved defaults.</p>
+                  </div>
+                  <div className="connection-form compact-form">
+                    <label className="connection-field">
+                      <span>Address</span>
+                      <input value={connectionAddress} onChange={(event) => setConnectionAddress(event.target.value)} />
+                    </label>
+                    <div className="connection-grid">
+                      <label className="connection-field">
+                        <span>Port</span>
+                        <input value={connectionPort} onChange={(event) => setConnectionPort(event.target.value)} inputMode="numeric" />
+                      </label>
+                      <label className="connection-field">
+                        <span>User</span>
+                        <input value={connectionUsername} onChange={(event) => setConnectionUsername(event.target.value)} />
+                      </label>
+                    </div>
+                    <label className="connection-field">
+                      <span>Auth</span>
+                      <select value={connectionAuthMethod} onChange={(event) => setConnectionAuthMethod(event.target.value as ConnectionAuthMethod)}>
+                        <option value="agent">agent</option>
+                        <option value="private-key">private-key</option>
+                        <option value="password">password</option>
+                      </select>
+                    </label>
+                    {connectionAuthMethod === "password" ? (
+                      <label className="connection-field">
+                        <span>Password</span>
+                        <input
+                          type="password"
+                          value={connectionPassword}
+                          onChange={(event) => setConnectionPassword(event.target.value)}
+                          placeholder="Enter password for the next connect"
+                        />
+                      </label>
+                    ) : null}
+                    <div className="host-config-actions">
+                      <button className="ghost-button small" onClick={resetConnectionOverride}>
+                        Use saved host defaults
+                      </button>
+                    </div>
+                  </div>
+                  <p className="section-note">These values apply only to the next connect or reconnect action. The password is never persisted.</p>
+                </>
+              ) : null}
+              {activeConnectionIssue ? (
+                <div className={`connection-issue issue-${activeConnectionIssue.kind}`}>
+                  <strong>{activeConnectionIssue.title}</strong>
+                  <p>{activeConnectionIssue.summary}</p>
+                  <span>{activeConnectionIssue.operatorAction}</span>
+                  <code>{activeConnectionIssue.suggestedCommand}</code>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="section-block compact-section-block">
+              <div className="section-title-row compact-section-title">
+                <div>
+                  <p className="panel-kicker">Session</p>
+                  <h2>Active shell</h2>
+                </div>
+                <span className="pill subtle">{sessionStateLabel(activeSession.state)}</span>
+              </div>
+              <div className="session-facts compact-facts">
+                <span>{activeSession.shell}</span>
+                <span>{activeSession.cwd}</span>
+                <span>{activeSession.autoCaptureEnabled ? "Auto-capture on" : "Auto-capture off"}</span>
+              </div>
+            </div>
+
+            <div className="section-block compact-section-block">
+              <div className="section-title-row compact-section-title">
+                <div>
+                  <p className="panel-kicker">Lifecycle</p>
+                  <h2>Recent events</h2>
+                </div>
+                <span className="pill subtle">{sessionEvents.length}</span>
+              </div>
+              <div className="event-list compact-event-list">
+                {sessionEvents.length === 0 ? <p className="empty-copy">No managed session opened yet.</p> : null}
+                {sessionEvents.map((event) => (
+                  <article key={event.id} className="event-card compact-event-card">
+                    <strong>{event.eventType}</strong>
+                    <p>{event.detail}</p>
+                    <span>{formatTime(event.occurredAt)}</span>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </aside>
+        ) : null}
+
+        <section className="panel panel-terminal compact-panel">
           <div className="panel-header">
             <div>
               <p className="panel-kicker">Live terminal</p>
@@ -841,9 +875,9 @@ function App() {
                 <span className={`live-dot status-${failure.severity}`}>{statusLabel(failure.severity)}</span>
               </div>
             </div>
-            <div className="terminal-tabs">
+            <div className="terminal-tabs compact-tabs">
               <button className={`tab ${activeTab === "shell" ? "active" : ""}`} onClick={() => setActiveTab("shell")}>
-                Incident shell
+                Shell
               </button>
               <button className={`tab ${activeTab === "timeline" ? "active" : ""}`} onClick={() => setActiveTab("timeline")}>
                 Timeline
@@ -854,15 +888,28 @@ function App() {
             </div>
           </div>
 
-          <div className="terminal-toolbar">
+          {!showOperationalPanels || activeConnectionIssue ? (
+            <div className="connection-banner">
+              <strong>{activeConnectionIssue ? activeConnectionIssue.title : "Terminal-first workspace"}</strong>
+              <p>
+                {activeConnectionIssue
+                  ? activeConnectionIssue.summary
+                  : "Select or create a host, adjust next-connect overrides only if needed, then connect to open the full operations layout."}
+              </p>
+            </div>
+          ) : null}
+
+          <div className="terminal-toolbar compact-terminal-toolbar">
             <span className="window-dots">
               <i />
               <i />
               <i />
             </span>
             <span className="terminal-path">
-              {activeSession.cwd} | {selectedHost.config.address} | session #{activeSession.id}
+              {activeSession.cwd}
             </span>
+            <span className="terminal-meta-chip">{selectedHost.config.address}</span>
+            <span className="terminal-meta-chip">session #{activeSession.id}</span>
             <span className="terminal-mode">
               {activeSessionBusy
                 ? "Command in flight"
@@ -872,7 +919,7 @@ function App() {
             </span>
           </div>
 
-          <div className="terminal-window">
+          <div className="terminal-window compact-terminal-window">
             {terminalContent.map((line: string, index: number) => (
               <div
                 key={`${line}-${index}`}
@@ -885,7 +932,7 @@ function App() {
             {isSubmittingCommand ? <div className="terminal-line prompt">...submitting command to managed session</div> : null}
           </div>
 
-          <div className="command-composer command-composer-stack">
+          <div className="command-composer compact-composer">
             <input
               className="composer-field"
               value={composerValue}
@@ -894,14 +941,14 @@ function App() {
             />
             <div className="composer-actions">
               <button className="ghost-button small" onClick={() => activeAction && setComposerValue(activeAction.command)}>
-                Use suggested command
+                Use suggested
               </button>
               <button
                 className="primary-button small"
                 onClick={() => void submitCommand(composerValue)}
                 disabled={isSubmittingCommand || activeSessionBusy || !composerValue.trim()}
               >
-                {isSubmittingCommand ? "Sending..." : activeSessionBusy ? "Busy..." : "Send command"}
+                {isSubmittingCommand ? "Sending..." : activeSessionBusy ? "Busy..." : "Send"}
               </button>
             </div>
           </div>
@@ -937,7 +984,7 @@ function App() {
             </div>
           ) : null}
 
-          <div className="timeline">
+          <div className="timeline compact-timeline">
             {visibleTimeline.map((item: TimelineEvent) => (
               <article
                 key={item.id}
@@ -966,16 +1013,17 @@ function App() {
           </div>
         </section>
 
-        <aside className="panel panel-ai">
-          <div className="panel-header">
-            <div>
-              <p className="panel-kicker">AI diagnosis</p>
+        {showOperationalPanels ? (
+          <aside className="panel panel-ai compact-panel">
+            <div className="panel-header compact-panel-header">
+              <div>
+                <p className="panel-kicker">Diagnosis</p>
               <h2>Incident copilot</h2>
             </div>
-            <span className="pill subtle">{diagnosis.confidence}% confidence</span>
+            <span className="pill subtle">{diagnosis.confidence}%</span>
           </div>
 
-          <article className="incident-hero">
+          <article className="incident-hero compact-hero">
             <div>
               <p className="incident-label">Primary finding</p>
               <h3>{actionSummary ?? diagnosis.summary}</h3>
@@ -986,7 +1034,7 @@ function App() {
             </div>
           </article>
 
-          <div className="insight-grid">
+          <div className="insight-grid compact-insight-grid">
             <article className="insight-card">
               <span>Active host</span>
               <strong>{selectedHost.config.label}</strong>
@@ -1012,7 +1060,7 @@ function App() {
             </article>
           ) : null}
 
-          <div className="diagnosis-feed">
+          <div className="diagnosis-feed compact-diagnosis-feed">
             {diagnosis.messages.map((message: DiagnosisMessage) => (
               <article key={message.id} className={`diagnosis-card tone-${message.tone}`}>
                 <div className="diagnosis-meta">
@@ -1024,7 +1072,7 @@ function App() {
             ))}
           </div>
 
-          <div className="action-box">
+          <div className="action-box compact-action-box">
             <p className="action-label">Suggested actions</p>
             {diagnosis.suggestedActions.map((action: SuggestedAction) => (
               <button
@@ -1039,10 +1087,10 @@ function App() {
             ))}
           </div>
         </aside>
+        ) : null}
       </section>
     </main>
   );
 }
 
 export default App;
-

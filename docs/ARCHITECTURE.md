@@ -124,6 +124,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the desktop timeline now renders a compact summary row above the event list for repeated signal classes within the current incident window
   - those summary pills now act as a frontend-only filter over the current timeline window, allowing operators to isolate a single repeated signal class without changing backend state
   - the selected timeline signal filter is intentionally sticky across polling refreshes and auto-clears only when that signal no longer exists in the current timeline window; the active pill remains rendered even if its count drops below the repeated threshold
+  - the desktop shell now has two primary presentation states: disconnected sessions render a terminal-first layout without the host rail, while connected sessions expand compact host inventory, status strip, and diagnosis panels around the same terminal surface
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
 - Command framing:
@@ -194,4 +195,3 @@ This is intentionally a transport-first implementation. Command framing, exit de
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
-
