@@ -2,141 +2,33 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type {
   DiagnosisContextPacket,
-  DiagnosisMessage,
-  HealthStatus,
   Host,
   RunbookActionResult,
   Session,
   SuggestedAction,
   TalonWorkspaceState,
   TerminalSnapshot,
-  TimelineEvent,
 } from "@talon/core";
+import type {
+  AgentSettings,
+  AgentSettingsResponse,
+  ConnectSessionResponse,
+  ConnectionAuthMethod,
+  ContextPacketResponse,
+  DisconnectSessionResponse,
+  HostConfigMutationResponse,
+  HostConnectionConfig,
+  HostMutationResponse,
+  SessionConnectionIssue,
+  SessionRegistryResponse,
+  TerminalTab,
+  SubmitCommandResponse,
+} from "./types/app";
+import { formatTime, statusLabel } from "./lib/formatters";
+import { TimelineView } from "./components/views/TimelineView";
+import { DiagnosisView } from "./components/views/DiagnosisView";
+import { ArtifactsView } from "./components/views/ArtifactsView";
 import "./App.css";
-
-type TerminalTab = "shell" | "timeline" | "diagnosis" | "artifacts";
-
-type SessionLifecycleEvent = {
-  id: string;
-  sessionId: string;
-  eventType: string;
-  detail: string;
-  occurredAt: string;
-};
-
-type HostConnectionConfig = {
-  hostId: string;
-  port: number;
-  username: string;
-  authMethod: string;
-  fingerprintHint: string;
-  privateKeyPath?: string | null;
-  hasSavedPassword?: boolean;
-};
-
-type ConnectionAuthMethod = "agent" | "private-key" | "password";
-
-type ConnectSessionResponse = {
-  session: {
-    sessionId: string;
-    hostId: string;
-    state: string;
-    shell: string;
-    cwd: string;
-    autoCaptureEnabled: boolean;
-  };
-  events: SessionLifecycleEvent[];
-};
-
-type SessionRegistryResponse = {
-  hostConfigs: HostConnectionConfig[];
-  activeSessionId: string;
-  busySessionIds: string[];
-  activeConnectionIssue: SessionConnectionIssue | null;
-};
-
-type SubmitCommandResponse = {
-  terminal: TerminalSnapshot;
-  events: SessionLifecycleEvent[];
-  accepted: boolean;
-  message: string;
-};
-
-type DisconnectSessionResponse = {
-  terminal: TerminalSnapshot;
-  events: SessionLifecycleEvent[];
-};
-
-type HostConfigMutationResponse = {
-  hostConfigs: HostConnectionConfig[];
-};
-
-type HostMutationResponse = {
-  hosts: Host[];
-};
-
-type AgentSettings = {
-  providerType: string;
-  baseUrl: string;
-  model: string;
-  autoDiagnose: boolean;
-  requestTimeoutSec: number;
-  hasApiKey: boolean;
-};
-
-type AgentSettingsResponse = {
-  settings: AgentSettings;
-};
-
-type ContextPacketResponse = {
-  packet: DiagnosisContextPacket | null;
-};
-
-type SessionConnectionIssue = {
-  sessionId: string;
-  kind: string;
-  title: string;
-  summary: string;
-  operatorAction: string;
-  suggestedCommand: string;
-  observedAt: string;
-  fingerprint?: string | null;
-  expectedFingerprintHint?: string | null;
-  host?: string | null;
-  port?: number | null;
-  canTrustInApp?: boolean;
-  inAppActionKind?: string | null;
-  inAppActionLabel?: string | null;
-};
-
-function statusLabel(status: HealthStatus) {
-  if (status === "critical") return "Critical";
-  if (status === "warning") return "Warning";
-  return "Healthy";
-}
-
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat("en", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).format(new Date(value));
-}
-
-
-function sourceLabel(message: DiagnosisMessage["source"]) {
-  return message === "agent" ? "Talon AI" : "System";
-}
-
-
-function stderrClassLabel(value?: string | null) {
-  if (!value) return "No classifier";
-  return value
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 function App() {
   const [workspace, setWorkspace] = useState<TalonWorkspaceState | null>(null);
@@ -1038,155 +930,32 @@ function App() {
           ) : null}
 
           {activeTab === "timeline" ? (
-            <div className="workspace-stack">
-              <div className="timeline-header compact-panel-header">
-                <div>
-                  <p className="panel-kicker">Failure context</p>
-                  <h2>{failure.summary}</h2>
-                </div>
-                <span className="pill subtle">{formatTime(failure.capturedAt)}</span>
-              </div>
-
-              {timelineSignalSummary.length > 0 ? (
-                <div className="timeline-signal-summary">
-                  {timelineSignalSummary.map(([signal, count]) => (
-                    <button
-                      key={signal}
-                      className={`timeline-summary-pill ${activeTimelineSignalFilter === signal ? "active" : ""}`}
-                      onClick={() => setActiveTimelineSignalFilter((current) => (current === signal ? null : signal))}
-                    >
-                      {stderrClassLabel(signal)} x{count}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-
-              {activeTimelineSignalFilter ? (
-                <div className="timeline-filter-state">
-                  Showing only {stderrClassLabel(activeTimelineSignalFilter)} signals.
-                  <button className="ghost-button small" onClick={() => setActiveTimelineSignalFilter(null)}>
-                    Clear filter
-                  </button>
-                </div>
-              ) : null}
-
-              <div className="timeline compact-timeline">
-                {visibleTimeline.map((item: TimelineEvent) => (
-                  <article
-                    key={item.id}
-                    className={`timeline-item ${
-                      item.stderrClass && (repeatedSignalCounts.get(item.stderrClass) ?? 0) >= 2 ? "repeated-signal" : ""
-                    }`}
-                  >
-                    <div className="timeline-time">{formatTime(item.occurredAt)}</div>
-                    <div className="timeline-content">
-                      <div className="timeline-command-row">
-                        <div className="timeline-command">{item.title}</div>
-                        {item.stderrClass ? (
-                          <span className="timeline-signal-badge">
-                            {stderrClassLabel(item.stderrClass)}
-                            {(repeatedSignalCounts.get(item.stderrClass) ?? 0) >= 2 ? " x2+" : ""}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p>{item.detail}</p>
-                    </div>
-                    <div className={`exit-code ${item.exitCode === 0 ? "ok" : "fail"}`}>
-                      {item.exitCode == null ? item.kind : `exit ${item.exitCode}`}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
+            <TimelineView
+              failure={failure}
+              timelineSignalSummary={timelineSignalSummary}
+              activeTimelineSignalFilter={activeTimelineSignalFilter}
+              onToggleSignalFilter={(signal) => setActiveTimelineSignalFilter((current) => (current === signal ? null : signal))}
+              onClearSignalFilter={() => setActiveTimelineSignalFilter(null)}
+              visibleTimeline={visibleTimeline}
+              repeatedSignalCounts={repeatedSignalCounts}
+            />
           ) : null}
 
           {activeTab === "diagnosis" ? (
-            <div className="workspace-stack diagnosis-view">
-              <article className="incident-hero compact-hero">
-                <div>
-                  <p className="incident-label">Primary finding</p>
-                  <h3>{actionSummary ?? diagnosis.summary}</h3>
-                </div>
-                <div className="hero-badges">
-                  {failure.stderrClass ? <span className="confidence-badge signal-badge">{stderrClassLabel(failure.stderrClass)}</span> : null}
-                  <span className="confidence-badge">{diagnosis.confidence}%</span>
-                  <span className="confidence-badge">{diagnosis.provider}</span>
-                </div>
-              </article>
-
-              <div className="insight-grid compact-insight-grid compact-insight-grid-two">
-                <article className="insight-card">
-                  <span>Provider</span>
-                  <strong>{diagnosis.provider}</strong>
-                  <p>{diagnosis.errorMessage ?? (agentSettings?.hasApiKey ? "Using configured model access" : "Using local rule fallback")}</p>
-                </article>
-                <article className="insight-card">
-                  <span>Host</span>
-                  <strong>{selectedHost.config.label}</strong>
-                  <p>{selectedHost.config.address}</p>
-                </article>
-                <article className="insight-card">
-                  <span>Signal</span>
-                  <strong>{stderrClassLabel(failure.stderrClass)}</strong>
-                  <p>{failure.stderrEvidence ?? "Using exit and stderr heuristics"}</p>
-                </article>
-              </div>
-
-              <div className="diagnosis-feed compact-diagnosis-feed">
-                {diagnosis.messages.map((message: DiagnosisMessage) => (
-                  <article key={message.id} className={`diagnosis-card tone-${message.tone}`}>
-                    <div className="diagnosis-meta">
-                      <span>{sourceLabel(message.source)}</span>
-                      <strong>{message.title}</strong>
-                    </div>
-                    <p>{message.body}</p>
-                  </article>
-                ))}
-              </div>
-
-              <div className="action-box compact-action-box">
-                <button className="ghost-button small" onClick={() => void rerunDiagnosis()}>
-                  Regenerate diagnosis
-                </button>
-                <p className="action-label">Suggested actions</p>
-                {diagnosis.suggestedActions.map((action: SuggestedAction) => (
-                  <button
-                    key={action.id}
-                    className="ghost-button full action-button"
-                    onClick={() => void runAction(action)}
-                    disabled={isRunningAction !== null}
-                  >
-                    <span>{action.label}</span>
-                    <span>{action.safetyLevel}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <DiagnosisView
+              actionSummary={actionSummary}
+              diagnosis={diagnosis}
+              failure={failure}
+              agentSettings={agentSettings}
+              selectedHost={selectedHost}
+              isRunningAction={isRunningAction}
+              onRerunDiagnosis={() => void rerunDiagnosis()}
+              onRunAction={(action) => void runAction(action)}
+            />
           ) : null}
 
           {activeTab === "artifacts" ? (
-            <div className="workspace-stack artifacts-view">
-              <div className="timeline-header compact-panel-header">
-                <div>
-                  <p className="panel-kicker">Artifacts</p>
-                  <h2>Captured context</h2>
-                </div>
-                <span className="pill subtle">{failure.relatedArtifacts.length}</span>
-              </div>
-              <div className="artifact-list">
-                {latestContextPacket ? (
-                  <article className="artifact-card">
-                    <pre>{JSON.stringify(latestContextPacket, null, 2)}</pre>
-                  </article>
-                ) : null}
-                {failure.relatedArtifacts.length === 0 ? <p className="empty-copy">No related artifacts captured for this failure.</p> : null}
-                {failure.relatedArtifacts.map((artifact, index) => (
-                  <article key={`${artifact}${index}`} className="artifact-card">
-                    {artifact}
-                  </article>
-                ))}
-              </div>
-            </div>
+            <ArtifactsView failure={failure} latestContextPacket={latestContextPacket} />
           ) : null}
         </section>
       </section>
@@ -1195,3 +964,4 @@ function App() {
 }
 
 export default App;
+
