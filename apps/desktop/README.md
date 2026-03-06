@@ -1,9 +1,7 @@
-# Talon Desktop
+# Tauri + React + Typescript
 
-Desktop shell for Talon.
+This template should help get you started developing with Tauri, React and Typescript in Vite.
 
-Initial UI targets:
-- left sidebar: hosts
-- center: terminal
-- right sidebar: AI diagnosis panel
-- top-level action: analyze failed command
+## Recommended IDE Setup
+
+- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
