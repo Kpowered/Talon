@@ -663,7 +663,7 @@ fn complete_active_command(registry: &mut SessionRegistry, session_id: &str, com
         format!("{} exited with code {} in {}", command.command, exit_code, cwd),
     );
 
-    let observed_status = host_health_from_recent_commands(registry, session_id);
+    let observed_status = command_health_status(registry, session_id, &command.stderr_tail);
     update_host_observed_for_session(registry, session_id, Some(observed_status), true);
 
     if exit_code != 0 {
@@ -741,6 +741,37 @@ fn capture_connect_latency_ms(registry: &SessionRegistry, session_id: &str) -> O
         .map(|runtime| runtime.started_at.elapsed().as_millis().min(u128::from(u32::MAX)) as u32)
 }
 
+fn classify_command_stderr_severity(stderr_tail: &[String]) -> Option<&'static str> {
+    for line in stderr_tail.iter().rev() {
+        let normalized = line.to_ascii_lowercase();
+
+        if normalized.contains("connection refused")
+            || normalized.contains("connection reset")
+            || normalized.contains("no route to host")
+            || normalized.contains("network is unreachable")
+            || normalized.contains("no space left on device")
+            || normalized.contains("disk quota exceeded")
+            || normalized.contains("read-only file system")
+            || normalized.contains("out of memory")
+            || normalized.contains("cannot allocate memory")
+            || normalized.contains(" killed")
+            || normalized.starts_with("killed")
+            || normalized.contains("oom")
+        {
+            return Some("critical");
+        }
+
+        if normalized.contains("permission denied")
+            || normalized.contains("access denied")
+            || normalized.contains("operation not permitted")
+        {
+            return Some("warning");
+        }
+    }
+
+    None
+}
+
 fn host_health_from_recent_commands(registry: &SessionRegistry, session_id: &str) -> &'static str {
     let mut consecutive_failures = 0;
 
@@ -759,6 +790,10 @@ fn host_health_from_recent_commands(registry: &SessionRegistry, session_id: &str
     } else {
         "healthy"
     }
+}
+
+fn command_health_status(registry: &SessionRegistry, session_id: &str, stderr_tail: &[String]) -> &'static str {
+    classify_command_stderr_severity(stderr_tail).unwrap_or_else(|| host_health_from_recent_commands(registry, session_id))
 }
 
 fn update_session_metadata(registry: &mut SessionRegistry, session_id: &str, shell: Option<&str>, cwd: Option<&str>) {
@@ -1373,4 +1408,87 @@ pub fn workspace_state() -> TalonWorkspaceState {
     }
 
     state
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{classify_command_stderr_severity, command_health_status, CommandHistoryEntry, SessionRegistry};
+    use std::collections::HashMap;
+
+    fn registry_with_history(entries: Vec<CommandHistoryEntry>) -> SessionRegistry {
+        SessionRegistry {
+            hosts: Vec::new(),
+            host_configs: Vec::new(),
+            managed_sessions: Vec::new(),
+            active_session_id: String::new(),
+            recent_events: Vec::new(),
+            terminal_buffers: HashMap::new(),
+            stream_state: HashMap::new(),
+            connection_issues: HashMap::new(),
+            latest_failures: HashMap::new(),
+            active_commands: HashMap::new(),
+            command_history: entries,
+            runtimes: HashMap::new(),
+            event_counter: 0,
+            command_counter: 0,
+        }
+    }
+
+    fn history_entry(session_id: &str, exit_code: i32) -> CommandHistoryEntry {
+        CommandHistoryEntry {
+            id: format!("cmd-{}-{}", session_id, exit_code),
+            session_id: session_id.into(),
+            command: "test".into(),
+            started_at: "2026-03-07T00:00:00Z".into(),
+            completed_at: "2026-03-07T00:00:01Z".into(),
+            exit_code,
+            stdout_tail: Vec::new(),
+            stderr_tail: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn classifies_high_signal_stderr_patterns() {
+        assert_eq!(
+            classify_command_stderr_severity(&["cp: permission denied".into()]),
+            Some("warning")
+        );
+        assert_eq!(
+            classify_command_stderr_severity(&["write failed: No space left on device".into()]),
+            Some("critical")
+        );
+        assert_eq!(
+            classify_command_stderr_severity(&["dial tcp: connection refused".into()]),
+            Some("critical")
+        );
+    }
+
+    #[test]
+    fn uses_stderr_severity_before_consecutive_failure_rule() {
+        let registry = registry_with_history(vec![history_entry("session-1", 1)]);
+        assert_eq!(
+            command_health_status(&registry, "session-1", &["operation not permitted".into()]),
+            "warning"
+        );
+        assert_eq!(
+            command_health_status(&registry, "session-1", &["out of memory".into()]),
+            "critical"
+        );
+    }
+
+    #[test]
+    fn falls_back_to_consecutive_failure_rule_when_stderr_has_no_match() {
+        let warning_registry = registry_with_history(vec![history_entry("session-1", 1), history_entry("session-1", 1)]);
+        assert_eq!(command_health_status(&warning_registry, "session-1", &[]), "warning");
+
+        let critical_registry = registry_with_history(vec![
+            history_entry("session-1", 1),
+            history_entry("session-1", 2),
+            history_entry("session-1", 127),
+        ]);
+        assert_eq!(command_health_status(&critical_registry, "session-1", &["plain failure".into()]), "critical");
+
+        let healthy_registry = registry_with_history(vec![history_entry("session-1", 0), history_entry("session-1", 1)]);
+        assert_eq!(command_health_status(&healthy_registry, "session-1", &[]), "healthy");
+    }
 }

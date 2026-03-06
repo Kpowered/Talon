@@ -44,6 +44,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Wired real session lifecycle events into `host.observed.status` and `host.observed.lastSeenAt`, so connect, disconnect, and connection-path failures now update host health telemetry.
 - Added a lightweight real `host.observed.latencyMs` measurement based on SSH connect-to-shell-ready elapsed time.
 - Added a command-outcome health rule so successful commands restore `host.observed.status` to `healthy`, while recent consecutive non-zero exits now escalate host health from `warning` to `critical`.
+- Added high-signal command `stderr` classification so host health now escalates immediately for disk, memory, and network-path failures instead of relying only on exit codes.
 
 ## In Progress
 - Reducing the remaining placeholder responsibilities in `session_store` now that host inventory is registry-backed.
@@ -51,7 +52,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 ## Next Steps
 1. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
 2. Continue reducing mock `session_store` responsibilities as more runtime state becomes authoritative.
-3. Refine command-derived host health further so failure severity can account for command class and stderr patterns, not just consecutive exit codes.
+3. Expand the command `stderr` pattern set beyond the current high-signal core without letting generic shell noise dominate host health.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
