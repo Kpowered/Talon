@@ -98,6 +98,10 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
 - Bootstrap:
   - after spawn, Talon writes probe commands to capture `$SHELL` and `pwd`
   - stdout parsing converts those markers into live session metadata
+- Command framing:
+  - submitted commands are wrapped with Talon control markers before being written to the remote shell
+  - stdout parsing detects command start and command end markers
+  - command completion records now store exit code, updated cwd, and bounded stdout/stderr tails
 - State propagation:
   - stdout and stderr are read on background threads
   - the registry stores recent lifecycle events, a bounded rendered terminal buffer, and bounded per-session stdout/stderr tails

@@ -12,6 +12,8 @@ use crate::session_store::{self, Host, Session, TalonWorkspaceState, TerminalSna
 
 const META_SHELL_PREFIX: &str = "__TALON_META_SHELL__";
 const META_CWD_PREFIX: &str = "__TALON_META_CWD__";
+const CMD_START_PREFIX: &str = "__TALON_CMD_START__";
+const CMD_END_PREFIX: &str = "__TALON_CMD_END__";
 const CONNECT_TIMEOUT_SECONDS: u64 = 8;
 
 #[derive(Clone, Serialize)]
@@ -48,9 +50,22 @@ pub struct SessionLifecycleEvent {
 
 #[derive(Clone)]
 pub struct CommandHistoryEntry {
+    pub id: String,
     pub session_id: String,
     pub command: String,
-    pub occurred_at: String,
+    pub started_at: String,
+    pub completed_at: String,
+    pub exit_code: i32,
+    pub stdout_tail: Vec<String>,
+    pub stderr_tail: Vec<String>,
+}
+
+struct ActiveCommandState {
+    id: String,
+    command: String,
+    started_at: String,
+    stdout_tail: Vec<String>,
+    stderr_tail: Vec<String>,
 }
 
 #[derive(Default)]
@@ -71,9 +86,11 @@ pub struct SessionRegistry {
     pub recent_events: Vec<SessionLifecycleEvent>,
     pub terminal_buffers: HashMap<String, Vec<String>>,
     stream_state: HashMap<String, SessionStreamState>,
+    active_commands: HashMap<String, ActiveCommandState>,
     command_history: Vec<CommandHistoryEntry>,
     runtimes: HashMap<String, SessionRuntimeHandle>,
     event_counter: usize,
+    command_counter: usize,
 }
 
 static REGISTRY: OnceLock<Mutex<SessionRegistry>> = OnceLock::new();
@@ -157,9 +174,11 @@ fn registry() -> &'static Mutex<SessionRegistry> {
             recent_events: default_events(),
             terminal_buffers,
             stream_state: HashMap::new(),
+            active_commands: HashMap::new(),
             command_history: Vec::new(),
             runtimes: HashMap::new(),
             event_counter: 0,
+            command_counter: 0,
         })
     })
 }
@@ -244,6 +263,86 @@ fn capture_stream_line(registry: &mut SessionRegistry, session_id: &str, stream:
     match stream {
         "stderr" => push_stream_tail(&mut state.stderr_tail, line.into()),
         _ => push_stream_tail(&mut state.stdout_tail, line.into()),
+    }
+}
+
+fn capture_command_stream_line(registry: &mut SessionRegistry, session_id: &str, stream: &str, line: &str) {
+    if let Some(command) = registry.active_commands.get_mut(session_id) {
+        match stream {
+            "stderr" => push_stream_tail(&mut command.stderr_tail, line.into()),
+            _ => push_stream_tail(&mut command.stdout_tail, line.into()),
+        }
+    }
+}
+
+fn next_command_id(registry: &mut SessionRegistry, session_id: &str) -> String {
+    registry.command_counter += 1;
+    format!("cmd-{}-{}", session_id, registry.command_counter)
+}
+
+fn parse_command_end(line: &str) -> Option<(String, i32, String)> {
+    let payload = line.strip_prefix(CMD_END_PREFIX)?;
+    let mut parts = payload.splitn(3, "__");
+    let command_id = parts.next()?.to_string();
+    let exit_code = parts.next()?.parse::<i32>().ok()?;
+    let cwd = parts.next()?.to_string();
+    Some((command_id, exit_code, cwd))
+}
+
+fn complete_active_command(registry: &mut SessionRegistry, session_id: &str, command_id: &str, exit_code: i32, cwd: &str) {
+    let Some(command) = registry.active_commands.remove(session_id) else {
+        push_event(
+            registry,
+            session_id,
+            "command-error",
+            format!("Received completion marker for unknown command {}", command_id),
+        );
+        return;
+    };
+
+    if command.id != command_id {
+        push_event(
+            registry,
+            session_id,
+            "command-error",
+            format!(
+                "Received completion marker for {} while {} was active",
+                command_id, command.id
+            ),
+        );
+    }
+
+    update_session_metadata(registry, session_id, None, Some(cwd));
+    let completed_at = now_iso();
+    registry.command_history.insert(
+        0,
+        CommandHistoryEntry {
+            id: command.id.clone(),
+            session_id: session_id.into(),
+            command: command.command.clone(),
+            started_at: command.started_at.clone(),
+            completed_at: completed_at.clone(),
+            exit_code,
+            stdout_tail: command.stdout_tail.clone(),
+            stderr_tail: command.stderr_tail.clone(),
+        },
+    );
+    registry.command_history.truncate(48);
+
+    push_event(
+        registry,
+        session_id,
+        "command-completed",
+        format!("{} exited with code {} in {}", command.command, exit_code, cwd),
+    );
+
+    if exit_code != 0 {
+        push_event(
+            registry,
+            session_id,
+            "command-failed",
+            format!("{} failed with exit code {}", command.command, exit_code),
+        );
     }
 }
 
@@ -343,8 +442,24 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
                         continue;
                     }
 
+                    if let Some(command_id) = line.strip_prefix(CMD_START_PREFIX) {
+                        push_event(
+                            &mut state,
+                            &session_id,
+                            "command-start",
+                            format!("Remote shell started {}", command_id.trim()),
+                        );
+                        continue;
+                    }
+
+                    if let Some((command_id, exit_code, cwd)) = parse_command_end(&line) {
+                        complete_active_command(&mut state, &session_id, &command_id, exit_code, cwd.trim());
+                        continue;
+                    }
+
                     push_terminal_line(&mut state, &session_id, line.clone());
                     capture_stream_line(&mut state, &session_id, "stdout", &line);
+                    capture_command_stream_line(&mut state, &session_id, "stdout", &line);
                     push_event(&mut state, &session_id, "stdout", line);
                 }
                 Err(error) => {
@@ -375,6 +490,7 @@ fn start_stderr_reader(session_id: String, stderr: ChildStderr) {
                     let mut state = registry().lock().expect("session registry lock poisoned");
                     push_terminal_line(&mut state, &session_id, format!("stderr: {}", line));
                     capture_stream_line(&mut state, &session_id, "stderr", &line);
+                    capture_command_stream_line(&mut state, &session_id, "stderr", &line);
                     push_event(&mut state, &session_id, "stderr", line);
                 }
                 Err(error) => {
@@ -550,19 +666,23 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
     let trimmed = command.trim();
     let stdin = {
         let mut registry = registry().lock().expect("session registry lock poisoned");
-        registry.command_history.insert(
-            0,
-            CommandHistoryEntry {
-                session_id: session_id.into(),
+        let command_id = next_command_id(&mut registry, session_id);
+        let started_at = now_iso();
+        registry.active_commands.insert(
+            session_id.into(),
+            ActiveCommandState {
+                id: command_id.clone(),
                 command: trimmed.into(),
-                occurred_at: now_iso(),
+                started_at,
+                stdout_tail: Vec::new(),
+                stderr_tail: Vec::new(),
             },
         );
         push_event(
             &mut registry,
             session_id,
             "command-submitted",
-            format!("Queued command: {}", trimmed),
+            format!("Queued command {}: {}", command_id, trimmed),
         );
         push_terminal_line(&mut registry, session_id, format!("$ {}", trimmed));
 
@@ -573,17 +693,23 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
         registry
             .runtimes
             .get(session_id)
-            .map(|runtime| runtime.stdin.clone())
+            .map(|runtime| (runtime.stdin.clone(), command_id))
     };
 
-    if let Some(stdin) = stdin {
+    if let Some((stdin, command_id)) = stdin {
         let mut guard = stdin.lock().expect("ssh stdin lock poisoned");
-        let write_result = guard
-            .write_all(format!("{}\n", trimmed).as_bytes())
-            .and_then(|_| guard.flush());
+        let wrapped_command = format!(
+            "printf '{start}{id}\\n'\n{command}\ntalon_exit=$?\ntalon_cwd=$(pwd)\nprintf '{end}{id}__%s__%s\\n' \"$talon_exit\" \"$talon_cwd\"\n",
+            start = CMD_START_PREFIX,
+            end = CMD_END_PREFIX,
+            id = command_id,
+            command = trimmed
+        );
+        let write_result = guard.write_all(wrapped_command.as_bytes()).and_then(|_| guard.flush());
 
         if let Err(error) = write_result {
             let mut registry = registry().lock().expect("session registry lock poisoned");
+            registry.active_commands.remove(session_id);
             push_terminal_line(
                 &mut registry,
                 session_id,

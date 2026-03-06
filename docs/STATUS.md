@@ -20,17 +20,18 @@ As of 2026-03-06, the repository has moved from a scenario demo to a backend-man
 - Added desktop polling so asynchronous backend session state and terminal updates are reflected without a reload.
 - Added bounded per-session stdout/stderr tail capture in the backend so live stream state is preserved beyond the rendered terminal buffer.
 - Added local command echo to the terminal buffer before remote output arrives, keeping the stream readable during async execution.
+- Added backend command framing markers so submitted commands now produce explicit start/end lifecycle events, captured exit codes, and updated remote cwd values.
+- Added completed command records in the backend with per-command stdout/stderr tails for later failure packaging.
 
 ## In Progress
-- Wrapping submitted commands with control markers so the live stream can expose reliable command start/end boundaries and exit codes.
-- Detecting command completion and non-zero exits from the managed remote shell stream.
+- Converting non-zero command completions into structured failure context attached to the active session.
 - Converting live failures into structured capture packets instead of leaving diagnosis state on the static mock payload.
 
 ## Next Steps
-1. Wrap submitted commands with backend control markers so start/end boundaries and exit codes are detected reliably.
-2. Track stdout/stderr tails per command and persist the last completed command record per session.
-3. Build structured failure context from live command metadata, host/session metadata, and output tails.
-4. Swap the static diagnosis placeholder for an agent-facing context contract built from captured runtime state.
+1. Build structured failure context from the completed command record, host/session metadata, and captured output tails.
+2. Project the latest live command result into workspace timeline/failure state instead of relying on static mock values.
+3. Swap the static diagnosis placeholder for an agent-facing context contract built from captured runtime state.
+4. Add operator-visible handling for first-contact host trust and unsupported auth flows.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
