@@ -1,4 +1,4 @@
-use crate::session_registry::{CommandHistoryEntry, ManagedSessionRecord};
+use crate::session_registry::{CommandHistoryEntry, ManagedSessionRecord, SessionConnectionIssue};
 use crate::session_store::{
     DiagnosisMessage, DiagnosisResponse, FailureContext, SuggestedAction, TimelineEvent,
 };
@@ -105,10 +105,58 @@ pub fn build_diagnosis_from_failure(failure: &FailureContext) -> DiagnosisRespon
     }
 }
 
+pub fn build_diagnosis_from_connection_issue(issue: &SessionConnectionIssue) -> DiagnosisResponse {
+    DiagnosisResponse {
+        id: format!("diag-connection-{}", issue.session_id),
+        session_id: issue.session_id.clone(),
+        status: if issue.kind == "host-trust" || issue.kind == "auth" {
+            "warning".into()
+        } else {
+            "critical".into()
+        },
+        confidence: 83,
+        summary: issue.title.clone(),
+        likely_causes: vec![
+            issue.summary.clone(),
+            issue.operator_action.clone(),
+        ],
+        messages: vec![
+            DiagnosisMessage {
+                id: format!("message-{}-connection", issue.session_id),
+                source: "system".into(),
+                tone: if issue.kind == "host-trust" || issue.kind == "auth" {
+                    "warning".into()
+                } else {
+                    "critical".into()
+                },
+                title: issue.title.clone(),
+                body: issue.summary.clone(),
+            },
+            DiagnosisMessage {
+                id: format!("message-{}-operator", issue.session_id),
+                source: "system".into(),
+                tone: "neutral".into(),
+                title: "Operator action".into(),
+                body: issue.operator_action.clone(),
+            },
+        ],
+        suggested_actions: vec![SuggestedAction {
+            id: format!("action-connection-{}", issue.session_id),
+            label: "Run suggested check".into(),
+            command: issue.suggested_command.clone(),
+            rationale: "Use the captured connection issue details before retrying the session.".into(),
+            safety_level: "read-only".into(),
+            status: "ready".into(),
+        }],
+        generated_at: issue.observed_at.clone(),
+    }
+}
+
 pub fn timeline_for_session(
     command_history: &[CommandHistoryEntry],
     session_id: &str,
     failure: Option<&FailureContext>,
+    connection_issue: Option<&SessionConnectionIssue>,
 ) -> Vec<TimelineEvent> {
     let mut timeline: Vec<TimelineEvent> = command_history
         .iter()
@@ -143,6 +191,20 @@ pub fn timeline_for_session(
                     failure.command_id, failure.exit_code
                 ),
                 occurred_at: failure.captured_at.clone(),
+                exit_code: None,
+            },
+        );
+    }
+
+    if let Some(issue) = connection_issue {
+        timeline.insert(
+            0,
+            TimelineEvent {
+                id: format!("timeline-connection-{}", issue.session_id),
+                kind: "diagnosis".into(),
+                title: issue.title.clone(),
+                detail: format!("{} Suggested check: {}", issue.summary, issue.suggested_command),
+                occurred_at: issue.observed_at.clone(),
                 exit_code: None,
             },
         );

@@ -35,7 +35,7 @@ As of 2026-03-06:
 - `apps/desktop` renders a workspace state model instead of scenario-specific UI state.
 - `packages/core` contains the first shared domain contracts.
 - `packages/ssh` contains initial TypeScript-side lifecycle contracts.
-- `apps/desktop/src-tauri/src/session_store.rs` is the temporary backend state provider for failure and diagnosis samples.
+- `apps/desktop/src-tauri/src/session_store.rs` is the temporary backend state provider for neutral workspace placeholders while runtime state is still being wired through the registry.
 - `apps/desktop/src-tauri/src/session_registry.rs` holds the in-memory host config list, managed sessions, active session id, recent lifecycle events, terminal buffers, command history, and live SSH runtime handles.
 - `apps/desktop/src-tauri/src/session_manager.rs` is the backend boundary that exposes registry-backed session and terminal commands to the UI.
 - `apps/desktop/src-tauri/src/context_builder.rs` now owns the temporary agent-facing shaping logic for failure packets, diagnosis scaffolding, and timeline construction.
@@ -109,7 +109,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - a session can have only one wrapped command in flight; additional submissions are rejected until completion markers are observed
 - Failure packaging:
   - non-zero command completions are converted into structured `FailureContext` records
-  - workspace timeline and diagnosis state are now derived from live command history when failure data exists
+  - workspace timeline and diagnosis state are now derived from live command history and connection issues when runtime data exists
   - the current diagnosis builder lives in a separate backend `context_builder` module, but it is still scaffolding rather than a dedicated agent pipeline
 - State propagation:
   - stdout and stderr are read on background threads

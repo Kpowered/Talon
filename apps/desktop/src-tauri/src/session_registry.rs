@@ -1088,9 +1088,23 @@ pub fn workspace_state() -> TalonWorkspaceState {
         if let Some(failure) = registry.latest_failures.get(&active.id) {
             state.latest_failure = failure.clone();
             state.latest_diagnosis = context_builder::build_diagnosis_from_failure(failure);
-            state.timeline = context_builder::timeline_for_session(&registry.command_history, &active.id, Some(failure));
+            state.timeline = context_builder::timeline_for_session(
+                &registry.command_history,
+                &active.id,
+                Some(failure),
+                registry.connection_issues.get(&active.id),
+            );
+        } else if let Some(issue) = registry.connection_issues.get(&active.id) {
+            state.latest_diagnosis = context_builder::build_diagnosis_from_connection_issue(issue);
+            state.timeline = context_builder::timeline_for_session(
+                &registry.command_history,
+                &active.id,
+                None,
+                Some(issue),
+            );
         } else {
-            state.timeline = context_builder::timeline_for_session(&registry.command_history, &active.id, None);
+            state.timeline =
+                context_builder::timeline_for_session(&registry.command_history, &active.id, None, None);
         }
     }
 

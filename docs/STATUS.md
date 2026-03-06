@@ -33,14 +33,16 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Validated an operator-provided external password-auth SSH target outside the product flow, confirming reachable handshake, shell bootstrap, and a controlled non-zero remote exit.
 - Added product-integrated password authentication support through operator-supplied connection overrides in the desktop UI and backend-managed `SSH_ASKPASS` handling for `ssh.exe`.
 - Validated the product-equivalent password-auth transport options against the external test host, including successful shell bootstrap and a controlled non-zero exit through `ssh.exe + SSH_ASKPASS + -T`.
+- Projected connection issues into the workspace timeline and diagnosis state so pre-shell failures now appear as first-class incident history.
+- Replaced the static nginx incident fallback in `session_store` with neutral placeholder state until live runtime evidence exists.
 
 ## In Progress
-- Waiting on an interactive Tauri runtime session to complete click-through desktop validation against the already-tested external password-auth target.
+- Tightening operator UX around session-only connection overrides and explicit reset semantics.
 
 ## Next Steps
-1. Validate the full desktop flow against a reachable SSH target and capture at least one successful shell bootstrap transcript from the product path.
-2. Capture a real non-zero incident command transcript from a reachable host so the live failure context path is validated end to end inside Talon.
-3. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
+1. Add explicit `Reset to host default` / session-only override UX so operators can see what is temporary versus default config.
+2. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
+3. Continue reducing mock `session_store` responsibilities as more runtime state becomes authoritative.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
