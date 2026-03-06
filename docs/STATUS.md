@@ -62,15 +62,16 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 
 - Hardened the backend command boundary so the mutable Tauri commands in `session_manager` now return `Result<..., String>` instead of panicking on missing hosts or registry mutation failures.
 - Reduced panic-style runtime failure paths in `session_registry` by adding recoverable lock helpers for the registry and SSH stdin handles, and by removing `expect(...)` from command completion / connected-session lookup paths.
-- Split the Rust backend session registry into internal session_registry/ modules (state, egistry_ops, 	rust, 	ransport, projection, 	ypes) while keeping the existing Tauri command surface unchanged.
+- Split the Rust backend session registry into internal `session_registry/` modules (`state`, `registry_ops`, `trust`, `transport`, `projection`, `types`) while keeping the existing Tauri command surface unchanged.
+- Split desktop-only frontend concerns out of `App.tsx` by extracting shared app types, formatter helpers, and dedicated timeline / diagnosis / artifacts view components while preserving the existing Tauri-driven behavior.
+- Restored and expanded Rust regression coverage for context shaping, stream-tail truncation, command marker parsing, non-zero failure capture, and connection-issue classification; `cargo test` now passes again.
 ## In Progress
-- Tightening runtime details around host-trust fingerprint refresh, diagnosis result shaping, and settings UX now that the core provider/keychain/trust path is wired in.
+- Continuing to reduce the remaining size of `App.tsx` and to harden diagnosis/trust UX now that backend internals and core test coverage are stable.
 
 ## Next Steps
-1. Harden the OpenAI-compatible diagnosis response contract and prompt so malformed model JSON degrades more gracefully.
-2. Expand automated tests around system-keychain secrets, host-trust confirmation, and diagnosis cache invalidation.
+1. Continue splitting the remaining terminal/connectivity controls out of `App.tsx` so the root component is mostly orchestration.
+2. Add deeper Rust-side coverage around diagnosis cache invalidation and trust-confirmation state transitions.
 3. Continue UI cleanup only where it improves operation of the new provider, trust, and credential flows.
-
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
 - Strict host key checking remains enabled; Talon now has an explicit operator-confirmed trust flow, but fingerprint refresh and repeat-trust UX still need more hardening.

@@ -601,3 +601,18 @@ fn session_value(session: &ManagedSessionRecord) -> serde_json::Value {
     })
 }
 
+
+#[cfg(test)]
+mod registry_ops_tests {
+    use super::push_stream_tail;
+
+    #[test]
+    fn truncates_stream_tail_to_eighty_lines() {
+        let mut tail = (0..80).map(|index| format!("line-{index}")).collect::<Vec<_>>();
+        push_stream_tail(&mut tail, "line-80".into());
+        assert_eq!(tail.len(), 80);
+        assert_eq!(tail.first().map(String::as_str), Some("line-1"));
+        assert_eq!(tail.last().map(String::as_str), Some("line-80"));
+    }
+}
+

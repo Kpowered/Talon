@@ -36,14 +36,13 @@ As of 2026-03-06:
 - `packages/core` contains the first shared domain contracts.
 - `packages/ssh` contains initial TypeScript-side lifecycle contracts.
 - `apps/desktop/src-tauri/src/session_store.rs` is the temporary backend state provider for neutral workspace placeholders while runtime state is still being wired through the registry.
-- `apps/desktop/src-tauri/src/session_registry.rs` holds the persisted host inventory, persisted host connection config list, managed sessions, active session id, recent lifecycle events, terminal buffers, command history, and live SSH runtime handles.
-- `apps/desktop/src-tauri/src/session_registry.rs` now persists both host records and host connection configs to local JSON files under the user's local app data directory.
+- `apps/desktop/src-tauri/src/session_registry/mod.rs` is now the entry point for the backend session registry and composes internal `include!`-based modules for `types`, `state`, `registry_ops`, `trust`, `transport`, and `projection`.
+- Those internal registry modules still own the persisted host inventory, persisted host connection configs, managed sessions, active session id, recent lifecycle events, terminal buffers, command history, diagnosis cache, and live SSH runtime handles.
 - The shared `Host` contract is now split into `config` and `observed` sections so operator-editable fields are separated from runtime telemetry.
 - `apps/desktop/src-tauri/src/session_manager.rs` is the backend boundary that exposes registry-backed session and terminal commands to the UI.
 - `apps/desktop/src-tauri/src/session_manager.rs` now acts as a thin Tauri-safe boundary: read-only getters still return direct DTOs, while mutating commands return `Result<..., String>` so backend/runtime failures surface to the UI instead of panicking the app.
-- pps/desktop/src/App.tsx now delegates the read-only workspace tabs to extracted React components under src/components/views/, and shared frontend DTOs / formatting helpers live under src/types/ and src/lib/ instead of staying embedded in the root app component.
-- `apps/desktop/src-tauri/src/session_registry/mod.rs` is now the entry point for the backend session registry and composes internal `include!`-based modules for `types`, `state`, `registry_ops`, `trust`, `transport`, and `projection` so responsibilities can be separated without changing the external Tauri surface.`r`n- Registry and SSH-stdin lock access now goes through local recovery helpers instead of `expect(...)` so a poisoned lock degrades more safely during long-lived desktop sessions.
-- `apps/desktop/src-tauri/src/context_builder.rs` now owns the temporary agent-facing shaping logic for failure packets, diagnosis scaffolding, and timeline construction.
+- `apps/desktop/src/App.tsx` now delegates the read-only workspace tabs to extracted React components under `src/components/views/`, and shared frontend DTOs / formatting helpers live under `src/types/` and `src/lib/` instead of staying embedded in the root app component.
+- Registry and SSH-stdin lock access now goes through local recovery helpers instead of `expect(...)` so a poisoned lock degrades more safely during long-lived desktop sessions.
 - Real session connection management is now handled by backend-spawned `ssh.exe` child processes with piped stdin/stdout/stderr and reader threads owned by the registry layer.
 
 ## Proposed repo layout

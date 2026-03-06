@@ -121,7 +121,7 @@ pub fn workspace_state() -> TalonWorkspaceState {
 }
 
 #[cfg(test)]
-mod tests {
+mod projection_tests {
     use super::{classify_command_stderr_severity, command_health_status, CommandHistoryEntry, SessionRegistry};
     use std::collections::HashMap;
 
@@ -205,5 +205,6 @@ mod tests {
         assert_eq!(command_health_status(&healthy_registry, "session-1", &[]), "healthy");
     }
 }
+
 
 

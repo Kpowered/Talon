@@ -506,3 +506,88 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
     terminal_snapshot(session_id)
 }
 
+
+#[cfg(test)]
+mod transport_tests {
+    use super::{
+        complete_active_command, now_iso, parse_command_end, ActiveCommandState, CommandHistoryEntry,
+        Host, HostObservedState, HostRecordConfig, ManagedSessionRecord, SessionRegistry,
+    };
+    use std::collections::HashMap;
+
+    fn test_registry() -> SessionRegistry {
+        SessionRegistry {
+            hosts: vec![Host {
+                id: "host-1".into(),
+                config: HostRecordConfig {
+                    label: "prod-1".into(),
+                    address: "root@127.0.0.1".into(),
+                    region: "test".into(),
+                    tags: vec!["test".into()],
+                },
+                observed: HostObservedState {
+                    status: "warning".into(),
+                    latency_ms: 0,
+                    cpu_percent: 0,
+                    memory_percent: 0,
+                    last_seen_at: now_iso(),
+                },
+            }],
+            host_configs: Vec::new(),
+            managed_sessions: vec![ManagedSessionRecord {
+                id: "session-1".into(),
+                host_id: "host-1".into(),
+                state: "connected".into(),
+                shell: "/bin/bash".into(),
+                cwd: "/root".into(),
+                connected_at: now_iso(),
+                last_command_at: now_iso(),
+                auto_capture_enabled: true,
+            }],
+            active_session_id: "session-1".into(),
+            recent_events: Vec::new(),
+            terminal_buffers: HashMap::new(),
+            stream_state: HashMap::new(),
+            connection_issues: HashMap::new(),
+            latest_failures: HashMap::new(),
+            active_commands: HashMap::new(),
+            command_history: Vec::<CommandHistoryEntry>::new(),
+            runtimes: HashMap::new(),
+            diagnosis_cache: HashMap::new(),
+            event_counter: 0,
+            command_counter: 0,
+        }
+    }
+
+    #[test]
+    fn parses_command_end_markers() {
+        let parsed = parse_command_end("__TALON_CMD_END__cmd-7__127__/srv/app").expect("marker should parse");
+        assert_eq!(parsed.0, "cmd-7");
+        assert_eq!(parsed.1, 127);
+        assert_eq!(parsed.2, "/srv/app");
+    }
+
+    #[test]
+    fn captures_failure_context_for_non_zero_command_completion() {
+        let mut registry = test_registry();
+        registry.active_commands.insert(
+            "session-1".into(),
+            ActiveCommandState {
+                id: "cmd-1".into(),
+                command: "false".into(),
+                started_at: now_iso(),
+                stdout_tail: vec!["before".into()],
+                stderr_tail: vec!["permission denied".into()],
+            },
+        );
+
+        complete_active_command(&mut registry, "session-1", "cmd-1", 1, "/root");
+
+        let failure = registry.latest_failures.get("session-1").expect("failure should be captured");
+        assert_eq!(failure.exit_code, 1);
+        assert_eq!(failure.command_id, "cmd-1");
+        assert_eq!(failure.cwd, "/root");
+        assert_eq!(registry.command_history[0].command, "false");
+    }
+}
+

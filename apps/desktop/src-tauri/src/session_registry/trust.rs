@@ -148,3 +148,45 @@ fn resolve_private_key_path(host_id: &str) -> Option<PathBuf> {
     None
 }
 
+
+#[cfg(test)]
+mod trust_tests {
+    use super::{classify_connection_issue, classify_local_connection_error, Host, HostObservedState, HostRecordConfig};
+
+    fn sample_host() -> Host {
+        Host {
+            id: "host-1".into(),
+            config: HostRecordConfig {
+                label: "prod-1".into(),
+                address: "root@example.com".into(),
+                region: "test".into(),
+                tags: vec!["test".into()],
+            },
+            observed: HostObservedState {
+                status: "warning".into(),
+                latency_ms: 0,
+                cpu_percent: 0,
+                memory_percent: 0,
+                last_seen_at: "2026-03-07T00:00:00Z".into(),
+            },
+        }
+    }
+
+    #[test]
+    fn classifies_host_trust_lines() {
+        let host = sample_host();
+        let issue = classify_connection_issue(&host, "Host key verification failed.").expect("issue should classify");
+        assert_eq!(issue.0, "host-trust");
+        assert_eq!(issue.2, "Host key verification failed.");
+    }
+
+    #[test]
+    fn classifies_local_network_errors() {
+        let host = sample_host();
+        let issue = classify_local_connection_error(&host, "connect to host example.com port 22: Connection refused");
+        assert_eq!(issue.0, "network");
+        assert!(issue.2.contains("Connection refused"));
+    }
+}
+
+

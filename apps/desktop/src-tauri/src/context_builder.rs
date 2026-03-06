@@ -479,6 +479,13 @@ mod tests {
             operator_action: "check route".into(),
             suggested_command: "ssh -vvv host".into(),
             observed_at: "2026-03-07T00:00:02Z".into(),
+            fingerprint: None,
+            expected_fingerprint_hint: None,
+            host: Some("root@example-host".into()),
+            port: Some(22),
+            can_trust_in_app: false,
+            in_app_action_kind: None,
+            in_app_action_label: None,
         };
 
         let timeline = timeline_for_session(&[], "session-1", None, Some(&issue));
@@ -486,3 +493,4 @@ mod tests {
         assert_eq!(timeline[0].stderr_evidence.as_deref(), Some("connection refused"));
     }
 }
+
