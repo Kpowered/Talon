@@ -8,6 +8,7 @@ import type {
   Session,
   SuggestedAction,
   TalonWorkspaceState,
+  TerminalSnapshot,
   TimelineEvent,
 } from "@talon/core";
 import "./App.css";
@@ -48,6 +49,11 @@ type SessionRegistryResponse = {
 };
 
 type SessionEventListResponse = {
+  events: SessionLifecycleEvent[];
+};
+
+type SubmitCommandResponse = {
+  terminal: TerminalSnapshot;
   events: SessionLifecycleEvent[];
 };
 
@@ -94,11 +100,14 @@ function App() {
   const [sessionEvents, setSessionEvents] = useState<SessionLifecycleEvent[]>([]);
   const [hostConfigs, setHostConfigs] = useState<HostConnectionConfig[]>([]);
   const [registryActiveSessionId, setRegistryActiveSessionId] = useState<string | null>(null);
+  const [composerValue, setComposerValue] = useState("");
+  const [isSubmittingCommand, setIsSubmittingCommand] = useState(false);
 
   async function refreshWorkspace() {
     const state = await invoke<TalonWorkspaceState>("get_workspace_state");
     setWorkspace(state);
     setSelectedHostId((current) => current ?? state.sessions[0]?.hostId ?? state.hosts[0]?.id ?? null);
+    if (state.terminal.lines.length > 0) setTerminalTail(state.terminal.lines);
   }
 
   async function refreshRegistry() {
@@ -128,6 +137,8 @@ function App() {
         setHostConfigs(registry.hostConfigs);
         setRegistryActiveSessionId(registry.activeSessionId);
         setSessionEvents(events.events);
+        setTerminalTail(state.terminal.lines);
+        setComposerValue(state.latestDiagnosis.suggestedActions[0]?.command ?? "");
       } finally {
         if (!cancelled) setIsLoadingState(false);
       }
@@ -188,7 +199,7 @@ function App() {
 
   const terminalContent = useMemo(() => {
     if (!workspace) return [];
-    if (activeTab === "shell") return [...workspace.terminal.lines, ...terminalTail];
+    if (activeTab === "shell") return terminalTail;
     if (activeTab === "timeline") {
       return timeline.map(
         (item) => `${formatTime(item.occurredAt)}  ${item.title}\n${item.detail}${item.exitCode !== undefined ? ` | exit ${item.exitCode}` : ""}`,
@@ -207,8 +218,29 @@ function App() {
       setSessionEvents(result.events);
       setActionSummary(`Managed session ready for ${selectedHost.label} in ${result.session.cwd}.`);
       await Promise.all([refreshWorkspace(), refreshRegistry()]);
+      const snapshot = await invoke<TerminalSnapshot>("get_terminal_snapshot", { sessionId: result.session.sessionId });
+      setTerminalTail(snapshot.lines);
     } finally {
       setIsConnectingSession(false);
+    }
+  }
+
+  async function submitCommand(command: string) {
+    if (!activeSession || !command.trim()) return;
+    setIsSubmittingCommand(true);
+    setActiveTab("shell");
+    try {
+      const result = await invoke<SubmitCommandResponse>("submit_session_command", {
+        payload: {
+          sessionId: activeSession.id,
+          command,
+        },
+      });
+      setTerminalTail(result.terminal.lines);
+      setSessionEvents(result.events);
+      setActionSummary(`Command submitted to ${activeSession.id}: ${command}`);
+    } finally {
+      setIsSubmittingCommand(false);
     }
   }
 
@@ -225,8 +257,9 @@ function App() {
           actionId: action.id,
         },
       });
-      setTerminalTail(result.appendedTerminalLines);
+      setTerminalTail((current) => [...current, ...result.appendedTerminalLines]);
       setActionSummary(result.summary);
+      setComposerValue(action.command);
     } finally {
       setIsRunningAction(null);
     }
@@ -252,12 +285,12 @@ function App() {
             <p className="eyebrow">AI-native SSH troubleshooting</p>
             <div className="title-row">
               <h1>Talon</h1>
-              <span className="release-badge">Managed Session Skeleton</span>
+              <span className="release-badge">Command Stream Skeleton</span>
               <span className="backend-badge">Registry API live</span>
             </div>
             <p className="subtitle">
               The desktop shell now talks to a backend-managed session registry with host connection config,
-              active session tracking, and recent lifecycle events.
+              active session tracking, recent lifecycle events, and command submission scaffolding.
             </p>
           </div>
         </div>
@@ -416,18 +449,28 @@ function App() {
               </div>
             ))}
             {isRunningAction ? <div className="terminal-line prompt">...running suggested action through Tauri backend</div> : null}
+            {isSubmittingCommand ? <div className="terminal-line prompt">...submitting command to managed session</div> : null}
           </div>
 
-          <div className="command-composer">
-            <div className="composer-input">{activeAction?.command ?? "No suggested command queued"}</div>
-            <button className="ghost-button small">Review context packet</button>
-            <button
-              className="primary-button small"
-              onClick={() => activeAction && void runAction(activeAction)}
-              disabled={!activeAction || isRunningAction !== null}
-            >
-              {isRunningAction ? "Running..." : "Run read-only action"}
-            </button>
+          <div className="command-composer command-composer-stack">
+            <input
+              className="composer-field"
+              value={composerValue}
+              onChange={(event) => setComposerValue(event.target.value)}
+              placeholder="Type a command to send to the active session"
+            />
+            <div className="composer-actions">
+              <button className="ghost-button small" onClick={() => activeAction && setComposerValue(activeAction.command)}>
+                Use suggested command
+              </button>
+              <button
+                className="primary-button small"
+                onClick={() => void submitCommand(composerValue)}
+                disabled={isSubmittingCommand || !composerValue.trim()}
+              >
+                {isSubmittingCommand ? "Sending..." : "Send command"}
+              </button>
+            </div>
           </div>
 
           <div className="timeline-header">

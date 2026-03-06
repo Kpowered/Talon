@@ -148,13 +148,14 @@ button {
 .subtitle {
   margin: 6px 0 0;
   color: #9ca7bd;
-  max-width: 680px;
+  max-width: 720px;
 }
 
 .topbar-actions,
 .terminal-tabs,
 .window-dots,
-.command-composer {
+.command-composer,
+.composer-actions {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -260,7 +261,8 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.search-box input {
+.search-box input,
+.composer-field {
   flex: 1;
   background: transparent;
   border: none;
@@ -422,6 +424,19 @@ button {
   justify-content: space-between;
 }
 
+.command-composer-stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.composer-field {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
 .window-dots i {
   width: 9px;
   height: 9px;
@@ -442,8 +457,7 @@ button {
 }
 
 .terminal-path,
-.terminal-mode,
-.composer-input {
+.terminal-mode {
   color: #9eabc4;
   font-size: 0.88rem;
 }
@@ -669,7 +683,8 @@ button {
 
   .terminal-toolbar,
   .command-composer,
-  .action-button {
+  .action-button,
+  .composer-actions {
     align-items: flex-start;
     flex-direction: column;
   }

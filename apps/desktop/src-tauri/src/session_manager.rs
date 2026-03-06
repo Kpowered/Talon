@@ -3,12 +3,19 @@ use serde::{Deserialize, Serialize};
 use crate::session_registry;
 use crate::session_registry::{HostConnectionConfig, SessionLifecycleEvent};
 use crate::session_store;
-use crate::session_store::{RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState};
+use crate::session_store::{RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectSessionRequest {
     pub host_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubmitCommandRequest {
+    pub session_id: String,
+    pub command: String,
 }
 
 #[derive(Serialize)]
@@ -42,6 +49,13 @@ pub struct SessionEventListResponse {
     pub events: Vec<SessionLifecycleEvent>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubmitCommandResponse {
+    pub terminal: TerminalSnapshot,
+    pub events: Vec<SessionLifecycleEvent>,
+}
+
 pub fn get_workspace_state() -> TalonWorkspaceState {
     session_registry::workspace_state()
 }
@@ -58,6 +72,10 @@ pub fn get_session_events() -> SessionEventListResponse {
     SessionEventListResponse {
         events: session_registry::recent_events(),
     }
+}
+
+pub fn get_terminal_snapshot(session_id: String) -> TerminalSnapshot {
+    session_registry::terminal_snapshot(&session_id)
 }
 
 pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
@@ -80,6 +98,13 @@ pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse
             cwd: session.cwd,
             auto_capture_enabled: session.auto_capture_enabled,
         },
+        events: session_registry::recent_events(),
+    }
+}
+
+pub fn submit_session_command(payload: SubmitCommandRequest) -> SubmitCommandResponse {
+    SubmitCommandResponse {
+        terminal: session_registry::submit_command(&payload.session_id, &payload.command),
         events: session_registry::recent_events(),
     }
 }

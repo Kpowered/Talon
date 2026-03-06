@@ -4,10 +4,12 @@ mod session_store;
 
 use session_manager::{
     connect_session as open_preview_session, get_session_events, get_session_registry,
-    get_workspace_state as load_workspace_state, run_suggested_action as execute_suggested_action,
+    get_terminal_snapshot, get_workspace_state as load_workspace_state,
+    run_suggested_action as execute_suggested_action, submit_session_command,
     ConnectSessionRequest, ConnectSessionResponse, SessionEventListResponse, SessionRegistryResponse,
+    SubmitCommandRequest, SubmitCommandResponse,
 };
-use session_store::{RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState};
+use session_store::{RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot};
 
 #[tauri::command]
 fn get_workspace_state() -> TalonWorkspaceState {
@@ -25,8 +27,18 @@ fn get_session_events() -> SessionEventListResponse {
 }
 
 #[tauri::command]
+fn get_terminal_snapshot(session_id: String) -> TerminalSnapshot {
+    get_terminal_snapshot(session_id)
+}
+
+#[tauri::command]
 fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
     open_preview_session(payload)
+}
+
+#[tauri::command]
+fn submit_session_command(payload: SubmitCommandRequest) -> SubmitCommandResponse {
+    submit_session_command(payload)
 }
 
 #[tauri::command]
@@ -42,7 +54,9 @@ pub fn run() {
             get_workspace_state,
             get_session_registry,
             get_session_events,
+            get_terminal_snapshot,
             connect_session,
+            submit_session_command,
             run_suggested_action
         ])
         .run(tauri::generate_context!())
