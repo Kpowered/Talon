@@ -76,6 +76,64 @@ Interpretation:
 - `sshd` is installed but currently stopped.
 - No operator-approved reachable SSH target was available in this session.
 
+### External password-auth SSH target probe
+
+Command class:
+
+```powershell
+ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password ...
+```
+
+Validation notes:
+
+- Used an operator-provided external test host
+- Host details are intentionally redacted from the repository copy of this log
+- Password auth was supplied through a local `SSH_ASKPASS` helper for validation only
+
+Observed handshake facts:
+
+- Remote banner: `OpenSSH_10.0p2 Debian-7`
+- Host key type: `ssh-ed25519`
+- Host fingerprint observed during handshake: `SHA256:ukhO4ajPmXkoP5b0dh0VX5f/RE6BLy/2OAjpBOY/4Ws`
+- Supported auth methods reported by the server: `publickey,password`
+
+Bootstrap transcript:
+
+```text
+/root
+root
+/bin/bash
+```
+
+Interpretation:
+
+- The external test target is reachable from this machine.
+- Password authentication works for the operator-provided account.
+- The remote shell bootstrap expectations were satisfied:
+  - cwd resolved
+  - remote user resolved
+  - shell resolved
+
+### External non-zero exit probe
+
+Command class:
+
+```powershell
+ssh ... 'sh -c "exit 7"'
+```
+
+Transcript:
+
+```text
+LOCAL_SSH_EXIT=7
+```
+
+Interpretation:
+
+- A real remote non-zero exit was observed through the SSH client path.
+- This validates the environment needed for end-to-end non-zero exit testing against a reachable host.
+- Talon still needs product-integrated password auth before this exact host can be exercised from the desktop workflow instead of an external validation probe.
+
 ## Verified product behavior in this environment
 
 - Rust backend compiles with the current real SSH transport, disconnect/reconnect flow, and in-flight command guardrails.
@@ -85,6 +143,7 @@ Interpretation:
   - authentication failures
   - connection timeouts
   - network path failures such as connection refused or hostname resolution errors
+- External validation confirmed that a reachable password-auth host can be contacted from this machine and can return a controlled non-zero exit.
 
 ## Not yet verified end to end
 
@@ -93,6 +152,7 @@ Interpretation:
 - Command start/end framing against a real remote shell
 - Non-zero exit capture from a live incident command on a reachable host
 - Transcript capture from a real remote failure session
+- The desktop product path against a password-auth host, because Talon's backend transport still does not consume password credentials directly
 
 ## Next verification target
 

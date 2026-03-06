@@ -30,19 +30,20 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added desktop-side busy-session awareness so the composer reflects when a managed shell already has an active command in progress.
 - Added operator-visible connection issue handling for host trust, authentication, timeout, and network-path failures, including suggested operator actions and recommended commands in the UI.
 - Added a verification log in `docs/VERIFICATION.md` and captured the current environment's local SSH probe transcripts.
+- Validated an operator-provided external password-auth SSH target outside the product flow, confirming reachable handshake, shell bootstrap, and a controlled non-zero remote exit.
 
 ## In Progress
-- Waiting on an operator-approved reachable SSH target to validate the real happy path and collect a live incident transcript.
+- Deciding whether to bring password authentication into the product transport now that an external password-auth target has been validated.
 
 ## Next Steps
-1. Validate the full desktop flow against a reachable SSH target and capture at least one successful shell bootstrap transcript.
-2. Capture a real non-zero incident command transcript from a reachable host so the live failure context path is validated end to end.
-3. Decide whether the desktop frontend should consume `packages/core` through a workspace package or continue using TS path aliases during the current phase.
+1. Add product-integrated password auth support so Talon can exercise the validated external host through the desktop workflow instead of an external probe.
+2. Validate the full desktop flow against a reachable SSH target and capture at least one successful shell bootstrap transcript.
+3. Capture a real non-zero incident command transcript from a reachable host so the live failure context path is validated end to end.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
 - Strict host key checking is enabled, so first-contact hosts without an existing known-hosts entry will fail until Talon exposes an explicit operator-confirmed trust flow.
-- Password auth is still unsupported in the backend; the current real path assumes agent or private-key auth.
+- Password auth has been validated externally against a reachable host, but it is still unsupported in the backend product transport; the current in-app real path still assumes agent or private-key auth.
 - Frontend verification is available via Node, but full desktop runtime verification beyond local probes still depends on local operator access to reachable SSH targets. In this session, `sshd` was stopped and `ssh-agent` was disabled on the local machine.
 
 ## Working Rules
