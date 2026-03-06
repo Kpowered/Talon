@@ -34,8 +34,9 @@ Talon is split into four layers:
 As of 2026-03-06:
 - `apps/desktop` renders a workspace state model instead of scenario-specific UI state.
 - `packages/core` contains the first shared domain contracts.
-- `packages/ssh` contains initial TypeScript-side lifecycle contracts only.
-- `apps/desktop/src-tauri/src/session_store.rs` is the temporary backend session provider that serves mock workspace state.
+- `packages/ssh` contains initial TypeScript-side lifecycle contracts.
+- `apps/desktop/src-tauri/src/session_store.rs` is the temporary backend state provider.
+- `apps/desktop/src-tauri/src/session_manager.rs` is the first backend session manager boundary, including preview connect requests and lifecycle event responses.
 
 ## Proposed repo layout
 
@@ -70,10 +71,11 @@ Talon/
 ## Temporary implementation flow
 
 1. Desktop UI calls `get_workspace_state`
-2. Tauri backend delegates to `session_store`
-3. `session_store` returns mock host/session/failure/diagnosis state
-4. Desktop UI renders the workspace model
-5. User-triggered read-only actions call `run_suggested_action`
+2. Tauri backend delegates to `session_manager`
+3. `session_manager` reads mock workspace state from `session_store`
+4. Desktop UI can request `connect_session` for a selected host
+5. Tauri returns preview session summary and lifecycle events
+6. User-triggered read-only actions call `run_suggested_action`
 
 ## Context schema (draft)
 

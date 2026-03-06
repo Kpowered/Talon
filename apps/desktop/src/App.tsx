@@ -14,6 +14,26 @@ import "./App.css";
 
 type TerminalTab = "shell" | "timeline" | "artifacts";
 
+type SessionLifecycleEvent = {
+  id: string;
+  sessionId: string;
+  eventType: string;
+  detail: string;
+  occurredAt: string;
+};
+
+type ConnectSessionResponse = {
+  session: {
+    sessionId: string;
+    hostId: string;
+    state: string;
+    shell: string;
+    cwd: string;
+    autoCaptureEnabled: boolean;
+  };
+  events: SessionLifecycleEvent[];
+};
+
 function statusLabel(status: HealthStatus) {
   if (status === "critical") return "Critical";
   if (status === "warning") return "Warning";
@@ -53,6 +73,8 @@ function App() {
   const [isRunningAction, setIsRunningAction] = useState<string | null>(null);
   const [actionSummary, setActionSummary] = useState<string | null>(null);
   const [terminalTail, setTerminalTail] = useState<string[]>([]);
+  const [isConnectingSession, setIsConnectingSession] = useState(false);
+  const [sessionEvents, setSessionEvents] = useState<SessionLifecycleEvent[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,13 +135,13 @@ function App() {
         tone: diagnosis.confidence >= 80 ? "good" : diagnosis.confidence >= 60 ? "warn" : "bad",
       },
       {
-        label: "Suggested actions",
-        value: `${diagnosis.suggestedActions.length}`,
-        detail: activeAction ? `${activeAction.safetyLevel} actions only` : "No actions queued",
+        label: "Session events",
+        value: `${sessionEvents.length}`,
+        detail: sessionEvents[0]?.detail ?? "No session lifecycle events yet",
         tone: "default",
       },
     ];
-  }, [workspace, diagnosis, failure, activeAction, isLoadingState]);
+  }, [workspace, diagnosis, failure, isLoadingState, sessionEvents]);
 
   const terminalContent = useMemo(() => {
     if (!workspace) return [];
@@ -131,6 +153,20 @@ function App() {
     }
     return failure?.relatedArtifacts ?? [];
   }, [workspace, activeTab, terminalTail, timeline, failure]);
+
+  async function connectSelectedHost() {
+    if (!selectedHost) return;
+    setIsConnectingSession(true);
+    try {
+      const result = await invoke<ConnectSessionResponse>("connect_session", {
+        payload: { hostId: selectedHost.id },
+      });
+      setSessionEvents(result.events);
+      setActionSummary(`Preview session ready for ${selectedHost.label} in ${result.session.cwd}.`);
+    } finally {
+      setIsConnectingSession(false);
+    }
+  }
 
   async function runAction(action: SuggestedAction) {
     if (!activeSession) return;
@@ -172,12 +208,12 @@ function App() {
             <p className="eyebrow">AI-native SSH troubleshooting</p>
             <div className="title-row">
               <h1>Talon</h1>
-              <span className="release-badge">Product Skeleton</span>
-              <span className="backend-badge">State API live</span>
+              <span className="release-badge">Session Manager Skeleton</span>
+              <span className="backend-badge">Lifecycle API live</span>
             </div>
             <p className="subtitle">
-              The desktop shell now renders a workspace state shaped around hosts, sessions, failure context,
-              diagnosis, and operator-confirmed actions.
+              The desktop shell now exposes a preview session manager contract with connection requests,
+              lifecycle events, and reusable workspace state access.
             </p>
           </div>
         </div>
@@ -185,7 +221,9 @@ function App() {
         <div className="topbar-actions">
           <button className="ghost-button">New host</button>
           <button className="ghost-button">Incident history</button>
-          <button className="primary-button">Connect session</button>
+          <button className="primary-button" onClick={() => void connectSelectedHost()} disabled={isConnectingSession}>
+            {isConnectingSession ? "Connecting..." : "Connect session"}
+          </button>
         </div>
       </header>
 
@@ -251,6 +289,26 @@ function App() {
               <span>{activeSession.shell}</span>
               <span>{activeSession.cwd}</span>
               <span>{activeSession.autoCaptureEnabled ? "Auto-capture on" : "Auto-capture off"}</span>
+            </div>
+          </div>
+
+          <div className="section-block">
+            <div className="section-title-row">
+              <div>
+                <p className="panel-kicker">Lifecycle</p>
+                <h2>Recent events</h2>
+              </div>
+              <span className="pill subtle">{sessionEvents.length} events</span>
+            </div>
+            <div className="event-list">
+              {sessionEvents.length === 0 ? <p className="empty-copy">No preview session opened yet.</p> : null}
+              {sessionEvents.map((event) => (
+                <article key={event.id} className="event-card">
+                  <strong>{event.eventType}</strong>
+                  <p>{event.detail}</p>
+                  <span>{formatTime(event.occurredAt)}</span>
+                </article>
+              ))}
             </div>
           </div>
         </aside>
