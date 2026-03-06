@@ -107,6 +107,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
 - Host config management:
   - saved host records are now created, updated, and deleted through backend Tauri commands instead of frontend-only state mutation
   - saved host config fields are now editable from the desktop UI
+  - the current desktop shell allows editing host label, address, region, tags, port, username, auth method, and fingerprint trust hints
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
 - Command framing:

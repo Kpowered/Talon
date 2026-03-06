@@ -143,9 +143,12 @@ function App() {
   const initializedConnectionHostId = useRef<string | null>(null);
   const [hostLabelInput, setHostLabelInput] = useState("");
   const [hostAddressInput, setHostAddressInput] = useState("");
+  const [hostRegionInput, setHostRegionInput] = useState("custom");
+  const [hostTagsInput, setHostTagsInput] = useState("");
   const [hostPortInput, setHostPortInput] = useState("22");
   const [hostUsernameInput, setHostUsernameInput] = useState("");
   const [hostAuthMethodInput, setHostAuthMethodInput] = useState<ConnectionAuthMethod>("agent");
+  const [hostFingerprintHintInput, setHostFingerprintHintInput] = useState("Pending trust");
   const [isSavingHostConfig, setIsSavingHostConfig] = useState(false);
   const [isDeletingHostConfig, setIsDeletingHostConfig] = useState(false);
 
@@ -239,9 +242,12 @@ function App() {
     const derivedUsername = nextHost.address.includes("@") ? nextHost.address.split("@")[0] : nextConfig?.username ?? "";
     setHostLabelInput(nextHost.label);
     setHostAddressInput(nextHost.address);
+    setHostRegionInput(nextHost.region);
+    setHostTagsInput(nextHost.tags.join(", "));
     setHostPortInput(String(nextConfig?.port ?? 22));
     setHostUsernameInput(nextConfig?.username ?? derivedUsername);
     setHostAuthMethodInput((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
+    setHostFingerprintHintInput(nextConfig?.fingerprintHint ?? "Pending trust");
   }, [workspace?.hosts, selectedHostId, hostConfigs]);
 
   const activeSession = useMemo(
@@ -420,7 +426,14 @@ function App() {
     setActionSummary(`Reset connection override for ${selectedHost.label} back to saved host config.`);
   }
 
-  async function saveHostConfig(hostId: string, fingerprintHint: string) {
+  function parseTags(input: string) {
+    return input
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag, index, collection) => tag.length > 0 && collection.indexOf(tag) === index);
+  }
+
+  async function saveHostConfig(hostId: string) {
     setIsSavingHostConfig(true);
     try {
       const result = await invoke<HostConfigMutationResponse>("upsert_host_config", {
@@ -429,7 +442,7 @@ function App() {
           port: Number(hostPortInput) || 22,
           username: hostUsernameInput.trim() || "root",
           authMethod: hostAuthMethodInput,
-          fingerprintHint,
+          fingerprintHint: hostFingerprintHintInput.trim() || "Pending trust",
         },
       });
       setHostConfigs(result.hostConfigs);
@@ -448,13 +461,13 @@ function App() {
         id: hostId,
         label,
         address,
-        region: "custom",
-        tags: ["custom"],
+        region: hostRegionInput.trim() || "custom",
+        tags: parseTags(hostTagsInput),
       },
     });
     setSelectedHostId(hostId);
     initializedConnectionHostId.current = null;
-    await saveHostConfig(hostId, "Pending trust");
+    await saveHostConfig(hostId);
     await refreshWorkspace();
     setActionSummary(`Created host config for ${label}.`);
   }
@@ -465,13 +478,13 @@ function App() {
       id: selectedHost.id,
       label: hostLabelInput.trim() || selectedHost.label,
       address: hostAddressInput.trim() || selectedHost.address,
-      region: selectedHost.region,
-      tags: selectedHost.tags,
+      region: hostRegionInput.trim() || selectedHost.region,
+      tags: parseTags(hostTagsInput),
     };
     await invoke<HostMutationResponse>("upsert_host", {
       payload: updatedHost,
     });
-    await saveHostConfig(selectedHost.id, selectedHostConfig?.fingerprintHint ?? "Pending trust");
+    await saveHostConfig(selectedHost.id);
     await refreshWorkspace();
     setActionSummary(`Saved host config for ${updatedHost.label}.`);
   }
@@ -618,6 +631,20 @@ function App() {
               </label>
               <div className="connection-grid">
                 <label className="connection-field">
+                  <span>Region</span>
+                  <input value={hostRegionInput} onChange={(event) => setHostRegionInput(event.target.value)} />
+                </label>
+                <label className="connection-field">
+                  <span>Tags</span>
+                  <input
+                    value={hostTagsInput}
+                    onChange={(event) => setHostTagsInput(event.target.value)}
+                    placeholder="production, api"
+                  />
+                </label>
+              </div>
+              <div className="connection-grid">
+                <label className="connection-field">
                   <span>Saved port</span>
                   <input value={hostPortInput} onChange={(event) => setHostPortInput(event.target.value)} inputMode="numeric" />
                 </label>
@@ -633,6 +660,14 @@ function App() {
                   <option value="private-key">private-key</option>
                   <option value="password">password</option>
                 </select>
+              </label>
+              <label className="connection-field">
+                <span>Fingerprint trust</span>
+                <input
+                  value={hostFingerprintHintInput}
+                  onChange={(event) => setHostFingerprintHintInput(event.target.value)}
+                  placeholder="SHA256:... or Pending trust"
+                />
               </label>
               <div className="host-config-actions">
                 <button className="ghost-button small" onClick={() => void updateSelectedHost()} disabled={isSavingHostConfig}>
