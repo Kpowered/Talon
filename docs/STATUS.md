@@ -62,6 +62,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 
 - Hardened the backend command boundary so the mutable Tauri commands in `session_manager` now return `Result<..., String>` instead of panicking on missing hosts or registry mutation failures.
 - Reduced panic-style runtime failure paths in `session_registry` by adding recoverable lock helpers for the registry and SSH stdin handles, and by removing `expect(...)` from command completion / connected-session lookup paths.
+- Split the Rust backend session registry into internal session_registry/ modules (state, egistry_ops, 	rust, 	ransport, projection, 	ypes) while keeping the existing Tauri command surface unchanged.
 ## In Progress
 - Tightening runtime details around host-trust fingerprint refresh, diagnosis result shaping, and settings UX now that the core provider/keychain/trust path is wired in.
 
@@ -82,5 +83,6 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 
 
