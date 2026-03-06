@@ -89,14 +89,18 @@ export interface DiagnosisMessage {
 export interface DiagnosisResponse {
   id: string;
   sessionId: string;
-  status: HealthStatus;
+  status: string;
   confidence: number;
   summary: string;
   likelyCauses: string[];
   messages: DiagnosisMessage[];
   suggestedActions: SuggestedAction[];
+  provider: string;
+  errorMessage?: string | null;
+  contextPacketId: string;
   generatedAt: string;
 }
+
 
 export interface TimelineEvent {
   id: string;
@@ -130,4 +134,19 @@ export interface RunbookActionResult {
   status: HealthStatus;
   summary: string;
   appendedTerminalLines: string[];
+}
+
+export interface DiagnosisContextPacket {
+  id: string;
+  sessionId: string;
+  trigger: string;
+  host: Record<string, unknown>;
+  connection: Record<string, unknown>;
+  session: Record<string, unknown>;
+  failure?: Record<string, unknown> | null;
+  connectionIssue?: Record<string, unknown> | null;
+  recentCommands: Record<string, unknown>[];
+  timelineWindow: Record<string, unknown>[];
+  artifacts: string[];
+  generatedAt: string;
 }

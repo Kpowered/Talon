@@ -260,6 +260,9 @@ pub fn build_diagnosis_from_failure(failure: &FailureContext) -> DiagnosisRespon
             },
         ],
         suggested_actions,
+        provider: "rule-engine".into(),
+        error_message: None,
+        context_packet_id: format!("packet-{}", failure.id),
         generated_at: failure.captured_at.clone(),
     }
 }
@@ -301,12 +304,15 @@ pub fn build_diagnosis_from_connection_issue(issue: &SessionConnectionIssue) -> 
         ],
         suggested_actions: vec![SuggestedAction {
             id: format!("action-connection-{}", issue.session_id),
-            label: "Run suggested check".into(),
+            label: issue.in_app_action_label.clone().unwrap_or_else(|| "Run suggested check".into()),
             command: issue.suggested_command.clone(),
             rationale: "Use the captured connection issue details before retrying the session.".into(),
             safety_level: "read-only".into(),
-            status: "ready".into(),
+            status: if issue.in_app_action_kind.is_some() { "ready".into() } else { "ready".into() },
         }],
+        provider: "rule-engine".into(),
+        error_message: None,
+        context_packet_id: format!("packet-{}-{}", issue.session_id, issue.kind),
         generated_at: issue.observed_at.clone(),
     }
 }

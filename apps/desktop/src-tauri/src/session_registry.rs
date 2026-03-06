@@ -11,7 +11,9 @@ use std::time::Instant;
 use serde::{Deserialize, Serialize};
 
 use crate::context_builder;
-use crate::session_store::{self, FailureContext, Host, HostConfig as HostRecordConfig, HostObservedState, Session, TalonWorkspaceState, TerminalSnapshot};
+use crate::diagnosis_engine::{self, DiagnosisContextPacket, DiagnosisGenerationInput};
+use crate::secrets;
+use crate::session_store::{self, DiagnosisResponse, FailureContext, Host, HostConfig as HostRecordConfig, HostObservedState, Session, TalonWorkspaceState, TerminalSnapshot};
 
 const META_SHELL_PREFIX: &str = "__TALON_META_SHELL__";
 const META_CWD_PREFIX: &str = "__TALON_META_CWD__";
@@ -27,6 +29,9 @@ pub struct HostConnectionConfig {
     pub username: String,
     pub auth_method: String,
     pub fingerprint_hint: String,
+    pub private_key_path: Option<String>,
+    #[serde(default)]
+    pub has_saved_password: bool,
 }
 
 #[derive(Clone)]
@@ -61,6 +66,13 @@ pub struct SessionConnectionIssue {
     pub operator_action: String,
     pub suggested_command: String,
     pub observed_at: String,
+    pub fingerprint: Option<String>,
+    pub expected_fingerprint_hint: Option<String>,
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub can_trust_in_app: bool,
+    pub in_app_action_kind: Option<String>,
+    pub in_app_action_label: Option<String>,
 }
 
 #[derive(Clone)]
@@ -92,6 +104,12 @@ struct SessionStreamState {
     last_updated_at: String,
 }
 
+struct DiagnosisCacheEntry {
+    trigger_key: String,
+    response: DiagnosisResponse,
+    packet: DiagnosisContextPacket,
+}
+
 struct SessionRuntimeHandle {
     stdin: Arc<Mutex<ChildStdin>>,
     pid: u32,
@@ -112,6 +130,7 @@ pub struct SessionRegistry {
     active_commands: HashMap<String, ActiveCommandState>,
     command_history: Vec<CommandHistoryEntry>,
     runtimes: HashMap<String, SessionRuntimeHandle>,
+    diagnosis_cache: HashMap<String, DiagnosisCacheEntry>,
     event_counter: usize,
     command_counter: usize,
 }
@@ -141,6 +160,8 @@ fn default_host_configs() -> Vec<HostConnectionConfig> {
             username: "root".into(),
             auth_method: "agent".into(),
             fingerprint_hint: "SHA256:prod-web-1".into(),
+            private_key_path: None,
+            has_saved_password: false,
         },
         HostConnectionConfig {
             host_id: "host-api-gateway".into(),
@@ -148,6 +169,8 @@ fn default_host_configs() -> Vec<HostConnectionConfig> {
             username: "root".into(),
             auth_method: "agent".into(),
             fingerprint_hint: "SHA256:api-gateway".into(),
+            private_key_path: None,
+            has_saved_password: false,
         },
         HostConnectionConfig {
             host_id: "host-db-primary".into(),
@@ -155,6 +178,8 @@ fn default_host_configs() -> Vec<HostConnectionConfig> {
             username: "postgres".into(),
             auth_method: "private-key".into(),
             fingerprint_hint: "SHA256:db-primary".into(),
+            private_key_path: None,
+            has_saved_password: false,
         },
     ]
 }
@@ -312,6 +337,7 @@ fn registry() -> &'static Mutex<SessionRegistry> {
             active_commands: HashMap::new(),
             command_history: Vec::new(),
             runtimes: HashMap::new(),
+            diagnosis_cache: HashMap::new(),
             event_counter: 0,
             command_counter: 0,
         })
@@ -319,7 +345,17 @@ fn registry() -> &'static Mutex<SessionRegistry> {
 }
 
 pub fn list_host_configs() -> Vec<HostConnectionConfig> {
-    registry().lock().expect("session registry lock poisoned").host_configs.clone()
+    registry()
+        .lock()
+        .expect("session registry lock poisoned")
+        .host_configs
+        .iter()
+        .cloned()
+        .map(|mut config| {
+            config.has_saved_password = secrets::has_saved_host_password(&config.host_id);
+            config
+        })
+        .collect()
 }
 
 pub fn upsert_host(host: Host) -> Result<Vec<Host>, String> {
@@ -334,25 +370,48 @@ pub fn upsert_host(host: Host) -> Result<Vec<Host>, String> {
 }
 
 pub fn upsert_host_config(config: HostConnectionConfig) -> Result<Vec<HostConnectionConfig>, String> {
-    let mut registry = registry().lock().expect("session registry lock poisoned");
-    if let Some(existing) = registry
-        .host_configs
-        .iter_mut()
-        .find(|existing| existing.host_id == config.host_id)
-    {
-        *existing = config;
-    } else {
-        registry.host_configs.insert(0, config);
-    }
-    save_host_configs(&registry.host_configs)?;
-    Ok(registry.host_configs.clone())
+    let updated_configs = {
+        let mut registry = registry().lock().expect("session registry lock poisoned");
+        if let Some(existing) = registry
+            .host_configs
+            .iter_mut()
+            .find(|existing| existing.host_id == config.host_id)
+        {
+            *existing = config.clone();
+            existing.has_saved_password = secrets::has_saved_host_password(&existing.host_id);
+        } else {
+            let mut config = config;
+            config.has_saved_password = secrets::has_saved_host_password(&config.host_id);
+            registry.host_configs.insert(0, config);
+        }
+        save_host_configs(&registry.host_configs)?;
+        registry.host_configs.clone()
+    };
+
+    Ok(updated_configs
+        .into_iter()
+        .map(|mut config| {
+            config.has_saved_password = secrets::has_saved_host_password(&config.host_id);
+            config
+        })
+        .collect())
 }
 
 pub fn delete_host_config(host_id: &str) -> Result<Vec<HostConnectionConfig>, String> {
-    let mut registry = registry().lock().expect("session registry lock poisoned");
-    registry.host_configs.retain(|config| config.host_id != host_id);
-    save_host_configs(&registry.host_configs)?;
-    Ok(registry.host_configs.clone())
+    let updated_configs = {
+        let mut registry = registry().lock().expect("session registry lock poisoned");
+        registry.host_configs.retain(|config| config.host_id != host_id);
+        save_host_configs(&registry.host_configs)?;
+        registry.host_configs.clone()
+    };
+
+    Ok(updated_configs
+        .into_iter()
+        .map(|mut config| {
+            config.has_saved_password = secrets::has_saved_host_password(&config.host_id);
+            config
+        })
+        .collect())
 }
 
 pub fn delete_host(host_id: &str) -> Result<Vec<Host>, String> {
@@ -504,6 +563,13 @@ fn set_connection_issue(
             operator_action: operator_action.into(),
             suggested_command,
             observed_at: now_iso(),
+            fingerprint: None,
+            expected_fingerprint_hint: None,
+            host: None,
+            port: None,
+            can_trust_in_app: false,
+            in_app_action_kind: None,
+            in_app_action_label: None,
         },
     );
 }
@@ -839,6 +905,191 @@ fn parse_host_target(host: &Host, config: Option<&HostConnectionConfig>) -> (Str
     (fallback_username, address.to_string())
 }
 
+fn known_hosts_path() -> Option<PathBuf> {
+    let home = env::var("USERPROFILE").ok().map(PathBuf::from)?;
+    Some(home.join(".ssh").join("known_hosts"))
+}
+
+fn recent_commands_for_session(session_id: &str, command_history: &[CommandHistoryEntry]) -> Vec<serde_json::Value> {
+    command_history
+        .iter()
+        .rev()
+        .filter(|entry| entry.session_id == session_id)
+        .take(6)
+        .map(|entry| serde_json::json!({
+            "id": entry.id,
+            "command": entry.command,
+            "startedAt": entry.started_at,
+            "completedAt": entry.completed_at,
+            "exitCode": entry.exit_code,
+            "stderrClass": entry.stderr_class,
+            "stderrEvidence": entry.stderr_evidence,
+            "stdoutTail": entry.stdout_tail,
+            "stderrTail": entry.stderr_tail,
+        }))
+        .collect()
+}
+
+fn host_and_connection_values(host: &Host, config: &HostConnectionConfig) -> (serde_json::Value, serde_json::Value) {
+    (
+        serde_json::json!({
+            "id": host.id,
+            "config": host.config,
+            "observed": host.observed,
+        }),
+        serde_json::json!({
+            "port": config.port,
+            "username": config.username,
+            "authMethod": config.auth_method,
+            "fingerprintHint": config.fingerprint_hint,
+            "privateKeyPath": config.private_key_path,
+            "hasSavedPassword": secrets::has_saved_host_password(&config.host_id),
+        }),
+    )
+}
+
+fn session_value(session: &ManagedSessionRecord) -> serde_json::Value {
+    serde_json::json!({
+        "id": session.id,
+        "state": session.state,
+        "shell": session.shell,
+        "cwd": session.cwd,
+        "connectedAt": session.connected_at,
+        "lastCommandAt": session.last_command_at,
+        "autoCaptureEnabled": session.auto_capture_enabled,
+    })
+}
+
+fn ssh_keyscan(host: &str, port: u16) -> Result<String, String> {
+    let output = Command::new("ssh-keyscan")
+        .arg("-p")
+        .arg(port.to_string())
+        .arg(host)
+        .output()
+        .map_err(|error| error.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn fingerprint_for_key_line(key_line: &str) -> Result<String, String> {
+    let temp_path = env::temp_dir().join(format!("talon-known-host-{}.pub", now_iso().replace(':', "-").replace('.', "-")));
+    fs::write(&temp_path, key_line).map_err(|error| error.to_string())?;
+    let output = Command::new("ssh-keygen")
+        .arg("-lf")
+        .arg(&temp_path)
+        .arg("-E")
+        .arg("sha256")
+        .output()
+        .map_err(|error| error.to_string())?;
+    let _ = fs::remove_file(&temp_path);
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    let line = String::from_utf8_lossy(&output.stdout);
+    let fingerprint = line.split_whitespace().nth(1).unwrap_or("").trim().to_string();
+    if fingerprint.is_empty() {
+        return Err("Could not parse ssh-keygen fingerprint output.".into());
+    }
+    Ok(fingerprint)
+}
+
+pub fn cached_context_packet_for(session_id: &str) -> Option<DiagnosisContextPacket> {
+    registry()
+        .lock()
+        .expect("session registry lock poisoned")
+        .diagnosis_cache
+        .get(session_id)
+        .map(|entry| entry.packet.clone())
+}
+
+pub fn invalidate_diagnosis(session_id: &str) {
+    registry()
+        .lock()
+        .expect("session registry lock poisoned")
+        .diagnosis_cache
+        .remove(session_id);
+}
+
+pub fn prepare_host_trust(session_id: &str) -> Result<SessionConnectionIssue, String> {
+    let (host, port, hint) = {
+        let registry = registry().lock().expect("session registry lock poisoned");
+        let session = registry
+            .managed_sessions
+            .iter()
+            .find(|session| session.id == session_id)
+            .ok_or_else(|| format!("Session {} not found", session_id))?;
+        let host = registry
+            .hosts
+            .iter()
+            .find(|host| host.id == session.host_id)
+            .cloned()
+            .ok_or_else(|| format!("Host {} not found", session.host_id))?;
+        let config = registry
+            .host_configs
+            .iter()
+            .find(|config| config.host_id == host.id)
+            .cloned()
+            .ok_or_else(|| format!("Host config {} not found", host.id))?;
+        let (_, hostname) = parse_host_target(&host, Some(&config));
+        (hostname, config.port, config.fingerprint_hint)
+    };
+
+    let key_line = ssh_keyscan(&host, port)?;
+    let fingerprint = fingerprint_for_key_line(key_line.lines().next().unwrap_or(&key_line))?;
+
+    let mut registry = registry().lock().expect("session registry lock poisoned");
+    let issue = SessionConnectionIssue {
+        session_id: session_id.into(),
+        kind: "host-trust".into(),
+        title: "Host trust confirmation required".into(),
+        summary: format!("Scanned host fingerprint {} for {}:{}.", fingerprint, host, port),
+        operator_action: "Review the scanned fingerprint and confirm only if it matches an operator-approved value.".into(),
+        suggested_command: format!("ssh-keyscan -p {} {}", port, host),
+        observed_at: now_iso(),
+        fingerprint: Some(fingerprint),
+        expected_fingerprint_hint: Some(hint),
+        host: Some(host),
+        port: Some(port),
+        can_trust_in_app: true,
+        in_app_action_kind: Some("confirm-host-trust".into()),
+        in_app_action_label: Some("Trust host".into()),
+    };
+    registry.connection_issues.insert(session_id.into(), issue.clone());
+    Ok(issue)
+}
+
+pub fn confirm_host_trust(session_id: &str, fingerprint: &str) -> Result<Option<SessionConnectionIssue>, String> {
+    let issue = prepare_host_trust(session_id)?;
+    let actual = issue.fingerprint.clone().unwrap_or_default();
+    if actual != fingerprint {
+        return Err(format!("Fingerprint mismatch: expected scanned value {}, got {}", actual, fingerprint));
+    }
+    let key_line = ssh_keyscan(issue.host.as_deref().unwrap_or(""), issue.port.unwrap_or(22))?;
+    let path = known_hosts_path().ok_or_else(|| "Could not resolve known_hosts path.".to_string())?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let existing = fs::read_to_string(&path).unwrap_or_default();
+    if !existing.contains(&key_line) {
+        let mut next = existing;
+        if !next.is_empty() && !next.ends_with('\n') {
+            next.push('\n');
+        }
+        next.push_str(&key_line);
+        next.push('\n');
+        fs::write(&path, next).map_err(|error| error.to_string())?;
+    }
+
+    let mut registry = registry().lock().expect("session registry lock poisoned");
+    if let Some(config) = registry.host_configs.iter_mut().find(|config| config.host_id == issue.session_id.trim_start_matches("session-")) {
+        config.fingerprint_hint = actual;
+    }
+    clear_connection_issue(&mut registry, session_id);
+    Ok(None)
+}
+
 fn resolve_private_key_path(host_id: &str) -> Option<PathBuf> {
     let env_key = format!(
         "TALON_SSH_KEY_PATH_{}",
@@ -1133,6 +1384,8 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
         username: "root".into(),
         auth_method: "agent".into(),
         fingerprint_hint: "unknown".into(),
+        private_key_path: None,
+        has_saved_password: false,
     });
 
     let session_id = format!("session-{}", host.id);
@@ -1372,57 +1625,121 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
 }
 
 pub fn workspace_state() -> TalonWorkspaceState {
-    let registry = registry().lock().expect("session registry lock poisoned");
-    let mut state = session_store::get_workspace_state();
-    state.hosts = registry.hosts.clone();
-    state.sessions = registry
-        .managed_sessions
-        .iter()
-        .map(|session| Session {
-            id: session.id.clone(),
-            host_id: session.host_id.clone(),
-            state: session.state.clone(),
-            shell: session.shell.clone(),
-            cwd: session.cwd.clone(),
-            connected_at: session.connected_at.clone(),
-            last_command_at: session.last_command_at.clone(),
-            auto_capture_enabled: session.auto_capture_enabled,
-        })
-        .collect();
-    state.active_session_id = registry.active_session_id.clone();
+    let (mut state, generation_input, active_session_id) = {
+        let registry = registry().lock().expect("session registry lock poisoned");
+        let mut state = session_store::get_workspace_state();
+        state.hosts = registry.hosts.clone();
+        state.sessions = registry
+            .managed_sessions
+            .iter()
+            .map(|session| Session {
+                id: session.id.clone(),
+                host_id: session.host_id.clone(),
+                state: session.state.clone(),
+                shell: session.shell.clone(),
+                cwd: session.cwd.clone(),
+                connected_at: session.connected_at.clone(),
+                last_command_at: session.last_command_at.clone(),
+                auto_capture_enabled: session.auto_capture_enabled,
+            })
+            .collect();
+        state.active_session_id = registry.active_session_id.clone();
 
-    if let Some(active) = state.sessions.iter().find(|session| session.id == state.active_session_id) {
-        state.terminal = TerminalSnapshot {
-            session_id: active.id.clone(),
-            lines: registry
-                .terminal_buffers
-                .get(&active.id)
-                .cloned()
-                .unwrap_or_else(default_terminal_buffer),
-        };
-        state.latest_failure.session_id = active.id.clone();
-        state.latest_diagnosis.session_id = active.id.clone();
+        let mut generation_input: Option<(String, DiagnosisGenerationInput)> = None;
+        if let Some(active) = registry.managed_sessions.iter().find(|session| session.id == state.active_session_id) {
+            state.terminal = TerminalSnapshot {
+                session_id: active.id.clone(),
+                lines: registry
+                    .terminal_buffers
+                    .get(&active.id)
+                    .cloned()
+                    .unwrap_or_else(default_terminal_buffer),
+            };
 
-        if let Some(failure) = registry.latest_failures.get(&active.id) {
-            state.latest_failure = failure.clone();
-            state.latest_diagnosis = context_builder::build_diagnosis_from_failure(failure);
-            state.timeline = context_builder::timeline_for_session(
+            let host = registry
+                .hosts
+                .iter()
+                .find(|host| host.id == active.host_id)
+                .cloned();
+            let config = registry
+                .host_configs
+                .iter()
+                .find(|config| config.host_id == active.host_id)
+                .cloned();
+            let timeline = context_builder::timeline_for_session(
                 &registry.command_history,
                 &active.id,
-                Some(failure),
+                registry.latest_failures.get(&active.id),
                 registry.connection_issues.get(&active.id),
             );
-        } else if let Some(issue) = registry.connection_issues.get(&active.id) {
-            state.latest_diagnosis = context_builder::build_diagnosis_from_connection_issue(issue);
-            state.timeline = context_builder::timeline_for_session(
-                &registry.command_history,
-                &active.id,
-                None,
-                Some(issue),
-            );
-        } else {
-            state.timeline =
-                context_builder::timeline_for_session(&registry.command_history, &active.id, None, None);
+            state.timeline = timeline.clone();
+
+            if let (Some(host), Some(config)) = (host, config) {
+                let (host_value, connection_value) = host_and_connection_values(&host, &config);
+                let session_value = session_value(active);
+                let recent_commands = recent_commands_for_session(&active.id, &registry.command_history);
+
+                if let Some(failure) = registry.latest_failures.get(&active.id) {
+                    state.latest_failure = failure.clone();
+                    let fallback = diagnosis_engine::fallback_for_failure(failure);
+                    let packet = diagnosis_engine::build_packet_from_failure(
+                        failure,
+                        host_value,
+                        connection_value,
+                        session_value,
+                        recent_commands,
+                        timeline.iter().cloned().map(|item| serde_json::json!(item)).collect(),
+                    );
+                    let trigger_key = packet.id.clone();
+                    if let Some(cached) = registry.diagnosis_cache.get(&active.id) {
+                        if cached.trigger_key == trigger_key {
+                            state.latest_diagnosis = cached.response.clone();
+                        } else {
+                            generation_input = Some((active.id.clone(), DiagnosisGenerationInput { packet, fallback }));
+                        }
+                    } else {
+                        generation_input = Some((active.id.clone(), DiagnosisGenerationInput { packet, fallback }));
+                    }
+                } else if let Some(issue) = registry.connection_issues.get(&active.id) {
+                    let fallback = diagnosis_engine::fallback_for_connection_issue(issue);
+                    let packet = diagnosis_engine::build_packet_from_connection_issue(
+                        issue,
+                        host_value,
+                        connection_value,
+                        session_value,
+                        recent_commands,
+                        timeline.iter().cloned().map(|item| serde_json::json!(item)).collect(),
+                    );
+                    let trigger_key = packet.id.clone();
+                    if let Some(cached) = registry.diagnosis_cache.get(&active.id) {
+                        if cached.trigger_key == trigger_key {
+                            state.latest_diagnosis = cached.response.clone();
+                        } else {
+                            generation_input = Some((active.id.clone(), DiagnosisGenerationInput { packet, fallback }));
+                        }
+                    } else {
+                        generation_input = Some((active.id.clone(), DiagnosisGenerationInput { packet, fallback }));
+                    }
+                }
+            }
+        }
+
+        (state, generation_input, registry.active_session_id.clone())
+    };
+
+    if let Some((session_id, input)) = generation_input {
+        let response = diagnosis_engine::generate(input.clone());
+        let mut registry = registry().lock().expect("session registry lock poisoned");
+        registry.diagnosis_cache.insert(
+            session_id.clone(),
+            DiagnosisCacheEntry {
+                trigger_key: input.packet.id.clone(),
+                response: response.clone(),
+                packet: input.packet,
+            },
+        );
+        if session_id == active_session_id {
+            state.latest_diagnosis = response;
         }
     }
 
@@ -1448,6 +1765,7 @@ mod tests {
             active_commands: HashMap::new(),
             command_history: entries,
             runtimes: HashMap::new(),
+            diagnosis_cache: HashMap::new(),
             event_counter: 0,
             command_counter: 0,
         }

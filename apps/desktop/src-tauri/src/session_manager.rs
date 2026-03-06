@@ -1,9 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+use crate::diagnosis_engine::DiagnosisContextPacket;
+use crate::secrets::{self, AgentSettings};
 use crate::session_registry;
 use crate::session_registry::{HostConnectionConfig, SessionConnectionIssue, SessionLifecycleEvent};
-use crate::session_store;
-use crate::session_store::{Host, HostConfig as HostRecordConfig, HostObservedState, RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot};
+use crate::session_store::{
+    Host, HostConfig as HostRecordConfig, HostObservedState, RunbookActionResponse, SuggestedActionRequest,
+    TalonWorkspaceState, TerminalSnapshot,
+};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +41,7 @@ pub struct UpsertHostConfigRequest {
     pub username: String,
     pub auth_method: String,
     pub fingerprint_hint: String,
+    pub private_key_path: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -59,6 +64,48 @@ pub struct UpsertHostRequest {
 #[serde(rename_all = "camelCase")]
 pub struct DeleteHostRequest {
     pub host_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveHostPasswordRequest {
+    pub host_id: String,
+    pub password: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostSecretRequest {
+    pub host_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveAgentApiKeyRequest {
+    pub api_key: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveAgentSettingsRequest {
+    pub provider_type: String,
+    pub base_url: String,
+    pub model: String,
+    pub auto_diagnose: bool,
+    pub request_timeout_sec: u64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionScopedRequest {
+    pub session_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmHostTrustRequest {
+    pub session_id: String,
+    pub fingerprint: String,
 }
 
 #[derive(Serialize)]
@@ -122,6 +169,32 @@ pub struct HostMutationResponse {
     pub hosts: Vec<Host>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentSettingsResponse {
+    pub settings: AgentSettings,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustPreparationResponse {
+    pub issue: SessionConnectionIssue,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustConfirmationResponse {
+    pub issue: Option<SessionConnectionIssue>,
+    pub terminal: TerminalSnapshot,
+    pub events: Vec<SessionLifecycleEvent>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextPacketResponse {
+    pub packet: Option<DiagnosisContextPacket>,
+}
+
 pub fn get_workspace_state() -> TalonWorkspaceState {
     session_registry::workspace_state()
 }
@@ -145,6 +218,77 @@ pub fn get_session_events() -> SessionEventListResponse {
 
 pub fn get_terminal_snapshot(session_id: String) -> TerminalSnapshot {
     session_registry::terminal_snapshot(&session_id)
+}
+
+pub fn get_agent_settings() -> AgentSettingsResponse {
+    AgentSettingsResponse {
+        settings: secrets::load_agent_settings(),
+    }
+}
+
+pub fn save_agent_settings(payload: SaveAgentSettingsRequest) -> AgentSettingsResponse {
+    AgentSettingsResponse {
+        settings: secrets::save_agent_settings(AgentSettings {
+            provider_type: payload.provider_type,
+            base_url: payload.base_url,
+            model: payload.model,
+            auto_diagnose: payload.auto_diagnose,
+            request_timeout_sec: payload.request_timeout_sec,
+            has_api_key: secrets::load_agent_api_key().map(|value: String| !value.is_empty()).unwrap_or(false),
+        })
+        .expect("agent settings save must succeed"),
+    }
+}
+
+pub fn save_agent_api_key(payload: SaveAgentApiKeyRequest) -> AgentSettingsResponse {
+    secrets::save_agent_api_key(payload.api_key.trim()).expect("agent api key save must succeed");
+    get_agent_settings()
+}
+
+pub fn clear_agent_api_key() -> AgentSettingsResponse {
+    let _ = secrets::clear_agent_api_key();
+    get_agent_settings()
+}
+
+pub fn save_host_password(payload: SaveHostPasswordRequest) -> HostConfigMutationResponse {
+    secrets::save_host_password(&payload.host_id, payload.password.trim()).expect("host password save must succeed");
+    HostConfigMutationResponse {
+        host_configs: session_registry::list_host_configs(),
+    }
+}
+
+pub fn clear_host_password(payload: HostSecretRequest) -> HostConfigMutationResponse {
+    let _ = secrets::clear_host_password(&payload.host_id);
+    HostConfigMutationResponse {
+        host_configs: session_registry::list_host_configs(),
+    }
+}
+
+pub fn get_latest_context_packet(payload: SessionScopedRequest) -> ContextPacketResponse {
+    ContextPacketResponse {
+        packet: session_registry::cached_context_packet_for(&payload.session_id),
+    }
+}
+
+pub fn retry_diagnosis(payload: SessionScopedRequest) -> TalonWorkspaceState {
+    session_registry::invalidate_diagnosis(&payload.session_id);
+    session_registry::workspace_state()
+}
+
+pub fn prepare_host_trust(payload: SessionScopedRequest) -> TrustPreparationResponse {
+    TrustPreparationResponse {
+        issue: session_registry::prepare_host_trust(&payload.session_id).expect("host trust preparation must succeed"),
+    }
+}
+
+pub fn confirm_host_trust(payload: ConfirmHostTrustRequest) -> TrustConfirmationResponse {
+    let issue = session_registry::confirm_host_trust(&payload.session_id, &payload.fingerprint)
+        .expect("host trust confirmation must succeed");
+    TrustConfirmationResponse {
+        issue,
+        terminal: session_registry::terminal_snapshot(&payload.session_id),
+        events: session_registry::recent_events(),
+    }
 }
 
 pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
@@ -171,6 +315,8 @@ pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse
         username: "root".into(),
         auth_method: "agent".into(),
         fingerprint_hint: "unknown".into(),
+        private_key_path: None,
+        has_saved_password: secrets::has_saved_host_password(&host.id),
     });
     if let Some(port) = payload.port {
         host_config.port = port;
@@ -182,7 +328,14 @@ pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse
         host_config.auth_method = auth_method.trim().into();
     }
 
-    let session = session_registry::connect_host(&effective_host, Some(&host_config), payload.password.as_deref());
+    let password = payload
+        .password
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| value.to_string())
+        .or_else(|| secrets::load_host_password(&host.id).ok());
+
+    let session = session_registry::connect_host(&effective_host, Some(&host_config), password.as_deref());
 
     ConnectSessionResponse {
         session: SessionSummary {
@@ -231,6 +384,8 @@ pub fn upsert_host_config(payload: UpsertHostConfigRequest) -> HostConfigMutatio
             username: payload.username,
             auth_method: payload.auth_method,
             fingerprint_hint: payload.fingerprint_hint,
+            private_key_path: payload.private_key_path,
+            has_saved_password: false,
         })
         .expect("host config update must succeed"),
     }
@@ -279,5 +434,8 @@ pub fn delete_host(payload: DeleteHostRequest) -> HostMutationResponse {
 }
 
 pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionResponse {
-    session_store::run_suggested_action(payload)
+    if payload.action_id == "action-host-trust-confirm" {
+        let _ = session_registry::prepare_host_trust(&payload.session_id);
+    }
+    crate::session_store::run_suggested_action(payload)
 }

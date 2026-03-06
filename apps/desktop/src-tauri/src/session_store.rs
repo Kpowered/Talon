@@ -100,6 +100,9 @@ pub struct DiagnosisResponse {
     pub likely_causes: Vec<String>,
     pub messages: Vec<DiagnosisMessage>,
     pub suggested_actions: Vec<SuggestedAction>,
+    pub provider: String,
+    pub error_message: Option<String>,
+    pub context_packet_id: String,
     pub generated_at: String,
 }
 
@@ -201,6 +204,9 @@ pub fn get_workspace_state() -> TalonWorkspaceState {
                     body: "Connect to a host and start with read-only commands such as pwd, whoami, or service status checks.".into(),
                 },
             ],
+            provider: "rule-engine".into(),
+            error_message: None,
+            context_packet_id: "packet-placeholder".into(),
             suggested_actions: vec![
                 SuggestedAction {
                     id: "action-print-working-dir".into(),

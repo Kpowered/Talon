@@ -55,15 +55,18 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added a compact timeline signal summary row that surfaces repeated failure classes in the current incident window without scanning each event card.
 - Made timeline signal summary pills interactive so operators can toggle the visible timeline down to a single repeated `stderr_class` and clear the filter in place.
 - Kept the active timeline signal filter stable across polling refreshes, only clearing it when that signal disappears from the current timeline window; the active summary pill now remains visible even after the count drops below the repeated threshold.
-- Compressed the desktop shell into a terminal-first workspace: before connection the app now hides the host rail and keeps only a host picker plus terminal surface, then expands a narrow host rail after a real session is connected.`r`n- Removed the always-visible diagnosis sidebar and moved diagnosis, timeline, and artifacts into the main workspace tabs so the connected layout stays closer to a Termius-style terminal-first surface.
+- Compressed the desktop shell into a terminal-first workspace: before connection the app now hides the host rail and keeps only a host picker plus terminal surface, then expands a narrow host rail after a real session is connected.
+- Removed the always-visible diagnosis sidebar and moved diagnosis, timeline, and artifacts into the main workspace tabs so the connected layout stays closer to a Termius-style terminal-first surface.
+- Added a real diagnosis engine path with cached OpenAI-compatible provider calls, system-keychain API key storage, and rule-engine fallback when the provider is unavailable or disabled.
+- Added system-keychain host password storage, persistent per-host private key paths, in-app host-trust preparation/confirmation, and a structured diagnosis context packet that now powers provider requests and can be inspected from the desktop UI.
 
 ## In Progress
-- Reducing the remaining placeholder responsibilities in `session_store` now that host inventory is registry-backed.
+- Tightening runtime details around host-trust fingerprint refresh, diagnosis result shaping, and settings UX now that the core provider/keychain/trust path is wired in.
 
 ## Next Steps
-1. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
-2. Continue reducing mock `session_store` responsibilities as more runtime state becomes authoritative.
-3. Continue reducing copy and secondary badges so the shell header feels closer to a utilitarian terminal client than a dashboard.
+1. Harden the OpenAI-compatible diagnosis response contract and prompt so malformed model JSON degrades more gracefully.
+2. Expand automated tests around system-keychain secrets, host-trust confirmation, and diagnosis cache invalidation.
+3. Continue UI cleanup only where it improves operation of the new provider, trust, and credential flows.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.

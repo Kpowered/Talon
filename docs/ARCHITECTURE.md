@@ -124,7 +124,8 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the desktop timeline now renders a compact summary row above the event list for repeated signal classes within the current incident window
   - those summary pills now act as a frontend-only filter over the current timeline window, allowing operators to isolate a single repeated signal class without changing backend state
   - the selected timeline signal filter is intentionally sticky across polling refreshes and auto-clears only when that signal no longer exists in the current timeline window; the active pill remains rendered even if its count drops below the repeated threshold
-  - the desktop shell now has two primary presentation states: disconnected sessions render a terminal-first layout with a compact host picker and a single main terminal surface, while connected sessions expand only a narrow host rail alongside that same main workspace`r`n  - diagnosis, timeline, and artifacts now share the main workspace tabs instead of rendering as separate always-visible panels, keeping the connected layout focused on one primary work surface
+  - the desktop shell now has two primary presentation states: disconnected sessions render a terminal-first layout with a compact host picker and a single main terminal surface, while connected sessions expand only a narrow host rail alongside that same main workspace
+  - diagnosis, timeline, and artifacts now share the main workspace tabs instead of rendering as separate always-visible panels, keeping the connected layout focused on one primary work surface
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
 - Command framing:
@@ -135,7 +136,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
 - Failure packaging:
   - non-zero command completions are converted into structured `FailureContext` records
   - workspace timeline and diagnosis state are now derived from live command history and connection issues when runtime data exists
-  - the current diagnosis builder lives in a separate backend `context_builder` module, but it is still scaffolding rather than a dedicated agent pipeline
+  - `context_builder` remains responsible for deterministic fallback diagnosis copy and timeline shaping, while `diagnosis_engine` now turns the same runtime evidence into a reusable `DiagnosisContextPacket` and optionally sends it to an OpenAI-compatible provider
 - State propagation:
   - stdout and stderr are read on background threads
   - the registry stores recent lifecycle events, a bounded rendered terminal buffer, and bounded per-session stdout/stderr tails
@@ -143,7 +144,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - operator-triggered disconnect uses the tracked ssh pid to stop the transport and let the registry observe normal process teardown
   - connection-path stderr is classified into operator-visible issue states such as host trust, auth, timeout, and network failures
 
-This is intentionally a transport-first implementation. Command framing, exit detection, and structured failure capture still need to be layered on top of the live shell stream.
+The implementation is no longer transport-only: the real SSH path, structured failure capture, provider-backed diagnosis, host-trust confirmation, and system-keychain credential storage are all wired through the current desktop stack. Remaining work is now mostly hardening, testing, and UX refinement.
 
 ## Context schema (draft)
 

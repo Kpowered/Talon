@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  DiagnosisContextPacket,
   DiagnosisMessage,
   HealthStatus,
   Host,
@@ -29,6 +30,8 @@ type HostConnectionConfig = {
   username: string;
   authMethod: string;
   fingerprintHint: string;
+  privateKeyPath?: string | null;
+  hasSavedPassword?: boolean;
 };
 
 type ConnectionAuthMethod = "agent" | "private-key" | "password";
@@ -72,6 +75,23 @@ type HostMutationResponse = {
   hosts: Host[];
 };
 
+type AgentSettings = {
+  providerType: string;
+  baseUrl: string;
+  model: string;
+  autoDiagnose: boolean;
+  requestTimeoutSec: number;
+  hasApiKey: boolean;
+};
+
+type AgentSettingsResponse = {
+  settings: AgentSettings;
+};
+
+type ContextPacketResponse = {
+  packet: DiagnosisContextPacket | null;
+};
+
 type SessionConnectionIssue = {
   sessionId: string;
   kind: string;
@@ -80,6 +100,13 @@ type SessionConnectionIssue = {
   operatorAction: string;
   suggestedCommand: string;
   observedAt: string;
+  fingerprint?: string | null;
+  expectedFingerprintHint?: string | null;
+  host?: string | null;
+  port?: number | null;
+  canTrustInApp?: boolean;
+  inAppActionKind?: string | null;
+  inAppActionLabel?: string | null;
 };
 
 function statusLabel(status: HealthStatus) {
@@ -141,6 +168,14 @@ function App() {
   const [hostUsernameInput, setHostUsernameInput] = useState("");
   const [hostAuthMethodInput, setHostAuthMethodInput] = useState<ConnectionAuthMethod>("agent");
   const [hostFingerprintHintInput, setHostFingerprintHintInput] = useState("Pending trust");
+  const [hostPrivateKeyPathInput, setHostPrivateKeyPathInput] = useState("");
+  const [savedHostPasswordInput, setSavedHostPasswordInput] = useState("");
+  const [agentSettings, setAgentSettings] = useState<AgentSettings | null>(null);
+  const [agentBaseUrlInput, setAgentBaseUrlInput] = useState("");
+  const [agentModelInput, setAgentModelInput] = useState("");
+  const [agentAutoDiagnoseInput, setAgentAutoDiagnoseInput] = useState(true);
+  const [agentApiKeyInput, setAgentApiKeyInput] = useState("");
+  const [latestContextPacket, setLatestContextPacket] = useState<DiagnosisContextPacket | null>(null);
   const [isSavingHostConfig, setIsSavingHostConfig] = useState(false);
   const [isDeletingHostConfig, setIsDeletingHostConfig] = useState(false);
   const [activeTimelineSignalFilter, setActiveTimelineSignalFilter] = useState<string | null>(null);
@@ -161,15 +196,17 @@ function App() {
     setActiveConnectionIssue(registry.activeConnectionIssue);
   }
 
+
   useEffect(() => {
     let cancelled = false;
 
     async function loadWorkspace() {
       setIsLoadingState(true);
       try {
-        const [state, registry] = await Promise.all([
+        const [state, registry, settingsResponse] = await Promise.all([
           invoke<TalonWorkspaceState>("get_workspace_state"),
           invoke<SessionRegistryResponse>("get_session_registry"),
+          invoke<AgentSettingsResponse>("get_agent_settings"),
         ]);
         if (cancelled) return;
         setWorkspace(state);
@@ -179,6 +216,10 @@ function App() {
         setActiveConnectionIssue(registry.activeConnectionIssue);
         setTerminalTail(state.terminal.lines);
         setComposerValue(state.latestDiagnosis.suggestedActions[0]?.command ?? "");
+        setAgentSettings(settingsResponse.settings);
+        setAgentBaseUrlInput(settingsResponse.settings.baseUrl);
+        setAgentModelInput(settingsResponse.settings.model);
+        setAgentAutoDiagnoseInput(settingsResponse.settings.autoDiagnose);
       } finally {
         if (!cancelled) setIsLoadingState(false);
       }
@@ -235,6 +276,8 @@ function App() {
     setHostUsernameInput(nextConfig?.username ?? derivedUsername);
     setHostAuthMethodInput((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
     setHostFingerprintHintInput(nextConfig?.fingerprintHint ?? "Pending trust");
+    setHostPrivateKeyPathInput(nextConfig?.privateKeyPath ?? "");
+    setSavedHostPasswordInput("");
   }, [workspace?.hosts, selectedHostId, hostConfigs]);
 
   const activeSession = useMemo(
@@ -245,7 +288,7 @@ function App() {
   const hosts = workspace?.hosts ?? [];
   const selectedHost = hosts.find((host: Host) => host.id === selectedHostId) ?? hosts[0] ?? null;
   const selectedHostConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === selectedHostId) ?? null;
-  const diagnosis = workspace?.latestDiagnosis ?? null;
+  const diagnosis = (workspace?.latestDiagnosis ?? null) as (TalonWorkspaceState["latestDiagnosis"] & { provider?: string; errorMessage?: string | null; contextPacketId?: string }) | null;
   const failure = workspace?.latestFailure ?? null;
   const timeline = workspace?.timeline ?? [];
   const activeAction = diagnosis?.suggestedActions.find((action: SuggestedAction) => action.status === "ready") ?? null;
@@ -298,6 +341,13 @@ function App() {
     if (!activeConnectionIssue) return;
     setIsSessionOverrideExpanded(true);
   }, [activeConnectionIssue]);
+
+  useEffect(() => {
+    if (!workspace?.activeSessionId) return;
+    void invoke<ContextPacketResponse>("get_latest_context_packet", { payload: { sessionId: workspace.activeSessionId } }).then((response) => {
+      setLatestContextPacket(response.packet);
+    });
+  }, [workspace?.activeSessionId, diagnosis?.contextPacketId]);
 
   async function connectSelectedHost() {
     if (!selectedHost) return;
@@ -400,6 +450,83 @@ function App() {
     }
   }
 
+  async function saveSavedHostPassword() {
+    if (!selectedHost || !savedHostPasswordInput.trim()) return;
+    const result = await invoke<HostConfigMutationResponse>("save_host_password", {
+      payload: { hostId: selectedHost.id, password: savedHostPasswordInput },
+    });
+    setHostConfigs(result.hostConfigs);
+    setSavedHostPasswordInput("");
+    setActionSummary(`Saved a system-keychain password for ${selectedHost.config.label}.`);
+  }
+
+  async function clearSavedHostPassword() {
+    if (!selectedHost) return;
+    const result = await invoke<HostConfigMutationResponse>("clear_host_password", {
+      payload: { hostId: selectedHost.id },
+    });
+    setHostConfigs(result.hostConfigs);
+    setSavedHostPasswordInput("");
+    setActionSummary(`Cleared the saved password for ${selectedHost.config.label}.`);
+  }
+
+  async function saveAgentConfiguration() {
+    const settings = await invoke<AgentSettingsResponse>("save_agent_settings", {
+      payload: {
+        providerType: agentSettings?.providerType ?? "openai-compatible",
+        baseUrl: agentBaseUrlInput.trim(),
+        model: agentModelInput.trim(),
+        autoDiagnose: agentAutoDiagnoseInput,
+        requestTimeoutSec: agentSettings?.requestTimeoutSec ?? 20,
+      },
+    });
+    setAgentSettings(settings.settings);
+    setActionSummary("Saved AI provider settings.");
+  }
+
+  async function saveAgentApiKey() {
+    if (!agentApiKeyInput.trim()) return;
+    const settings = await invoke<AgentSettingsResponse>("save_agent_api_key", {
+      payload: { apiKey: agentApiKeyInput.trim() },
+    });
+    setAgentSettings(settings.settings);
+    setAgentApiKeyInput("");
+    setActionSummary("Saved API key to the system credential store.");
+  }
+
+  async function clearAgentApiKey() {
+    const settings = await invoke<AgentSettingsResponse>("clear_agent_api_key");
+    setAgentSettings(settings.settings);
+    setAgentApiKeyInput("");
+    setActionSummary("Cleared the saved API key.");
+  }
+
+  async function prepareHostTrustFlow() {
+    if (!activeSession) return;
+    const response = await invoke<{ issue: SessionConnectionIssue }>("prepare_host_trust", {
+      payload: { sessionId: activeSession.id },
+    });
+    setActiveConnectionIssue(response.issue);
+    setActionSummary(`Prepared host trust details for ${selectedHost?.config.label ?? activeSession.id}.`);
+  }
+
+  async function confirmHostTrustFlow() {
+    if (!activeSession || !activeConnectionIssue?.fingerprint) return;
+    await invoke("confirm_host_trust", {
+      payload: { sessionId: activeSession.id, fingerprint: activeConnectionIssue.fingerprint },
+    });
+    await Promise.all([refreshWorkspace(), refreshRegistry()]);
+    setActionSummary(`Trusted ${activeConnectionIssue.host ?? selectedHost?.config.label ?? activeSession.id} and updated known_hosts.`);
+  }
+
+  async function rerunDiagnosis() {
+    if (!activeSession) return;
+    const nextState = await invoke<TalonWorkspaceState>("retry_diagnosis", {
+      payload: { sessionId: activeSession.id },
+    });
+    setWorkspace(nextState);
+    setActionSummary(`Regenerated diagnosis for ${selectedHost?.config.label ?? activeSession.id}.`);
+  }
   function resetConnectionOverride() {
     if (!selectedHost) return;
     const nextConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === selectedHost.id) ?? null;
@@ -429,6 +556,7 @@ function App() {
           username: hostUsernameInput.trim() || "root",
           authMethod: hostAuthMethodInput,
           fingerprintHint: hostFingerprintHintInput.trim() || "Pending trust",
+          privateKeyPath: hostPrivateKeyPathInput.trim() || null,
         },
       });
       setHostConfigs(result.hostConfigs);
@@ -599,6 +727,45 @@ function App() {
               </div>
             </div>
 
+            <div className="section-block compact-section-block">
+              <div className="section-title-row compact-section-title">
+                <div>
+                  <p className="panel-kicker">AI provider</p>
+                  <h2>Diagnosis settings</h2>
+                </div>
+                <span className="pill subtle">{agentSettings?.hasApiKey ? "API key saved" : "No API key"}</span>
+              </div>
+              <div className="connection-form compact-form">
+                <label className="connection-field">
+                  <span>Base URL</span>
+                  <input value={agentBaseUrlInput} onChange={(event) => setAgentBaseUrlInput(event.target.value)} />
+                </label>
+                <label className="connection-field">
+                  <span>Model</span>
+                  <input value={agentModelInput} onChange={(event) => setAgentModelInput(event.target.value)} />
+                </label>
+                <label className="connection-field">
+                  <span>API key</span>
+                  <input type="password" value={agentApiKeyInput} onChange={(event) => setAgentApiKeyInput(event.target.value)} placeholder={agentSettings?.hasApiKey ? "Stored in system keychain" : "Paste API key"} />
+                </label>
+                <label className="connection-field checkbox-field">
+                  <span>Auto diagnose</span>
+                  <input type="checkbox" checked={agentAutoDiagnoseInput} onChange={(event) => setAgentAutoDiagnoseInput(event.target.checked)} />
+                </label>
+                <div className="host-config-actions">
+                  <button className="ghost-button small" onClick={() => void saveAgentConfiguration()}>
+                    Save settings
+                  </button>
+                  <button className="ghost-button small" onClick={() => void saveAgentApiKey()} disabled={!agentApiKeyInput.trim()}>
+                    Save API key
+                  </button>
+                  <button className="ghost-button small" onClick={() => void clearAgentApiKey()} disabled={!agentSettings?.hasApiKey}>
+                    Clear API key
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className="section-block collapsible-block">
               <button className="section-toggle" onClick={() => setIsSavedConfigExpanded((current) => !current)}>
                 <div>
@@ -660,7 +827,30 @@ function App() {
                         placeholder="SHA256:... or Pending trust"
                       />
                     </label>
+                    <label className="connection-field">
+                      <span>Private key path</span>
+                      <input
+                        value={hostPrivateKeyPathInput}
+                        onChange={(event) => setHostPrivateKeyPathInput(event.target.value)}
+                        placeholder="C:\\Users\\...\\.ssh\\id_ed25519"
+                      />
+                    </label>
+                    <label className="connection-field">
+                      <span>Saved password</span>
+                      <input
+                        type="password"
+                        value={savedHostPasswordInput}
+                        onChange={(event) => setSavedHostPasswordInput(event.target.value)}
+                        placeholder={selectedHostConfig?.hasSavedPassword ? "Password saved in system keychain" : "Store password in system keychain"}
+                      />
+                    </label>
                     <div className="host-config-actions">
+                      <button className="ghost-button small" onClick={() => void saveSavedHostPassword()} disabled={!savedHostPasswordInput.trim()}>
+                        Save password
+                      </button>
+                      <button className="ghost-button small" onClick={() => void clearSavedHostPassword()} disabled={!selectedHostConfig?.hasSavedPassword}>
+                        Clear password
+                      </button>
                       <button className="ghost-button small" onClick={() => void updateSelectedHost()} disabled={isSavingHostConfig}>
                         {isSavingHostConfig ? "Saving..." : "Save host"}
                       </button>
@@ -739,8 +929,20 @@ function App() {
                 <div className={`connection-issue issue-${activeConnectionIssue.kind}`}>
                   <strong>{activeConnectionIssue.title}</strong>
                   <p>{activeConnectionIssue.summary}</p>
+                  {activeConnectionIssue.fingerprint ? <span>Fingerprint {activeConnectionIssue.fingerprint}</span> : null}
+                  {activeConnectionIssue.expectedFingerprintHint ? <span>Expected {activeConnectionIssue.expectedFingerprintHint}</span> : null}
                   <span>{activeConnectionIssue.operatorAction}</span>
                   <code>{activeConnectionIssue.suggestedCommand}</code>
+                  {activeConnectionIssue.kind === "host-trust" ? (
+                    <div className="host-config-actions">
+                      <button className="ghost-button small" onClick={() => void prepareHostTrustFlow()}>
+                        Scan fingerprint
+                      </button>
+                      <button className="primary-button small" onClick={() => void confirmHostTrustFlow()} disabled={!activeConnectionIssue.fingerprint}>
+                        Trust host
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -908,10 +1110,16 @@ function App() {
                 <div className="hero-badges">
                   {failure.stderrClass ? <span className="confidence-badge signal-badge">{stderrClassLabel(failure.stderrClass)}</span> : null}
                   <span className="confidence-badge">{diagnosis.confidence}%</span>
+                  <span className="confidence-badge">{diagnosis.provider}</span>
                 </div>
               </article>
 
               <div className="insight-grid compact-insight-grid compact-insight-grid-two">
+                <article className="insight-card">
+                  <span>Provider</span>
+                  <strong>{diagnosis.provider}</strong>
+                  <p>{diagnosis.errorMessage ?? (agentSettings?.hasApiKey ? "Using configured model access" : "Using local rule fallback")}</p>
+                </article>
                 <article className="insight-card">
                   <span>Host</span>
                   <strong>{selectedHost.config.label}</strong>
@@ -937,6 +1145,9 @@ function App() {
               </div>
 
               <div className="action-box compact-action-box">
+                <button className="ghost-button small" onClick={() => void rerunDiagnosis()}>
+                  Regenerate diagnosis
+                </button>
                 <p className="action-label">Suggested actions</p>
                 {diagnosis.suggestedActions.map((action: SuggestedAction) => (
                   <button
@@ -963,6 +1174,11 @@ function App() {
                 <span className="pill subtle">{failure.relatedArtifacts.length}</span>
               </div>
               <div className="artifact-list">
+                {latestContextPacket ? (
+                  <article className="artifact-card">
+                    <pre>{JSON.stringify(latestContextPacket, null, 2)}</pre>
+                  </article>
+                ) : null}
                 {failure.relatedArtifacts.length === 0 ? <p className="empty-copy">No related artifacts captured for this failure.</p> : null}
                 {failure.relatedArtifacts.map((artifact, index) => (
                   <article key={`${artifact}${index}`} className="artifact-card">
