@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
@@ -91,6 +92,7 @@ struct SessionStreamState {
 struct SessionRuntimeHandle {
     stdin: Arc<Mutex<ChildStdin>>,
     pid: u32,
+    askpass_path: Option<PathBuf>,
 }
 
 pub struct SessionRegistry {
@@ -421,6 +423,16 @@ fn classify_local_connection_error(host: &Host, line: &str) -> (String, String, 
     ))
 }
 
+fn create_askpass_helper(session_id: &str) -> Result<PathBuf, String> {
+    let sanitized = session_id
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
+        .collect::<String>();
+    let path = env::temp_dir().join(format!("talon_askpass_{}.cmd", sanitized));
+    fs::write(&path, "@echo off\r\necho %TALON_SSH_PASSWORD%\r\n").map_err(|error| error.to_string())?;
+    Ok(path)
+}
+
 fn next_command_id(registry: &mut SessionRegistry, session_id: &str) -> String {
     registry.command_counter += 1;
     format!("cmd-{}-{}", session_id, registry.command_counter)
@@ -678,7 +690,12 @@ fn start_stderr_reader(session_id: String, host: Host, stderr: ChildStderr) {
     });
 }
 
-fn launch_runtime(session_id: String, host: Host, config: HostConnectionConfig) -> Result<SessionRuntimeHandle, String> {
+fn launch_runtime(
+    session_id: String,
+    host: Host,
+    config: HostConnectionConfig,
+    password: Option<&str>,
+) -> Result<SessionRuntimeHandle, String> {
     let (username, hostname) = parse_host_target(&host, Some(&config));
     let mut command = Command::new("ssh");
 
@@ -697,6 +714,8 @@ fn launch_runtime(session_id: String, host: Host, config: HostConnectionConfig) 
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
+    let mut askpass_path = None;
+
     if config.auth_method == "private-key" {
         let key_path = resolve_private_key_path(&host.id)
             .ok_or_else(|| format!("No SSH private key found for host {}", host.id))?;
@@ -704,7 +723,22 @@ fn launch_runtime(session_id: String, host: Host, config: HostConnectionConfig) 
     }
 
     if config.auth_method == "password" {
-        return Err("Password authentication is not supported in the current backend.".into());
+        let password = password
+            .filter(|value| !value.trim().is_empty())
+            .ok_or_else(|| "Password authentication requires an operator-provided password.".to_string())?;
+        let helper_path = create_askpass_helper(&session_id)?;
+        command
+            .arg("-o")
+            .arg("PubkeyAuthentication=no")
+            .arg("-o")
+            .arg("PreferredAuthentications=password")
+            .arg("-o")
+            .arg("NumberOfPasswordPrompts=1")
+            .env("SSH_ASKPASS", &helper_path)
+            .env("SSH_ASKPASS_REQUIRE", "force")
+            .env("DISPLAY", "talon")
+            .env("TALON_SSH_PASSWORD", password);
+        askpass_path = Some(helper_path);
     }
 
     let mut child = command.spawn().map_err(|error| error.to_string())?;
@@ -728,8 +762,17 @@ fn launch_runtime(session_id: String, host: Host, config: HostConnectionConfig) 
     thread::spawn(move || match child.wait() {
         Ok(status) => {
             let mut state = registry().lock().expect("session registry lock poisoned");
+            let askpass_path = state
+                .runtimes
+                .get(&session_id)
+                .and_then(|runtime| runtime.askpass_path.clone());
             update_session_state(&mut state, &session_id, "disconnected");
             state.runtimes.remove(&session_id);
+            drop(state);
+            if let Some(path) = askpass_path {
+                let _ = fs::remove_file(path);
+            }
+            let mut state = registry().lock().expect("session registry lock poisoned");
             push_event(
                 &mut state,
                 &session_id,
@@ -744,8 +787,17 @@ fn launch_runtime(session_id: String, host: Host, config: HostConnectionConfig) 
         }
         Err(error) => {
             let mut state = registry().lock().expect("session registry lock poisoned");
+            let askpass_path = state
+                .runtimes
+                .get(&session_id)
+                .and_then(|runtime| runtime.askpass_path.clone());
             update_session_state(&mut state, &session_id, "degraded");
             state.runtimes.remove(&session_id);
+            drop(state);
+            if let Some(path) = askpass_path {
+                let _ = fs::remove_file(path);
+            }
+            let mut state = registry().lock().expect("session registry lock poisoned");
             push_event(
                 &mut state,
                 &session_id,
@@ -755,10 +807,14 @@ fn launch_runtime(session_id: String, host: Host, config: HostConnectionConfig) 
         }
     });
 
-    Ok(SessionRuntimeHandle { stdin, pid })
+    Ok(SessionRuntimeHandle {
+        stdin,
+        pid,
+        askpass_path,
+    })
 }
 
-pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>) -> ManagedSessionRecord {
+pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password: Option<&str>) -> ManagedSessionRecord {
     let host_config = config.cloned().unwrap_or(HostConnectionConfig {
         host_id: host.id.clone(),
         port: 22,
@@ -804,7 +860,7 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>) -> Manag
         );
     }
 
-    match launch_runtime(record.id.clone(), host.clone(), host_config) {
+    match launch_runtime(record.id.clone(), host.clone(), host_config, password) {
         Ok(runtime) => {
             let mut registry = registry().lock().expect("session registry lock poisoned");
             registry.runtimes.insert(record.id.clone(), runtime);

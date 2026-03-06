@@ -31,19 +31,20 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added operator-visible connection issue handling for host trust, authentication, timeout, and network-path failures, including suggested operator actions and recommended commands in the UI.
 - Added a verification log in `docs/VERIFICATION.md` and captured the current environment's local SSH probe transcripts.
 - Validated an operator-provided external password-auth SSH target outside the product flow, confirming reachable handshake, shell bootstrap, and a controlled non-zero remote exit.
+- Added product-integrated password authentication support through operator-supplied connection overrides in the desktop UI and backend-managed `SSH_ASKPASS` handling for `ssh.exe`.
 
 ## In Progress
-- Deciding whether to bring password authentication into the product transport now that an external password-auth target has been validated.
+- Validating the desktop product path against the already-tested external password-auth target.
 
 ## Next Steps
-1. Add product-integrated password auth support so Talon can exercise the validated external host through the desktop workflow instead of an external probe.
-2. Validate the full desktop flow against a reachable SSH target and capture at least one successful shell bootstrap transcript.
-3. Capture a real non-zero incident command transcript from a reachable host so the live failure context path is validated end to end.
+1. Validate the full desktop flow against a reachable SSH target and capture at least one successful shell bootstrap transcript from the product path.
+2. Capture a real non-zero incident command transcript from a reachable host so the live failure context path is validated end to end inside Talon.
+3. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
 - Strict host key checking is enabled, so first-contact hosts without an existing known-hosts entry will fail until Talon exposes an explicit operator-confirmed trust flow.
-- Password auth has been validated externally against a reachable host, but it is still unsupported in the backend product transport; the current in-app real path still assumes agent or private-key auth.
+- Password auth is now supported in the product transport, but end-to-end desktop verification against the external host still depends on running the Tauri shell against that target.
 - Frontend verification is available via Node, but full desktop runtime verification beyond local probes still depends on local operator access to reachable SSH targets. In this session, `sshd` was stopped and `ssh-agent` was disabled on the local machine.
 
 ## Working Rules

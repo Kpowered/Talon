@@ -30,7 +30,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -266,6 +267,43 @@ button {
   flex: 1;
   background: transparent;
   border: none;
+  color: #dbe3f6;
+  outline: none;
+}
+
+.connection-form {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.connection-grid {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 10px;
+}
+
+.connection-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.connection-field span {
+  color: #91a0ba;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.connection-field input,
+.connection-field select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
   color: #dbe3f6;
   outline: none;
 }

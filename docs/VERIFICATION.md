@@ -138,6 +138,7 @@ Interpretation:
 
 - Rust backend compiles with the current real SSH transport, disconnect/reconnect flow, and in-flight command guardrails.
 - Desktop frontend builds with the current Tauri command surface and `@talon/core` path alias wiring.
+- Product code now supports password-auth SSH sessions through operator-supplied connection overrides and backend-managed `SSH_ASKPASS`.
 - Talon can now classify and surface connection-path failures for:
   - host trust / host key issues
   - authentication failures
@@ -152,7 +153,7 @@ Interpretation:
 - Command start/end framing against a real remote shell
 - Non-zero exit capture from a live incident command on a reachable host
 - Transcript capture from a real remote failure session
-- The desktop product path against a password-auth host, because Talon's backend transport still does not consume password credentials directly
+- The desktop product path against the validated password-auth host still needs an interactive Tauri runtime check
 
 ## Next verification target
 

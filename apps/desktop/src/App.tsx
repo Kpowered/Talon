@@ -31,6 +31,8 @@ type HostConnectionConfig = {
   fingerprintHint: string;
 };
 
+type ConnectionAuthMethod = "agent" | "private-key" | "password";
+
 type ConnectSessionResponse = {
   session: {
     sessionId: string;
@@ -125,6 +127,11 @@ function App() {
   const [isSubmittingCommand, setIsSubmittingCommand] = useState(false);
   const [isDisconnectingSession, setIsDisconnectingSession] = useState(false);
   const [isReconnectingSession, setIsReconnectingSession] = useState(false);
+  const [connectionAddress, setConnectionAddress] = useState("");
+  const [connectionPort, setConnectionPort] = useState("22");
+  const [connectionUsername, setConnectionUsername] = useState("");
+  const [connectionAuthMethod, setConnectionAuthMethod] = useState<ConnectionAuthMethod>("agent");
+  const [connectionPassword, setConnectionPassword] = useState("");
 
   async function refreshWorkspace() {
     const state = await invoke<TalonWorkspaceState>("get_workspace_state");
@@ -194,6 +201,19 @@ function App() {
     };
   }, [workspace?.activeSessionId]);
 
+  useEffect(() => {
+    const nextHost = workspace?.hosts.find((host: Host) => host.id === selectedHostId) ?? workspace?.hosts[0];
+    if (!nextHost) return;
+
+    const nextConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === nextHost.id) ?? null;
+    const derivedUsername = nextHost.address.includes("@") ? nextHost.address.split("@")[0] : nextConfig?.username ?? "";
+    setConnectionAddress(nextHost.address);
+    setConnectionPort(String(nextConfig?.port ?? 22));
+    setConnectionUsername(nextConfig?.username ?? derivedUsername);
+    setConnectionAuthMethod((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
+    setConnectionPassword("");
+  }, [workspace?.hosts, selectedHostId, hostConfigs]);
+
   const activeSession = useMemo(
     () => workspace?.sessions.find((session: Session) => session.id === workspace.activeSessionId) ?? null,
     [workspace],
@@ -258,7 +278,14 @@ function App() {
     setIsConnectingSession(true);
     try {
       const result = await invoke<ConnectSessionResponse>("connect_session", {
-        payload: { hostId: selectedHost.id },
+        payload: {
+          hostId: selectedHost.id,
+          address: connectionAddress.trim(),
+          port: Number(connectionPort) || 22,
+          username: connectionUsername.trim(),
+          authMethod: connectionAuthMethod,
+          password: connectionAuthMethod === "password" ? connectionPassword : undefined,
+        },
       });
       setSessionEvents(result.events);
       setActionSummary(`Managed session ready for ${selectedHost.label} in ${result.session.cwd}.`);
@@ -311,7 +338,14 @@ function App() {
     setIsReconnectingSession(true);
     try {
       const result = await invoke<ConnectSessionResponse>("reconnect_session", {
-        payload: { hostId: selectedHost.id },
+        payload: {
+          hostId: selectedHost.id,
+          address: connectionAddress.trim(),
+          port: Number(connectionPort) || 22,
+          username: connectionUsername.trim(),
+          authMethod: connectionAuthMethod,
+          password: connectionAuthMethod === "password" ? connectionPassword : undefined,
+        },
       });
       setSessionEvents(result.events);
       setActionSummary(`Reconnect requested for ${selectedHost.label}.`);
@@ -451,6 +485,41 @@ function App() {
               <span>{selectedHostConfig?.username ?? "unknown"}</span>
               <span>port {selectedHostConfig?.port ?? 0}</span>
               <span>{selectedHostConfig?.fingerprintHint ?? "no fingerprint"}</span>
+            </div>
+            <div className="connection-form">
+              <label className="connection-field">
+                <span>Address</span>
+                <input value={connectionAddress} onChange={(event) => setConnectionAddress(event.target.value)} />
+              </label>
+              <div className="connection-grid">
+                <label className="connection-field">
+                  <span>Port</span>
+                  <input value={connectionPort} onChange={(event) => setConnectionPort(event.target.value)} inputMode="numeric" />
+                </label>
+                <label className="connection-field">
+                  <span>User</span>
+                  <input value={connectionUsername} onChange={(event) => setConnectionUsername(event.target.value)} />
+                </label>
+              </div>
+              <label className="connection-field">
+                <span>Auth</span>
+                <select value={connectionAuthMethod} onChange={(event) => setConnectionAuthMethod(event.target.value as ConnectionAuthMethod)}>
+                  <option value="agent">agent</option>
+                  <option value="private-key">private-key</option>
+                  <option value="password">password</option>
+                </select>
+              </label>
+              {connectionAuthMethod === "password" ? (
+                <label className="connection-field">
+                  <span>Password</span>
+                  <input
+                    type="password"
+                    value={connectionPassword}
+                    onChange={(event) => setConnectionPassword(event.target.value)}
+                    placeholder="Operator-provided password"
+                  />
+                </label>
+              ) : null}
             </div>
             {activeConnectionIssue ? (
               <div className={`connection-issue issue-${activeConnectionIssue.kind}`}>

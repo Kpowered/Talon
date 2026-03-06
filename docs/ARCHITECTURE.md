@@ -95,10 +95,13 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
 - Auth model:
   - `agent` uses the local OpenSSH agent or default key discovery
   - `private-key` uses `TALON_SSH_KEY_PATH_<HOST_ID>` first, then falls back to `~/.ssh/id_ed25519` or `~/.ssh/id_rsa`
-  - `password` is not implemented
+  - `password` is supplied by the operator at connect time and bridged into `ssh.exe` through a temporary `SSH_ASKPASS` helper
 - Bootstrap:
   - after spawn, Talon writes probe commands to capture `$SHELL` and `pwd`
   - stdout parsing converts those markers into live session metadata
+- Connection overrides:
+  - the desktop UI can override the selected host's address, port, username, auth method, and password at connect time
+  - overrides are session-scoped operator input and are not persisted into repository-backed mock state
 - Command framing:
   - submitted commands are wrapped with Talon control markers before being written to the remote shell
   - stdout parsing detects command start and command end markers

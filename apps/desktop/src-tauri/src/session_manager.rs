@@ -9,6 +9,11 @@ use crate::session_store::{RunbookActionResponse, SuggestedActionRequest, TalonW
 #[serde(rename_all = "camelCase")]
 pub struct ConnectSessionRequest {
     pub host_id: String,
+    pub address: Option<String>,
+    pub port: Option<u16>,
+    pub username: Option<String>,
+    pub auth_method: Option<String>,
+    pub password: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -106,9 +111,37 @@ pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse
         .find(|host| host.id == payload.host_id)
         .or_else(|| state.hosts.first())
         .expect("workspace state must include at least one host");
-    let host_config = session_registry::host_config_for(&host.id);
+    let mut effective_host = host.clone();
+    if let Some(address) = payload.address.as_ref().filter(|value| !value.trim().is_empty()) {
+        effective_host.address = address.trim().into();
+    }
+    if let Some(username) = payload.username.as_ref().filter(|value| !value.trim().is_empty()) {
+        let target = effective_host
+            .address
+            .split_once('@')
+            .map(|(_, hostname)| hostname.to_string())
+            .unwrap_or_else(|| effective_host.address.clone());
+        effective_host.address = format!("{}@{}", username.trim(), target);
+    }
 
-    let session = session_registry::connect_host(host, host_config.as_ref());
+    let mut host_config = session_registry::host_config_for(&host.id).unwrap_or(HostConnectionConfig {
+        host_id: host.id.clone(),
+        port: 22,
+        username: "root".into(),
+        auth_method: "agent".into(),
+        fingerprint_hint: "unknown".into(),
+    });
+    if let Some(port) = payload.port {
+        host_config.port = port;
+    }
+    if let Some(username) = payload.username.as_ref().filter(|value| !value.trim().is_empty()) {
+        host_config.username = username.trim().into();
+    }
+    if let Some(auth_method) = payload.auth_method.as_ref().filter(|value| !value.trim().is_empty()) {
+        host_config.auth_method = auth_method.trim().into();
+    }
+
+    let session = session_registry::connect_host(&effective_host, Some(&host_config), payload.password.as_deref());
 
     ConnectSessionResponse {
         session: SessionSummary {
