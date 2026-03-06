@@ -40,6 +40,8 @@ As of 2026-03-06:
 - `apps/desktop/src-tauri/src/session_registry.rs` now persists both host records and host connection configs to local JSON files under the user's local app data directory.
 - The shared `Host` contract is now split into `config` and `observed` sections so operator-editable fields are separated from runtime telemetry.
 - `apps/desktop/src-tauri/src/session_manager.rs` is the backend boundary that exposes registry-backed session and terminal commands to the UI.
+- `apps/desktop/src-tauri/src/session_manager.rs` now acts as a thin Tauri-safe boundary: read-only getters still return direct DTOs, while mutating commands return `Result<..., String>` so backend/runtime failures surface to the UI instead of panicking the app.
+- `apps/desktop/src-tauri/src/session_registry.rs` still owns transport/runtime state, but registry and SSH-stdin lock access now goes through local recovery helpers instead of `expect(...)` so a poisoned lock degrades more safely during long-lived desktop sessions.
 - `apps/desktop/src-tauri/src/context_builder.rs` now owns the temporary agent-facing shaping logic for failure packets, diagnosis scaffolding, and timeline construction.
 - Real session connection management is now handled by backend-spawned `ssh.exe` child processes with piped stdin/stdout/stderr and reader threads owned by the registry layer.
 

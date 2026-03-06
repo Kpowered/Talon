@@ -4,7 +4,7 @@ use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::thread;
 use std::time::Instant;
 
@@ -344,10 +344,17 @@ fn registry() -> &'static Mutex<SessionRegistry> {
     })
 }
 
+fn lock_registry() -> MutexGuard<'static, SessionRegistry> {
+    registry().lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn lock_stdin(stdin: &Arc<Mutex<ChildStdin>>) -> MutexGuard<'_, ChildStdin> {
+    stdin.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+
 pub fn list_host_configs() -> Vec<HostConnectionConfig> {
-    registry()
-        .lock()
-        .expect("session registry lock poisoned")
+    lock_registry()
         .host_configs
         .iter()
         .cloned()
@@ -359,7 +366,7 @@ pub fn list_host_configs() -> Vec<HostConnectionConfig> {
 }
 
 pub fn upsert_host(host: Host) -> Result<Vec<Host>, String> {
-    let mut registry = registry().lock().expect("session registry lock poisoned");
+    let mut registry = lock_registry();
     if let Some(existing) = registry.hosts.iter_mut().find(|existing| existing.id == host.id) {
         *existing = host;
     } else {
@@ -371,7 +378,7 @@ pub fn upsert_host(host: Host) -> Result<Vec<Host>, String> {
 
 pub fn upsert_host_config(config: HostConnectionConfig) -> Result<Vec<HostConnectionConfig>, String> {
     let updated_configs = {
-        let mut registry = registry().lock().expect("session registry lock poisoned");
+        let mut registry = lock_registry();
         if let Some(existing) = registry
             .host_configs
             .iter_mut()
@@ -399,7 +406,7 @@ pub fn upsert_host_config(config: HostConnectionConfig) -> Result<Vec<HostConnec
 
 pub fn delete_host_config(host_id: &str) -> Result<Vec<HostConnectionConfig>, String> {
     let updated_configs = {
-        let mut registry = registry().lock().expect("session registry lock poisoned");
+        let mut registry = lock_registry();
         registry.host_configs.retain(|config| config.host_id != host_id);
         save_host_configs(&registry.host_configs)?;
         registry.host_configs.clone()
@@ -415,7 +422,7 @@ pub fn delete_host_config(host_id: &str) -> Result<Vec<HostConnectionConfig>, St
 }
 
 pub fn delete_host(host_id: &str) -> Result<Vec<Host>, String> {
-    let mut registry = registry().lock().expect("session registry lock poisoned");
+    let mut registry = lock_registry();
     registry.hosts.retain(|host| host.id != host_id);
     registry.host_configs.retain(|config| config.host_id != host_id);
     save_hosts(&registry.hosts)?;
@@ -424,9 +431,7 @@ pub fn delete_host(host_id: &str) -> Result<Vec<Host>, String> {
 }
 
 pub fn busy_session_ids() -> Vec<String> {
-    registry()
-        .lock()
-        .expect("session registry lock poisoned")
+    lock_registry()
         .active_commands
         .keys()
         .cloned()
@@ -434,18 +439,14 @@ pub fn busy_session_ids() -> Vec<String> {
 }
 
 pub fn connection_issue_for(session_id: &str) -> Option<SessionConnectionIssue> {
-    registry()
-        .lock()
-        .expect("session registry lock poisoned")
+    lock_registry()
         .connection_issues
         .get(session_id)
         .cloned()
 }
 
 pub fn host_config_for(host_id: &str) -> Option<HostConnectionConfig> {
-    registry()
-        .lock()
-        .expect("session registry lock poisoned")
+    lock_registry()
         .host_configs
         .iter()
         .find(|config| config.host_id == host_id)
@@ -453,9 +454,7 @@ pub fn host_config_for(host_id: &str) -> Option<HostConnectionConfig> {
 }
 
 pub fn host_for(host_id: &str) -> Option<Host> {
-    registry()
-        .lock()
-        .expect("session registry lock poisoned")
+    lock_registry()
         .hosts
         .iter()
         .find(|host| host.id == host_id)
@@ -463,15 +462,15 @@ pub fn host_for(host_id: &str) -> Option<Host> {
 }
 
 pub fn first_host() -> Option<Host> {
-    registry().lock().expect("session registry lock poisoned").hosts.first().cloned()
+    lock_registry().hosts.first().cloned()
 }
 
 pub fn recent_events() -> Vec<SessionLifecycleEvent> {
-    registry().lock().expect("session registry lock poisoned").recent_events.clone()
+    lock_registry().recent_events.clone()
 }
 
 pub fn terminal_snapshot(session_id: &str) -> TerminalSnapshot {
-    let registry = registry().lock().expect("session registry lock poisoned");
+    let registry = lock_registry();
     let lines = registry
         .terminal_buffers
         .get(session_id)
@@ -741,15 +740,12 @@ fn complete_active_command(registry: &mut SessionRegistry, session_id: &str, com
 
     if exit_code != 0 {
         let session = registry.managed_sessions.iter().find(|session| session.id == session_id);
-        let command_entry = registry
-            .command_history
-            .first()
-            .cloned()
-            .expect("latest command entry must exist");
-        registry.latest_failures.insert(
-            session_id.into(),
-            context_builder::build_failure_context(session_id, session, &command_entry),
-        );
+        if let Some(command_entry) = registry.command_history.first().cloned() {
+            registry.latest_failures.insert(
+                session_id.into(),
+                context_builder::build_failure_context(session_id, session, &command_entry),
+            );
+        }
         push_event(
             registry,
             session_id,
@@ -996,25 +992,21 @@ fn fingerprint_for_key_line(key_line: &str) -> Result<String, String> {
 }
 
 pub fn cached_context_packet_for(session_id: &str) -> Option<DiagnosisContextPacket> {
-    registry()
-        .lock()
-        .expect("session registry lock poisoned")
+    lock_registry()
         .diagnosis_cache
         .get(session_id)
         .map(|entry| entry.packet.clone())
 }
 
 pub fn invalidate_diagnosis(session_id: &str) {
-    registry()
-        .lock()
-        .expect("session registry lock poisoned")
+    lock_registry()
         .diagnosis_cache
         .remove(session_id);
 }
 
 pub fn prepare_host_trust(session_id: &str) -> Result<SessionConnectionIssue, String> {
     let (host, port, hint) = {
-        let registry = registry().lock().expect("session registry lock poisoned");
+        let registry = lock_registry();
         let session = registry
             .managed_sessions
             .iter()
@@ -1039,7 +1031,7 @@ pub fn prepare_host_trust(session_id: &str) -> Result<SessionConnectionIssue, St
     let key_line = ssh_keyscan(&host, port)?;
     let fingerprint = fingerprint_for_key_line(key_line.lines().next().unwrap_or(&key_line))?;
 
-    let mut registry = registry().lock().expect("session registry lock poisoned");
+    let mut registry = lock_registry();
     let issue = SessionConnectionIssue {
         session_id: session_id.into(),
         kind: "host-trust".into(),
@@ -1082,7 +1074,7 @@ pub fn confirm_host_trust(session_id: &str, fingerprint: &str) -> Result<Option<
         fs::write(&path, next).map_err(|error| error.to_string())?;
     }
 
-    let mut registry = registry().lock().expect("session registry lock poisoned");
+    let mut registry = lock_registry();
     if let Some(config) = registry.host_configs.iter_mut().find(|config| config.host_id == issue.session_id.trim_start_matches("session-")) {
         config.fingerprint_hint = actual;
     }
@@ -1124,12 +1116,12 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
                 Ok(_) => {
                     let line = line.trim_end_matches(['\r', '\n']).to_string();
                     if line.is_empty() {
-                        let mut state = registry().lock().expect("session registry lock poisoned");
+                        let mut state = lock_registry();
                         push_terminal_line(&mut state, &session_id, String::new());
                         continue;
                     }
 
-                    let mut state = registry().lock().expect("session registry lock poisoned");
+                    let mut state = lock_registry();
                     if let Some(shell) = line.strip_prefix(META_SHELL_PREFIX) {
                         update_session_metadata(&mut state, &session_id, Some(shell.trim()), None);
                         continue;
@@ -1184,7 +1176,7 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
                     push_event(&mut state, &session_id, "stdout", line);
                 }
                 Err(error) => {
-                    let mut state = registry().lock().expect("session registry lock poisoned");
+                    let mut state = lock_registry();
                     update_session_state(&mut state, &session_id, "degraded");
                     push_event(
                         &mut state,
@@ -1208,7 +1200,7 @@ fn start_stderr_reader(session_id: String, host: Host, stderr: ChildStderr) {
                 Ok(0) => break,
                 Ok(_) => {
                     let line = line.trim_end_matches(['\r', '\n']).to_string();
-                    let mut state = registry().lock().expect("session registry lock poisoned");
+                    let mut state = lock_registry();
                     push_terminal_line(&mut state, &session_id, format!("stderr: {}", line));
                     capture_stream_line(&mut state, &session_id, "stderr", &line);
                     capture_command_stream_line(&mut state, &session_id, "stderr", &line);
@@ -1234,7 +1226,7 @@ fn start_stderr_reader(session_id: String, host: Host, stderr: ChildStderr) {
                     push_event(&mut state, &session_id, "stderr", line);
                 }
                 Err(error) => {
-                    let mut state = registry().lock().expect("session registry lock poisoned");
+                    let mut state = lock_registry();
                     push_event(
                         &mut state,
                         &session_id,
@@ -1313,7 +1305,7 @@ fn launch_runtime(
     start_stderr_reader(session_id.clone(), host.clone(), stderr);
 
     {
-        let mut guard = stdin.lock().expect("ssh stdin lock poisoned");
+        let mut guard = lock_stdin(&stdin);
         guard
             .write_all(b"printf '__TALON_META_SHELL__%s\\n' \"${SHELL:-sh}\"\npwd | sed 's#^#__TALON_META_CWD__#'\n")
             .map_err(|error| error.to_string())?;
@@ -1322,7 +1314,7 @@ fn launch_runtime(
 
     thread::spawn(move || match child.wait() {
         Ok(status) => {
-            let mut state = registry().lock().expect("session registry lock poisoned");
+            let mut state = lock_registry();
             let askpass_path = state
                 .runtimes
                 .get(&session_id)
@@ -1334,7 +1326,7 @@ fn launch_runtime(
             if let Some(path) = askpass_path {
                 let _ = fs::remove_file(path);
             }
-            let mut state = registry().lock().expect("session registry lock poisoned");
+            let mut state = lock_registry();
             push_event(
                 &mut state,
                 &session_id,
@@ -1348,7 +1340,7 @@ fn launch_runtime(
             );
         }
         Err(error) => {
-            let mut state = registry().lock().expect("session registry lock poisoned");
+            let mut state = lock_registry();
             let askpass_path = state
                 .runtimes
                 .get(&session_id)
@@ -1359,7 +1351,7 @@ fn launch_runtime(
             if let Some(path) = askpass_path {
                 let _ = fs::remove_file(path);
             }
-            let mut state = registry().lock().expect("session registry lock poisoned");
+            let mut state = lock_registry();
             push_event(
                 &mut state,
                 &session_id,
@@ -1402,7 +1394,7 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
     };
 
     {
-        let mut registry = registry().lock().expect("session registry lock poisoned");
+        let mut registry = lock_registry();
         registry.managed_sessions.retain(|session| session.host_id != host.id);
         registry.runtimes.remove(&session_id);
         registry.managed_sessions.insert(0, record.clone());
@@ -1427,7 +1419,7 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
 
     match launch_runtime(record.id.clone(), host.clone(), host_config, password) {
         Ok(runtime) => {
-            let mut registry = registry().lock().expect("session registry lock poisoned");
+            let mut registry = lock_registry();
             registry.runtimes.insert(record.id.clone(), runtime);
             push_event(
                 &mut registry,
@@ -1437,7 +1429,7 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
             );
         }
         Err(error) => {
-            let mut registry = registry().lock().expect("session registry lock poisoned");
+            let mut registry = lock_registry();
             update_session_state(&mut registry, &record.id, "disconnected");
             let (kind, title, summary, operator_action, suggested_command) =
                 classify_local_connection_error(host, &error);
@@ -1461,21 +1453,19 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
         }
     }
 
-    registry()
-        .lock()
-        .expect("session registry lock poisoned")
+    lock_registry()
         .managed_sessions
         .iter()
         .find(|session| session.id == record.id)
         .cloned()
-        .expect("connected session must exist")
+        .unwrap_or(record)
 }
 
 pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
     let trimmed = command.trim();
 
     {
-        let mut registry = registry().lock().expect("session registry lock poisoned");
+        let mut registry = lock_registry();
         if registry.active_commands.contains_key(session_id) {
             push_terminal_line(
                 &mut registry,
@@ -1493,7 +1483,7 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
     }
 
     let stdin = {
-        let mut registry = registry().lock().expect("session registry lock poisoned");
+        let mut registry = lock_registry();
         let command_id = next_command_id(&mut registry, session_id);
         let started_at = now_iso();
         registry.active_commands.insert(
@@ -1525,7 +1515,7 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
     };
 
     if let Some((stdin, command_id)) = stdin {
-        let mut guard = stdin.lock().expect("ssh stdin lock poisoned");
+        let mut guard = lock_stdin(&stdin);
         let wrapped_command = format!(
             "printf '{start}{id}\\n'\n{command}\ntalon_exit=$?\ntalon_cwd=$(pwd)\nprintf '{end}{id}__%s__%s\\n' \"$talon_exit\" \"$talon_cwd\"\n",
             start = CMD_START_PREFIX,
@@ -1536,7 +1526,7 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
         let write_result = guard.write_all(wrapped_command.as_bytes()).and_then(|_| guard.flush());
 
         if let Err(error) = write_result {
-            let mut registry = registry().lock().expect("session registry lock poisoned");
+            let mut registry = lock_registry();
             registry.active_commands.remove(session_id);
             push_terminal_line(
                 &mut registry,
@@ -1551,7 +1541,7 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
             );
         }
     } else {
-        let mut registry = registry().lock().expect("session registry lock poisoned");
+        let mut registry = lock_registry();
         push_terminal_line(
             &mut registry,
             session_id,
@@ -1570,7 +1560,7 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
 
 pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
     let pid = {
-        let mut registry = registry().lock().expect("session registry lock poisoned");
+        let mut registry = lock_registry();
         registry.active_commands.remove(session_id);
         let pid = registry.runtimes.get(session_id).map(|runtime| runtime.pid);
         update_host_observed_for_session(&mut registry, session_id, Some("warning"), true);
@@ -1594,7 +1584,7 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
                 .output();
 
             if let Err(error) = result {
-                let mut registry = registry().lock().expect("session registry lock poisoned");
+                let mut registry = lock_registry();
                 push_terminal_line(
                     &mut registry,
                     session_id,
@@ -1609,7 +1599,7 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
             }
         }
         None => {
-            let mut registry = registry().lock().expect("session registry lock poisoned");
+            let mut registry = lock_registry();
             update_session_state(&mut registry, session_id, "disconnected");
             update_host_observed_for_session(&mut registry, session_id, Some("warning"), true);
             push_event(
@@ -1626,7 +1616,7 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
 
 pub fn workspace_state() -> TalonWorkspaceState {
     let (mut state, generation_input, active_session_id) = {
-        let registry = registry().lock().expect("session registry lock poisoned");
+        let registry = lock_registry();
         let mut state = session_store::get_workspace_state();
         state.hosts = registry.hosts.clone();
         state.sessions = registry
@@ -1729,7 +1719,7 @@ pub fn workspace_state() -> TalonWorkspaceState {
 
     if let Some((session_id, input)) = generation_input {
         let response = diagnosis_engine::generate(input.clone());
-        let mut registry = registry().lock().expect("session registry lock poisoned");
+        let mut registry = lock_registry();
         registry.diagnosis_cache.insert(
             session_id.clone(),
             DiagnosisCacheEntry {
@@ -1831,3 +1821,5 @@ mod tests {
         assert_eq!(command_health_status(&healthy_registry, "session-1", &[]), "healthy");
     }
 }
+
+

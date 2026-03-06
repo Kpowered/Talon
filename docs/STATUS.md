@@ -60,6 +60,8 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added a real diagnosis engine path with cached OpenAI-compatible provider calls, system-keychain API key storage, and rule-engine fallback when the provider is unavailable or disabled.
 - Added system-keychain host password storage, persistent per-host private key paths, in-app host-trust preparation/confirmation, and a structured diagnosis context packet that now powers provider requests and can be inspected from the desktop UI.
 
+- Hardened the backend command boundary so the mutable Tauri commands in `session_manager` now return `Result<..., String>` instead of panicking on missing hosts or registry mutation failures.
+- Reduced panic-style runtime failure paths in `session_registry` by adding recoverable lock helpers for the registry and SSH stdin handles, and by removing `expect(...)` from command completion / connected-session lookup paths.
 ## In Progress
 - Tightening runtime details around host-trust fingerprint refresh, diagnosis result shaping, and settings UX now that the core provider/keychain/trust path is wired in.
 
@@ -70,7 +72,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
-- Strict host key checking is enabled, so first-contact hosts without an existing known-hosts entry will fail until Talon exposes an explicit operator-confirmed trust flow.
+- Strict host key checking remains enabled; Talon now has an explicit operator-confirmed trust flow, but fingerprint refresh and repeat-trust UX still need more hardening.
 - Password auth is now supported in the product transport, but end-to-end desktop verification against the external host still depends on running the Tauri shell against that target.
 - Child `ssh.exe` processes launched from `cargo test` do not inherit unrestricted network access in the current execution environment, so automated Rust-side network tests for the external host must remain opt-in / ignored here.
 - Frontend verification is available via Node, but full desktop runtime verification beyond local probes still depends on local operator access to reachable SSH targets. In this session, `sshd` was stopped and `ssh-agent` was disabled on the local machine.
@@ -80,4 +82,5 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 

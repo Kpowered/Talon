@@ -226,42 +226,43 @@ pub fn get_agent_settings() -> AgentSettingsResponse {
     }
 }
 
-pub fn save_agent_settings(payload: SaveAgentSettingsRequest) -> AgentSettingsResponse {
-    AgentSettingsResponse {
+pub fn save_agent_settings(payload: SaveAgentSettingsRequest) -> Result<AgentSettingsResponse, String> {
+    Ok(AgentSettingsResponse {
         settings: secrets::save_agent_settings(AgentSettings {
             provider_type: payload.provider_type,
             base_url: payload.base_url,
             model: payload.model,
             auto_diagnose: payload.auto_diagnose,
             request_timeout_sec: payload.request_timeout_sec,
-            has_api_key: secrets::load_agent_api_key().map(|value: String| !value.is_empty()).unwrap_or(false),
-        })
-        .expect("agent settings save must succeed"),
-    }
+            has_api_key: secrets::load_agent_api_key()
+                .map(|value: String| !value.is_empty())
+                .unwrap_or(false),
+        })?,
+    })
 }
 
-pub fn save_agent_api_key(payload: SaveAgentApiKeyRequest) -> AgentSettingsResponse {
-    secrets::save_agent_api_key(payload.api_key.trim()).expect("agent api key save must succeed");
-    get_agent_settings()
+pub fn save_agent_api_key(payload: SaveAgentApiKeyRequest) -> Result<AgentSettingsResponse, String> {
+    secrets::save_agent_api_key(payload.api_key.trim())?;
+    Ok(get_agent_settings())
 }
 
-pub fn clear_agent_api_key() -> AgentSettingsResponse {
+pub fn clear_agent_api_key() -> Result<AgentSettingsResponse, String> {
     let _ = secrets::clear_agent_api_key();
-    get_agent_settings()
+    Ok(get_agent_settings())
 }
 
-pub fn save_host_password(payload: SaveHostPasswordRequest) -> HostConfigMutationResponse {
-    secrets::save_host_password(&payload.host_id, payload.password.trim()).expect("host password save must succeed");
-    HostConfigMutationResponse {
+pub fn save_host_password(payload: SaveHostPasswordRequest) -> Result<HostConfigMutationResponse, String> {
+    secrets::save_host_password(&payload.host_id, payload.password.trim())?;
+    Ok(HostConfigMutationResponse {
         host_configs: session_registry::list_host_configs(),
-    }
+    })
 }
 
-pub fn clear_host_password(payload: HostSecretRequest) -> HostConfigMutationResponse {
+pub fn clear_host_password(payload: HostSecretRequest) -> Result<HostConfigMutationResponse, String> {
     let _ = secrets::clear_host_password(&payload.host_id);
-    HostConfigMutationResponse {
+    Ok(HostConfigMutationResponse {
         host_configs: session_registry::list_host_configs(),
-    }
+    })
 }
 
 pub fn get_latest_context_packet(payload: SessionScopedRequest) -> ContextPacketResponse {
@@ -270,31 +271,30 @@ pub fn get_latest_context_packet(payload: SessionScopedRequest) -> ContextPacket
     }
 }
 
-pub fn retry_diagnosis(payload: SessionScopedRequest) -> TalonWorkspaceState {
+pub fn retry_diagnosis(payload: SessionScopedRequest) -> Result<TalonWorkspaceState, String> {
     session_registry::invalidate_diagnosis(&payload.session_id);
-    session_registry::workspace_state()
+    Ok(session_registry::workspace_state())
 }
 
-pub fn prepare_host_trust(payload: SessionScopedRequest) -> TrustPreparationResponse {
-    TrustPreparationResponse {
-        issue: session_registry::prepare_host_trust(&payload.session_id).expect("host trust preparation must succeed"),
-    }
+pub fn prepare_host_trust(payload: SessionScopedRequest) -> Result<TrustPreparationResponse, String> {
+    Ok(TrustPreparationResponse {
+        issue: session_registry::prepare_host_trust(&payload.session_id)?,
+    })
 }
 
-pub fn confirm_host_trust(payload: ConfirmHostTrustRequest) -> TrustConfirmationResponse {
-    let issue = session_registry::confirm_host_trust(&payload.session_id, &payload.fingerprint)
-        .expect("host trust confirmation must succeed");
-    TrustConfirmationResponse {
+pub fn confirm_host_trust(payload: ConfirmHostTrustRequest) -> Result<TrustConfirmationResponse, String> {
+    let issue = session_registry::confirm_host_trust(&payload.session_id, &payload.fingerprint)?;
+    Ok(TrustConfirmationResponse {
         issue,
         terminal: session_registry::terminal_snapshot(&payload.session_id),
         events: session_registry::recent_events(),
-    }
+    })
 }
 
-pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
+pub fn connect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionResponse, String> {
     let host = session_registry::host_for(&payload.host_id)
         .or_else(session_registry::first_host)
-        .expect("workspace state must include at least one host");
+        .ok_or_else(|| "Workspace state must include at least one host.".to_string())?;
     let mut effective_host = host.clone();
     if let Some(address) = payload.address.as_ref().filter(|value| !value.trim().is_empty()) {
         effective_host.config.address = address.trim().into();
@@ -337,7 +337,7 @@ pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse
 
     let session = session_registry::connect_host(&effective_host, Some(&host_config), password.as_deref());
 
-    ConnectSessionResponse {
+    Ok(ConnectSessionResponse {
         session: SessionSummary {
             session_id: session.id,
             host_id: session.host_id,
@@ -347,7 +347,7 @@ pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse
             auto_capture_enabled: session.auto_capture_enabled,
         },
         events: session_registry::recent_events(),
-    }
+    })
 }
 
 pub fn submit_session_command(payload: SubmitCommandRequest) -> SubmitCommandResponse {
@@ -360,7 +360,10 @@ pub fn submit_session_command(payload: SubmitCommandRequest) -> SubmitCommandRes
         message: if accepted {
             format!("Queued command for {}", payload.session_id)
         } else {
-            format!("Rejected command for {} because another command is still in flight", payload.session_id)
+            format!(
+                "Rejected command for {} because another command is still in flight",
+                payload.session_id
+            )
         },
     }
 }
@@ -372,12 +375,12 @@ pub fn disconnect_session(payload: DisconnectSessionRequest) -> DisconnectSessio
     }
 }
 
-pub fn reconnect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
+pub fn reconnect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionResponse, String> {
     connect_session(payload)
 }
 
-pub fn upsert_host_config(payload: UpsertHostConfigRequest) -> HostConfigMutationResponse {
-    HostConfigMutationResponse {
+pub fn upsert_host_config(payload: UpsertHostConfigRequest) -> Result<HostConfigMutationResponse, String> {
+    Ok(HostConfigMutationResponse {
         host_configs: session_registry::upsert_host_config(HostConnectionConfig {
             host_id: payload.host_id,
             port: payload.port,
@@ -386,21 +389,19 @@ pub fn upsert_host_config(payload: UpsertHostConfigRequest) -> HostConfigMutatio
             fingerprint_hint: payload.fingerprint_hint,
             private_key_path: payload.private_key_path,
             has_saved_password: false,
-        })
-        .expect("host config update must succeed"),
-    }
+        })?,
+    })
 }
 
-pub fn delete_host_config(payload: DeleteHostConfigRequest) -> HostConfigMutationResponse {
-    HostConfigMutationResponse {
-        host_configs: session_registry::delete_host_config(&payload.host_id)
-            .expect("host config deletion must succeed"),
-    }
+pub fn delete_host_config(payload: DeleteHostConfigRequest) -> Result<HostConfigMutationResponse, String> {
+    Ok(HostConfigMutationResponse {
+        host_configs: session_registry::delete_host_config(&payload.host_id)?,
+    })
 }
 
-pub fn upsert_host(payload: UpsertHostRequest) -> HostMutationResponse {
+pub fn upsert_host(payload: UpsertHostRequest) -> Result<HostMutationResponse, String> {
     let existing = session_registry::host_for(&payload.id);
-    HostMutationResponse {
+    Ok(HostMutationResponse {
         hosts: session_registry::upsert_host(Host {
             id: payload.id,
             config: HostRecordConfig {
@@ -422,15 +423,14 @@ pub fn upsert_host(payload: UpsertHostRequest) -> HostMutationResponse {
                     .map(|host| host.observed.last_seen_at.clone())
                     .unwrap_or_else(|| "2026-03-07T00:00:00Z".into()),
             },
-        })
-        .expect("host update must succeed"),
-    }
+        })?,
+    })
 }
 
-pub fn delete_host(payload: DeleteHostRequest) -> HostMutationResponse {
-    HostMutationResponse {
-        hosts: session_registry::delete_host(&payload.host_id).expect("host deletion must succeed"),
-    }
+pub fn delete_host(payload: DeleteHostRequest) -> Result<HostMutationResponse, String> {
+    Ok(HostMutationResponse {
+        hosts: session_registry::delete_host(&payload.host_id)?,
+    })
 }
 
 pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionResponse {
@@ -439,3 +439,4 @@ pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionRes
     }
     crate::session_store::run_suggested_action(payload)
 }
+

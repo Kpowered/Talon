@@ -51,42 +51,42 @@ fn get_agent_settings() -> AgentSettingsResponse {
 }
 
 #[tauri::command]
-fn save_agent_settings(payload: SaveAgentSettingsRequest) -> AgentSettingsResponse {
+fn save_agent_settings(payload: SaveAgentSettingsRequest) -> Result<AgentSettingsResponse, String> {
     persist_agent_settings(payload)
 }
 
 #[tauri::command]
-fn save_agent_api_key(payload: SaveAgentApiKeyRequest) -> AgentSettingsResponse {
+fn save_agent_api_key(payload: SaveAgentApiKeyRequest) -> Result<AgentSettingsResponse, String> {
     save_default_agent_api_key(payload)
 }
 
 #[tauri::command]
-fn clear_agent_api_key() -> AgentSettingsResponse {
+fn clear_agent_api_key() -> Result<AgentSettingsResponse, String> {
     clear_saved_agent_api_key()
 }
 
 #[tauri::command]
-fn save_host_password(payload: SaveHostPasswordRequest) -> HostConfigMutationResponse {
+fn save_host_password(payload: SaveHostPasswordRequest) -> Result<HostConfigMutationResponse, String> {
     persist_host_password(payload)
 }
 
 #[tauri::command]
-fn clear_host_password(payload: HostSecretRequest) -> HostConfigMutationResponse {
+fn clear_host_password(payload: HostSecretRequest) -> Result<HostConfigMutationResponse, String> {
     clear_saved_host_password(payload)
 }
 
 #[tauri::command]
-fn prepare_host_trust(payload: SessionScopedRequest) -> TrustPreparationResponse {
+fn prepare_host_trust(payload: SessionScopedRequest) -> Result<TrustPreparationResponse, String> {
     begin_host_trust(payload)
 }
 
 #[tauri::command]
-fn confirm_host_trust(payload: ConfirmHostTrustRequest) -> TrustConfirmationResponse {
+fn confirm_host_trust(payload: ConfirmHostTrustRequest) -> Result<TrustConfirmationResponse, String> {
     apply_host_trust(payload)
 }
 
 #[tauri::command]
-fn retry_diagnosis(payload: SessionScopedRequest) -> TalonWorkspaceState {
+fn retry_diagnosis(payload: SessionScopedRequest) -> Result<TalonWorkspaceState, String> {
     rerun_diagnosis(payload)
 }
 
@@ -96,7 +96,7 @@ fn get_latest_context_packet(payload: SessionScopedRequest) -> ContextPacketResp
 }
 
 #[tauri::command]
-fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
+fn connect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionResponse, String> {
     open_preview_session(payload)
 }
 
@@ -111,27 +111,27 @@ fn disconnect_session(payload: DisconnectSessionRequest) -> DisconnectSessionRes
 }
 
 #[tauri::command]
-fn reconnect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
+fn reconnect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionResponse, String> {
     reopen_session(payload)
 }
 
 #[tauri::command]
-fn upsert_host_config(payload: UpsertHostConfigRequest) -> HostConfigMutationResponse {
+fn upsert_host_config(payload: UpsertHostConfigRequest) -> Result<HostConfigMutationResponse, String> {
     session_manager::upsert_host_config(payload)
 }
 
 #[tauri::command]
-fn delete_host_config(payload: DeleteHostConfigRequest) -> HostConfigMutationResponse {
+fn delete_host_config(payload: DeleteHostConfigRequest) -> Result<HostConfigMutationResponse, String> {
     session_manager::delete_host_config(payload)
 }
 
 #[tauri::command]
-fn upsert_host(payload: UpsertHostRequest) -> HostMutationResponse {
+fn upsert_host(payload: UpsertHostRequest) -> Result<HostMutationResponse, String> {
     session_manager::upsert_host(payload)
 }
 
 #[tauri::command]
-fn delete_host(payload: DeleteHostRequest) -> HostMutationResponse {
+fn delete_host(payload: DeleteHostRequest) -> Result<HostMutationResponse, String> {
     session_manager::delete_host(payload)
 }
 
@@ -172,3 +172,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
