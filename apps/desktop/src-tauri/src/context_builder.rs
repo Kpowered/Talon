@@ -388,8 +388,8 @@ pub fn timeline_for_session(
                 kind: "diagnosis".into(),
                 title: issue.title.clone(),
                 detail: format!("{} Suggested check: {}", issue.summary, issue.suggested_command),
-                stderr_class: None,
-                stderr_evidence: None,
+                stderr_class: Some(issue.kind.clone()),
+                stderr_evidence: Some(issue.summary.clone()),
                 occurred_at: issue.observed_at.clone(),
                 exit_code: None,
             },
@@ -402,7 +402,7 @@ pub fn timeline_for_session(
 #[cfg(test)]
 mod tests {
     use super::{build_diagnosis_from_failure, timeline_for_session};
-    use crate::session_registry::CommandHistoryEntry;
+    use crate::session_registry::{CommandHistoryEntry, SessionConnectionIssue};
     use crate::session_store::FailureContext;
 
     fn sample_failure(stderr_class: Option<&str>) -> FailureContext {
@@ -461,5 +461,22 @@ mod tests {
         assert!(timeline[0].detail.contains("stderr class filesystem"));
         assert!(timeline[0].detail.contains("evidence matched: filesystem"));
         assert!(timeline[1].detail.contains("evidence cp: No space left on device"));
+    }
+
+    #[test]
+    fn projects_connection_issue_into_structured_timeline_signal() {
+        let issue = SessionConnectionIssue {
+            session_id: "session-1".into(),
+            kind: "network".into(),
+            title: "SSH network path failed".into(),
+            summary: "connection refused".into(),
+            operator_action: "check route".into(),
+            suggested_command: "ssh -vvv host".into(),
+            observed_at: "2026-03-07T00:00:02Z".into(),
+        };
+
+        let timeline = timeline_for_session(&[], "session-1", None, Some(&issue));
+        assert_eq!(timeline[0].stderr_class.as_deref(), Some("network"));
+        assert_eq!(timeline[0].stderr_evidence.as_deref(), Some("connection refused"));
     }
 }

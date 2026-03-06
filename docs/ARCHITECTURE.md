@@ -120,6 +120,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the desktop diagnosis panel now also renders the matched `stderr` evidence line when available so operators can see the concrete classifier trigger
   - incident timeline entries now also include the same matched `stderr` evidence so context remains visible outside the diagnosis panel
   - timeline events now carry structured `stderr_class` / `stderr_evidence` metadata, which the desktop UI uses to badge and highlight repeated failure signals within the current timeline window
+  - connection-issue timeline events now also map `issue.kind` / `issue.summary` into that structured signal metadata so pre-shell failures participate in the same UI treatment
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
 - Command framing:

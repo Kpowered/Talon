@@ -51,6 +51,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Surfaced the matched `stderr` evidence snippet in the diagnosis panel so operators can see the concrete trigger line behind the classifier.
 - Projected the same `stderr` evidence into timeline events so incident memory stays self-contained outside the diagnosis card.
 - Added structured `stderr_class` / `stderr_evidence` timeline fields and frontend repeated-signal highlighting so recurring failure classes stand out in the current incident window.
+- Extended the same structured signal treatment to connection-issue timeline events, so pre-shell failures now badge and repeat-highlight consistently with command failures.
 
 ## In Progress
 - Reducing the remaining placeholder responsibilities in `session_store` now that host inventory is registry-backed.
