@@ -326,7 +326,7 @@ pub fn timeline_for_session(
             kind: "command".into(),
             title: entry.command.clone(),
             detail: format!(
-                "Started at {}, completed at {}, exit {}, stdout lines {}, stderr lines {}{}",
+                "Started at {}, completed at {}, exit {}, stdout lines {}, stderr lines {}{}{}",
                 entry.started_at,
                 entry.completed_at,
                 entry.exit_code,
@@ -336,6 +336,11 @@ pub fn timeline_for_session(
                     .stderr_class
                     .as_ref()
                     .map(|class| format!(", stderr class {}", class))
+                    .unwrap_or_default(),
+                entry
+                    .stderr_evidence
+                    .as_ref()
+                    .map(|evidence| format!(", evidence {}", evidence))
                     .unwrap_or_default()
             ),
             occurred_at: entry.completed_at.clone(),
@@ -351,13 +356,18 @@ pub fn timeline_for_session(
                 kind: "diagnosis".into(),
                 title: "Failure context captured".into(),
                 detail: format!(
-                    "Captured stdout/stderr tails for command {} with exit {}{}",
+                    "Captured stdout/stderr tails for command {} with exit {}{}{}",
                     failure.command_id,
                     failure.exit_code,
                     failure
                         .stderr_class
                         .as_ref()
                         .map(|class| format!(" and stderr class {}", class))
+                        .unwrap_or_default(),
+                    failure
+                        .stderr_evidence
+                        .as_ref()
+                        .map(|evidence| format!(" and evidence {}", evidence))
                         .unwrap_or_default()
                 ),
                 occurred_at: failure.captured_at.clone(),
@@ -385,7 +395,8 @@ pub fn timeline_for_session(
 
 #[cfg(test)]
 mod tests {
-    use super::build_diagnosis_from_failure;
+    use super::{build_diagnosis_from_failure, timeline_for_session};
+    use crate::session_registry::CommandHistoryEntry;
     use crate::session_store::FailureContext;
 
     fn sample_failure(stderr_class: Option<&str>) -> FailureContext {
@@ -421,5 +432,28 @@ mod tests {
         let diagnosis = build_diagnosis_from_failure(&sample_failure(None));
         assert_eq!(diagnosis.suggested_actions[0].command, "pwd");
         assert!(diagnosis.messages[1].title.contains("Suggested next step"));
+    }
+
+    #[test]
+    fn projects_stderr_evidence_into_timeline_details() {
+        let history = vec![CommandHistoryEntry {
+            id: "cmd-1".into(),
+            session_id: "session-1".into(),
+            command: "cp file target".into(),
+            started_at: "2026-03-07T00:00:00Z".into(),
+            completed_at: "2026-03-07T00:00:01Z".into(),
+            exit_code: 1,
+            stderr_class: Some("filesystem".into()),
+            stderr_evidence: Some("cp: No space left on device".into()),
+            stdout_tail: Vec::new(),
+            stderr_tail: Vec::new(),
+        }];
+
+        let failure = sample_failure(Some("filesystem"));
+        let timeline = timeline_for_session(&history, "session-1", Some(&failure), None);
+
+        assert!(timeline[0].detail.contains("stderr class filesystem"));
+        assert!(timeline[0].detail.contains("evidence matched: filesystem"));
+        assert!(timeline[1].detail.contains("evidence cp: No space left on device"));
     }
 }
