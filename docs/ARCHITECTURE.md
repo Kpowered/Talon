@@ -35,8 +35,9 @@ As of 2026-03-06:
 - `apps/desktop` renders a workspace state model instead of scenario-specific UI state.
 - `packages/core` contains the first shared domain contracts.
 - `packages/ssh` contains initial TypeScript-side lifecycle contracts.
-- `apps/desktop/src-tauri/src/session_store.rs` is the temporary backend state provider.
-- `apps/desktop/src-tauri/src/session_manager.rs` is the first backend session manager boundary, including preview connect requests and lifecycle event responses.
+- `apps/desktop/src-tauri/src/session_store.rs` is the temporary backend state provider for failure and diagnosis samples.
+- `apps/desktop/src-tauri/src/session_registry.rs` holds the in-memory host config list, managed sessions, active session id, and recent lifecycle events.
+- `apps/desktop/src-tauri/src/session_manager.rs` is the backend boundary that exposes registry-backed session commands to the UI.
 
 ## Proposed repo layout
 
@@ -70,12 +71,13 @@ Talon/
 
 ## Temporary implementation flow
 
-1. Desktop UI calls `get_workspace_state`
+1. Desktop UI calls `get_workspace_state`, `get_session_registry`, and `get_session_events`
 2. Tauri backend delegates to `session_manager`
-3. `session_manager` reads mock workspace state from `session_store`
-4. Desktop UI can request `connect_session` for a selected host
-5. Tauri returns preview session summary and lifecycle events
-6. User-triggered read-only actions call `run_suggested_action`
+3. `session_manager` reads managed state from `session_registry`
+4. `session_registry` merges active session information with the mock incident payload from `session_store`
+5. Desktop UI can request `connect_session` for a selected host
+6. Tauri updates the managed session registry and returns lifecycle events
+7. User-triggered read-only actions call `run_suggested_action`
 
 ## Context schema (draft)
 

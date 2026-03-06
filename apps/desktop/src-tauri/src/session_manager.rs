@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::session_registry;
+use crate::session_registry::{HostConnectionConfig, SessionLifecycleEvent};
 use crate::session_store;
 use crate::session_store::{RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState};
 
@@ -22,23 +24,40 @@ pub struct SessionSummary {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SessionLifecycleEvent {
-    pub id: String,
-    pub session_id: String,
-    pub event_type: String,
-    pub detail: String,
-    pub occurred_at: String,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ConnectSessionResponse {
     pub session: SessionSummary,
     pub events: Vec<SessionLifecycleEvent>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionRegistryResponse {
+    pub host_configs: Vec<HostConnectionConfig>,
+    pub active_session_id: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionEventListResponse {
+    pub events: Vec<SessionLifecycleEvent>,
+}
+
 pub fn get_workspace_state() -> TalonWorkspaceState {
-    session_store::get_workspace_state()
+    session_registry::workspace_state()
+}
+
+pub fn get_session_registry() -> SessionRegistryResponse {
+    let state = session_registry::workspace_state();
+    SessionRegistryResponse {
+        host_configs: session_registry::list_host_configs(),
+        active_session_id: state.active_session_id,
+    }
+}
+
+pub fn get_session_events() -> SessionEventListResponse {
+    SessionEventListResponse {
+        events: session_registry::recent_events(),
+    }
 }
 
 pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
@@ -50,44 +69,19 @@ pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse
         .or_else(|| state.hosts.first())
         .expect("workspace state must include at least one host");
 
-    let session = SessionSummary {
-        session_id: format!("session-preview-{}", host.id),
-        host_id: host.id.clone(),
-        state: if host.status == "critical" {
-            "degraded".into()
-        } else {
-            "connected".into()
-        },
-        shell: "bash".into(),
-        cwd: format!("/srv/{}", host.label),
-        auto_capture_enabled: true,
-    };
+    let session = session_registry::connect_host(host);
 
-    let events = vec![
-        SessionLifecycleEvent {
-            id: format!("event-connect-start-{}", host.id),
-            session_id: session.session_id.clone(),
-            event_type: "connected".into(),
-            detail: format!("Connected preview session to {}", host.address),
-            occurred_at: "2026-03-06T14:02:10Z".into(),
+    ConnectSessionResponse {
+        session: SessionSummary {
+            session_id: session.id,
+            host_id: session.host_id,
+            state: session.state,
+            shell: session.shell,
+            cwd: session.cwd,
+            auto_capture_enabled: session.auto_capture_enabled,
         },
-        SessionLifecycleEvent {
-            id: format!("event-shell-ready-{}", host.id),
-            session_id: session.session_id.clone(),
-            event_type: "shell-ready".into(),
-            detail: format!("Shell {} ready in {}", session.shell, session.cwd),
-            occurred_at: "2026-03-06T14:02:11Z".into(),
-        },
-        SessionLifecycleEvent {
-            id: format!("event-capture-mode-{}", host.id),
-            session_id: session.session_id.clone(),
-            event_type: "capture-mode".into(),
-            detail: "Automatic failure capture armed for non-zero exits".into(),
-            occurred_at: "2026-03-06T14:02:12Z".into(),
-        },
-    ];
-
-    ConnectSessionResponse { session, events }
+        events: session_registry::recent_events(),
+    }
 }
 
 pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionResponse {

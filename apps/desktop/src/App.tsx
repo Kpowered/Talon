@@ -22,6 +22,14 @@ type SessionLifecycleEvent = {
   occurredAt: string;
 };
 
+type HostConnectionConfig = {
+  hostId: string;
+  port: number;
+  username: string;
+  authMethod: string;
+  fingerprintHint: string;
+};
+
 type ConnectSessionResponse = {
   session: {
     sessionId: string;
@@ -31,6 +39,15 @@ type ConnectSessionResponse = {
     cwd: string;
     autoCaptureEnabled: boolean;
   };
+  events: SessionLifecycleEvent[];
+};
+
+type SessionRegistryResponse = {
+  hostConfigs: HostConnectionConfig[];
+  activeSessionId: string;
+};
+
+type SessionEventListResponse = {
   events: SessionLifecycleEvent[];
 };
 
@@ -75,6 +92,24 @@ function App() {
   const [terminalTail, setTerminalTail] = useState<string[]>([]);
   const [isConnectingSession, setIsConnectingSession] = useState(false);
   const [sessionEvents, setSessionEvents] = useState<SessionLifecycleEvent[]>([]);
+  const [hostConfigs, setHostConfigs] = useState<HostConnectionConfig[]>([]);
+  const [registryActiveSessionId, setRegistryActiveSessionId] = useState<string | null>(null);
+
+  async function refreshWorkspace() {
+    const state = await invoke<TalonWorkspaceState>("get_workspace_state");
+    setWorkspace(state);
+    setSelectedHostId((current) => current ?? state.sessions[0]?.hostId ?? state.hosts[0]?.id ?? null);
+  }
+
+  async function refreshRegistry() {
+    const [registry, events] = await Promise.all([
+      invoke<SessionRegistryResponse>("get_session_registry"),
+      invoke<SessionEventListResponse>("get_session_events"),
+    ]);
+    setHostConfigs(registry.hostConfigs);
+    setRegistryActiveSessionId(registry.activeSessionId);
+    setSessionEvents(events.events);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -82,10 +117,17 @@ function App() {
     async function loadWorkspace() {
       setIsLoadingState(true);
       try {
-        const state = await invoke<TalonWorkspaceState>("get_workspace_state");
+        const [state, registry, events] = await Promise.all([
+          invoke<TalonWorkspaceState>("get_workspace_state"),
+          invoke<SessionRegistryResponse>("get_session_registry"),
+          invoke<SessionEventListResponse>("get_session_events"),
+        ]);
         if (cancelled) return;
         setWorkspace(state);
         setSelectedHostId((current) => current ?? state.sessions[0]?.hostId ?? state.hosts[0]?.id ?? null);
+        setHostConfigs(registry.hostConfigs);
+        setRegistryActiveSessionId(registry.activeSessionId);
+        setSessionEvents(events.events);
       } finally {
         if (!cancelled) setIsLoadingState(false);
       }
@@ -105,6 +147,7 @@ function App() {
 
   const hosts = workspace?.hosts ?? [];
   const selectedHost = hosts.find((host) => host.id === selectedHostId) ?? hosts[0] ?? null;
+  const selectedHostConfig = hostConfigs.find((config) => config.hostId === selectedHostId) ?? null;
   const diagnosis = workspace?.latestDiagnosis ?? null;
   const failure = workspace?.latestFailure ?? null;
   const timeline = workspace?.timeline ?? [];
@@ -135,13 +178,13 @@ function App() {
         tone: diagnosis.confidence >= 80 ? "good" : diagnosis.confidence >= 60 ? "warn" : "bad",
       },
       {
-        label: "Session events",
-        value: `${sessionEvents.length}`,
-        detail: sessionEvents[0]?.detail ?? "No session lifecycle events yet",
+        label: "Managed sessions",
+        value: `${workspace.sessions.length}`,
+        detail: registryActiveSessionId ? `Active ${registryActiveSessionId}` : "No active session yet",
         tone: "default",
       },
     ];
-  }, [workspace, diagnosis, failure, isLoadingState, sessionEvents]);
+  }, [workspace, diagnosis, failure, isLoadingState, registryActiveSessionId]);
 
   const terminalContent = useMemo(() => {
     if (!workspace) return [];
@@ -162,7 +205,8 @@ function App() {
         payload: { hostId: selectedHost.id },
       });
       setSessionEvents(result.events);
-      setActionSummary(`Preview session ready for ${selectedHost.label} in ${result.session.cwd}.`);
+      setActionSummary(`Managed session ready for ${selectedHost.label} in ${result.session.cwd}.`);
+      await Promise.all([refreshWorkspace(), refreshRegistry()]);
     } finally {
       setIsConnectingSession(false);
     }
@@ -208,12 +252,12 @@ function App() {
             <p className="eyebrow">AI-native SSH troubleshooting</p>
             <div className="title-row">
               <h1>Talon</h1>
-              <span className="release-badge">Session Manager Skeleton</span>
-              <span className="backend-badge">Lifecycle API live</span>
+              <span className="release-badge">Managed Session Skeleton</span>
+              <span className="backend-badge">Registry API live</span>
             </div>
             <p className="subtitle">
-              The desktop shell now exposes a preview session manager contract with connection requests,
-              lifecycle events, and reusable workspace state access.
+              The desktop shell now talks to a backend-managed session registry with host connection config,
+              active session tracking, and recent lifecycle events.
             </p>
           </div>
         </div>
@@ -280,6 +324,21 @@ function App() {
           <div className="section-block">
             <div className="section-title-row">
               <div>
+                <p className="panel-kicker">Connection</p>
+                <h2>Selected host config</h2>
+              </div>
+              <span className="pill subtle">{selectedHostConfig?.authMethod ?? "unmapped"}</span>
+            </div>
+            <div className="session-facts">
+              <span>{selectedHostConfig?.username ?? "unknown"}</span>
+              <span>port {selectedHostConfig?.port ?? 0}</span>
+              <span>{selectedHostConfig?.fingerprintHint ?? "no fingerprint"}</span>
+            </div>
+          </div>
+
+          <div className="section-block">
+            <div className="section-title-row">
+              <div>
                 <p className="panel-kicker">Session</p>
                 <h2>Active shell</h2>
               </div>
@@ -301,7 +360,7 @@ function App() {
               <span className="pill subtle">{sessionEvents.length} events</span>
             </div>
             <div className="event-list">
-              {sessionEvents.length === 0 ? <p className="empty-copy">No preview session opened yet.</p> : null}
+              {sessionEvents.length === 0 ? <p className="empty-copy">No managed session opened yet.</p> : null}
               {sessionEvents.map((event) => (
                 <article key={event.id} className="event-card">
                   <strong>{event.eventType}</strong>
