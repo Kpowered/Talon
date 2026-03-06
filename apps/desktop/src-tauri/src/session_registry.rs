@@ -71,6 +71,7 @@ pub struct CommandHistoryEntry {
     pub started_at: String,
     pub completed_at: String,
     pub exit_code: i32,
+    pub stderr_class: Option<String>,
     pub stdout_tail: Vec<String>,
     pub stderr_tail: Vec<String>,
 }
@@ -641,6 +642,7 @@ fn complete_active_command(registry: &mut SessionRegistry, session_id: &str, com
 
     update_session_metadata(registry, session_id, None, Some(cwd));
     let completed_at = now_iso();
+    let stderr_class = classify_command_stderr_signal(&command.stderr_tail).map(|(class, _)| class.to_string());
     registry.command_history.insert(
         0,
         CommandHistoryEntry {
@@ -650,6 +652,7 @@ fn complete_active_command(registry: &mut SessionRegistry, session_id: &str, com
             started_at: command.started_at.clone(),
             completed_at: completed_at.clone(),
             exit_code,
+            stderr_class,
             stdout_tail: command.stdout_tail.clone(),
             stderr_tail: command.stderr_tail.clone(),
         },
@@ -741,7 +744,7 @@ fn capture_connect_latency_ms(registry: &SessionRegistry, session_id: &str) -> O
         .map(|runtime| runtime.started_at.elapsed().as_millis().min(u128::from(u32::MAX)) as u32)
 }
 
-fn classify_command_stderr_severity(stderr_tail: &[String]) -> Option<&'static str> {
+fn classify_command_stderr_signal(stderr_tail: &[String]) -> Option<(&'static str, &'static str)> {
     for line in stderr_tail.iter().rev() {
         let normalized = line.to_ascii_lowercase();
 
@@ -749,27 +752,39 @@ fn classify_command_stderr_severity(stderr_tail: &[String]) -> Option<&'static s
             || normalized.contains("connection reset")
             || normalized.contains("no route to host")
             || normalized.contains("network is unreachable")
-            || normalized.contains("no space left on device")
+        {
+            return Some(("network-path", "critical"));
+        }
+
+        if normalized.contains("no space left on device")
             || normalized.contains("disk quota exceeded")
             || normalized.contains("read-only file system")
-            || normalized.contains("out of memory")
+        {
+            return Some(("filesystem", "critical"));
+        }
+
+        if normalized.contains("out of memory")
             || normalized.contains("cannot allocate memory")
             || normalized.contains(" killed")
             || normalized.starts_with("killed")
             || normalized.contains("oom")
         {
-            return Some("critical");
+            return Some(("resource-pressure", "critical"));
         }
 
         if normalized.contains("permission denied")
             || normalized.contains("access denied")
             || normalized.contains("operation not permitted")
         {
-            return Some("warning");
+            return Some(("permission", "warning"));
         }
     }
 
     None
+}
+
+fn classify_command_stderr_severity(stderr_tail: &[String]) -> Option<&'static str> {
+    classify_command_stderr_signal(stderr_tail).map(|(_, severity)| severity)
 }
 
 fn host_health_from_recent_commands(registry: &SessionRegistry, session_id: &str) -> &'static str {
@@ -1442,6 +1457,7 @@ mod tests {
             started_at: "2026-03-07T00:00:00Z".into(),
             completed_at: "2026-03-07T00:00:01Z".into(),
             exit_code,
+            stderr_class: None,
             stdout_tail: Vec::new(),
             stderr_tail: Vec::new(),
         }

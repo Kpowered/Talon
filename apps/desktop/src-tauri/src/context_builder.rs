@@ -29,6 +29,7 @@ pub fn build_failure_context(
             command.command, command.exit_code, host_id
         ),
         severity: severity.into(),
+        stderr_class: command.stderr_class.clone(),
         cwd,
         shell,
         exit_code: command.exit_code,
@@ -37,6 +38,11 @@ pub fn build_failure_context(
         related_artifacts: vec![
             format!("command: {}", command.command),
             format!("captured from live SSH session {}", session_id),
+            command
+                .stderr_class
+                .as_ref()
+                .map(|class| format!("stderr-class: {}", class))
+                .unwrap_or_else(|| "stderr-class: none".into()),
         ],
         captured_at: command.completed_at.clone(),
     }
@@ -49,11 +55,21 @@ pub fn build_diagnosis_from_failure(failure: &FailureContext) -> DiagnosisRespon
         status: failure.severity.clone(),
         confidence: 72,
         summary: format!(
-            "Talon captured a live non-zero exit for {} in {}.",
-            failure.host_id, failure.cwd
+            "Talon captured a live non-zero exit for {} in {}{}.",
+            failure.host_id,
+            failure.cwd,
+            failure
+                .stderr_class
+                .as_ref()
+                .map(|class| format!(" with {} stderr signals", class))
+                .unwrap_or_default()
         ),
         likely_causes: vec![
-            "The remote command returned a non-zero status and needs context-specific inspection.".into(),
+            failure
+                .stderr_class
+                .as_ref()
+                .map(|class| format!("The captured stderr matched Talon's '{}' failure classifier.", class))
+                .unwrap_or_else(|| "The remote command returned a non-zero status and needs context-specific inspection.".into()),
             "Use the captured stdout/stderr tails to decide whether the failure is environmental, auth-related, or command-specific.".into(),
         ],
         messages: vec![
@@ -63,8 +79,14 @@ pub fn build_diagnosis_from_failure(failure: &FailureContext) -> DiagnosisRespon
                 tone: failure.severity.clone(),
                 title: "Live failure captured".into(),
                 body: format!(
-                    "Talon packaged exit code {}, cwd {}, and the latest stdout/stderr tails from the managed SSH session.",
-                    failure.exit_code, failure.cwd
+                    "Talon packaged exit code {}, cwd {}, and the latest stdout/stderr tails from the managed SSH session{}.",
+                    failure.exit_code,
+                    failure.cwd,
+                    failure
+                        .stderr_class
+                        .as_ref()
+                        .map(|class| format!(", including '{}' stderr classification", class))
+                        .unwrap_or_default()
                 ),
             },
             DiagnosisMessage {
@@ -167,12 +189,17 @@ pub fn timeline_for_session(
             kind: "command".into(),
             title: entry.command.clone(),
             detail: format!(
-                "Started at {}, completed at {}, exit {}, stdout lines {}, stderr lines {}",
+                "Started at {}, completed at {}, exit {}, stdout lines {}, stderr lines {}{}",
                 entry.started_at,
                 entry.completed_at,
                 entry.exit_code,
                 entry.stdout_tail.len(),
-                entry.stderr_tail.len()
+                entry.stderr_tail.len(),
+                entry
+                    .stderr_class
+                    .as_ref()
+                    .map(|class| format!(", stderr class {}", class))
+                    .unwrap_or_default()
             ),
             occurred_at: entry.completed_at.clone(),
             exit_code: Some(entry.exit_code),
@@ -187,8 +214,14 @@ pub fn timeline_for_session(
                 kind: "diagnosis".into(),
                 title: "Failure context captured".into(),
                 detail: format!(
-                    "Captured stdout/stderr tails for command {} with exit {}",
-                    failure.command_id, failure.exit_code
+                    "Captured stdout/stderr tails for command {} with exit {}{}",
+                    failure.command_id,
+                    failure.exit_code,
+                    failure
+                        .stderr_class
+                        .as_ref()
+                        .map(|class| format!(" and stderr class {}", class))
+                        .unwrap_or_default()
                 ),
                 occurred_at: failure.captured_at.clone(),
                 exit_code: None,

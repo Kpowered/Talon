@@ -114,6 +114,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - `host.observed.latencyMs` is now populated from the elapsed time between SSH transport launch and shell metadata readiness
   - command completion now applies a graded health rule: `exit 0` restores `host.observed.status` to `healthy`, while recent consecutive non-zero exits escalate from `warning` to `critical`
   - high-signal command `stderr` patterns currently override the consecutive-failure rule: auth/permission errors map to `warning`, while network-path, disk, and memory exhaustion patterns map to `critical`
+  - the matched command `stderr` class is now preserved in failure context and projected into diagnosis copy and timeline details for operator visibility
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
 - Command framing:
