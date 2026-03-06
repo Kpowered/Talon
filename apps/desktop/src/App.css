@@ -314,6 +314,33 @@ button {
   flex-wrap: wrap;
 }
 
+.section-note {
+  margin: 10px 0 0;
+  color: #8f9ab1;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.override-banner {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(47, 212, 255, 0.16);
+  background: linear-gradient(180deg, rgba(47, 212, 255, 0.08), rgba(255, 255, 255, 0.03));
+}
+
+.override-banner strong,
+.override-banner p {
+  margin: 0;
+}
+
+.override-banner p {
+  margin-top: 6px;
+  color: #b9c7dc;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
 .host-list,
 .diagnosis-feed,
 .timeline,

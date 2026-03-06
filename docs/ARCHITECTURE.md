@@ -101,8 +101,9 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - after spawn, Talon writes probe commands to capture `$SHELL` and `pwd`
   - stdout parsing converts those markers into live session metadata
 - Connection overrides:
-  - the desktop UI can override the selected host's address, port, username, auth method, and password at connect time
-  - overrides are session-scoped operator input and are not persisted into repository-backed mock state
+  - the desktop UI now separates saved host defaults from per-session connection overrides
+  - the operator can override the selected host's address, port, username, auth method, and password at connect time
+  - overrides are session-scoped operator input and are not persisted into saved host config
 - Host config management:
   - saved host config fields are now editable from the desktop UI
   - saved config persists address, port, username, auth method, and fingerprint hint

@@ -404,6 +404,18 @@ function App() {
     }
   }
 
+  function resetConnectionOverride() {
+    if (!selectedHost) return;
+    const nextConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === selectedHost.id) ?? null;
+    const derivedUsername = selectedHost.address.includes("@") ? selectedHost.address.split("@")[0] : nextConfig?.username ?? "";
+    setConnectionAddress(selectedHost.address);
+    setConnectionPort(String(nextConfig?.port ?? 22));
+    setConnectionUsername(nextConfig?.username ?? derivedUsername);
+    setConnectionAuthMethod((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
+    setConnectionPassword("");
+    setActionSummary(`Reset connection override for ${selectedHost.label} back to saved host config.`);
+  }
+
   async function saveHostConfig(hostId: string, fingerprintHint: string) {
     setIsSavingHostConfig(true);
     try {
@@ -590,8 +602,8 @@ function App() {
           <div className="section-block">
             <div className="section-title-row">
               <div>
-                <p className="panel-kicker">Connection</p>
-                <h2>Selected host config</h2>
+                <p className="panel-kicker">Saved host config</p>
+                <h2>Persistent defaults</h2>
               </div>
               <span className="pill subtle">{selectedHostConfig?.authMethod ?? "unmapped"}</span>
             </div>
@@ -600,6 +612,9 @@ function App() {
               <span>port {selectedHostConfig?.port ?? 0}</span>
               <span>{selectedHostConfig?.fingerprintHint ?? "no fingerprint"}</span>
             </div>
+            <p className="section-note">
+              These values are saved locally for this host and become the default connection baseline.
+            </p>
             <div className="connection-form">
               <label className="connection-field">
                 <span>Label</span>
@@ -636,6 +651,20 @@ function App() {
                 </button>
               </div>
             </div>
+          </div>
+
+          <div className="section-block">
+            <div className="section-title-row">
+              <div>
+                <p className="panel-kicker">Session connect override</p>
+                <h2>Next connection only</h2>
+              </div>
+              <span className="pill subtle">Not saved</span>
+            </div>
+            <div className="override-banner">
+              <strong>Saved host config stays unchanged.</strong>
+              <p>Edit these fields only when the next connect or reconnect should differ from the saved host defaults.</p>
+            </div>
             <div className="connection-form">
               <label className="connection-field">
                 <span>Address</span>
@@ -670,7 +699,15 @@ function App() {
                   />
                 </label>
               ) : null}
+              <div className="host-config-actions">
+                <button className="ghost-button small" onClick={resetConnectionOverride}>
+                  Use saved host defaults
+                </button>
+              </div>
             </div>
+            <p className="section-note">
+              These values apply only to the next connect or reconnect action. The password is never persisted.
+            </p>
             {activeConnectionIssue ? (
               <div className={`connection-issue issue-${activeConnectionIssue.kind}`}>
                 <strong>{activeConnectionIssue.title}</strong>
