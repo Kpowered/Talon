@@ -4,7 +4,7 @@
 Build Talon into an AI-native SSH troubleshooting desktop app that captures failed commands, packages incident context, and keeps remediation operator-confirmed.
 
 ## Current Stage
-As of 2026-03-06, the repository has moved from a scenario demo to a backend-managed product skeleton with real SSH process lifecycle management wired through the Tauri backend.
+As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed product skeleton with real SSH process lifecycle management wired through the Tauri backend.
 
 ## Completed
 - Connected the local workspace to `origin/main` and synced the repository.
@@ -24,14 +24,15 @@ As of 2026-03-06, the repository has moved from a scenario demo to a backend-man
 - Added completed command records in the backend with per-command stdout/stderr tails for later failure packaging.
 - Added live failure-context packaging for non-zero exits, including host/session metadata, stdout tail, stderr tail, cwd, shell, and captured timestamp.
 - Projected live command history and captured failures back into the workspace timeline and diagnosis pane instead of always relying on static sample incident data.
+- Extracted failure, diagnosis, and timeline shaping into a dedicated backend `context_builder` module so the session registry stays focused on transport/runtime state.
 
 ## In Progress
-- Replacing the temporary diagnosis placeholder with a proper agent-facing context contract and model invocation path.
+- Adding richer session controls such as disconnect/reconnect and stronger in-flight command guardrails.
 
 ## Next Steps
-1. Move the failure packet builder behind a dedicated agent/context module instead of keeping it inside the session registry.
-2. Add operator-visible handling for first-contact host trust failures and unsupported auth flows.
-3. Expose richer session controls such as disconnect/reconnect and in-flight command guardrails.
+1. Add operator-visible disconnect/reconnect controls to the backend and desktop UI.
+2. Reject concurrent command submission while another wrapped command is still in flight.
+3. Add operator-visible handling for first-contact host trust failures and unsupported auth flows.
 4. Verify the full desktop flow against reachable SSH targets and collect real incident transcripts.
 
 ## Risks And Open Questions

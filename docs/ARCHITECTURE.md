@@ -38,6 +38,7 @@ As of 2026-03-06:
 - `apps/desktop/src-tauri/src/session_store.rs` is the temporary backend state provider for failure and diagnosis samples.
 - `apps/desktop/src-tauri/src/session_registry.rs` holds the in-memory host config list, managed sessions, active session id, recent lifecycle events, terminal buffers, command history, and live SSH runtime handles.
 - `apps/desktop/src-tauri/src/session_manager.rs` is the backend boundary that exposes registry-backed session and terminal commands to the UI.
+- `apps/desktop/src-tauri/src/context_builder.rs` now owns the temporary agent-facing shaping logic for failure packets, diagnosis scaffolding, and timeline construction.
 - Real session connection management is now handled by backend-spawned `ssh.exe` child processes with piped stdin/stdout/stderr and reader threads owned by the registry layer.
 
 ## Proposed repo layout
@@ -105,7 +106,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
 - Failure packaging:
   - non-zero command completions are converted into structured `FailureContext` records
   - workspace timeline and diagnosis state are now derived from live command history when failure data exists
-  - the current diagnosis builder is still backend-local scaffolding, not a dedicated agent pipeline yet
+  - the current diagnosis builder lives in a separate backend `context_builder` module, but it is still scaffolding rather than a dedicated agent pipeline
 - State propagation:
   - stdout and stderr are read on background threads
   - the registry stores recent lifecycle events, a bounded rendered terminal buffer, and bounded per-session stdout/stderr tails
