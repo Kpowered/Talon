@@ -25,15 +25,15 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added live failure-context packaging for non-zero exits, including host/session metadata, stdout tail, stderr tail, cwd, shell, and captured timestamp.
 - Projected live command history and captured failures back into the workspace timeline and diagnosis pane instead of always relying on static sample incident data.
 - Extracted failure, diagnosis, and timeline shaping into a dedicated backend `context_builder` module so the session registry stays focused on transport/runtime state.
+- Added explicit backend disconnect and reconnect flows for managed SSH sessions and surfaced those controls in the desktop shell.
 
 ## In Progress
-- Adding richer session controls such as disconnect/reconnect and stronger in-flight command guardrails.
+- Adding stronger in-flight command guardrails so wrapped commands remain serialized per session.
 
 ## Next Steps
-1. Add operator-visible disconnect/reconnect controls to the backend and desktop UI.
-2. Reject concurrent command submission while another wrapped command is still in flight.
-3. Add operator-visible handling for first-contact host trust failures and unsupported auth flows.
-4. Verify the full desktop flow against reachable SSH targets and collect real incident transcripts.
+1. Reject concurrent command submission while another wrapped command is still in flight.
+2. Add operator-visible handling for first-contact host trust failures and unsupported auth flows.
+3. Verify the full desktop flow against reachable SSH targets and collect real incident transcripts.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.

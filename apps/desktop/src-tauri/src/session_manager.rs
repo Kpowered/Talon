@@ -18,6 +18,12 @@ pub struct SubmitCommandRequest {
     pub command: String,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DisconnectSessionRequest {
+    pub session_id: String,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionSummary {
@@ -52,6 +58,13 @@ pub struct SessionEventListResponse {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubmitCommandResponse {
+    pub terminal: TerminalSnapshot,
+    pub events: Vec<SessionLifecycleEvent>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DisconnectSessionResponse {
     pub terminal: TerminalSnapshot,
     pub events: Vec<SessionLifecycleEvent>,
 }
@@ -108,6 +121,17 @@ pub fn submit_session_command(payload: SubmitCommandRequest) -> SubmitCommandRes
         terminal: session_registry::submit_command(&payload.session_id, &payload.command),
         events: session_registry::recent_events(),
     }
+}
+
+pub fn disconnect_session(payload: DisconnectSessionRequest) -> DisconnectSessionResponse {
+    DisconnectSessionResponse {
+        terminal: session_registry::disconnect_session(&payload.session_id),
+        events: session_registry::recent_events(),
+    }
+}
+
+pub fn reconnect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
+    connect_session(payload)
 }
 
 pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionResponse {

@@ -57,6 +57,11 @@ type SubmitCommandResponse = {
   events: SessionLifecycleEvent[];
 };
 
+type DisconnectSessionResponse = {
+  terminal: TerminalSnapshot;
+  events: SessionLifecycleEvent[];
+};
+
 function statusLabel(status: HealthStatus) {
   if (status === "critical") return "Critical";
   if (status === "warning") return "Warning";
@@ -102,6 +107,8 @@ function App() {
   const [registryActiveSessionId, setRegistryActiveSessionId] = useState<string | null>(null);
   const [composerValue, setComposerValue] = useState("");
   const [isSubmittingCommand, setIsSubmittingCommand] = useState(false);
+  const [isDisconnectingSession, setIsDisconnectingSession] = useState(false);
+  const [isReconnectingSession, setIsReconnectingSession] = useState(false);
 
   async function refreshWorkspace() {
     const state = await invoke<TalonWorkspaceState>("get_workspace_state");
@@ -260,6 +267,39 @@ function App() {
     }
   }
 
+  async function disconnectActiveSession() {
+    if (!activeSession) return;
+    setIsDisconnectingSession(true);
+    try {
+      const result = await invoke<DisconnectSessionResponse>("disconnect_session", {
+        payload: { sessionId: activeSession.id },
+      });
+      setTerminalTail(result.terminal.lines);
+      setSessionEvents(result.events);
+      setActionSummary(`Disconnect requested for ${activeSession.id}.`);
+      await Promise.all([refreshWorkspace(), refreshRegistry()]);
+    } finally {
+      setIsDisconnectingSession(false);
+    }
+  }
+
+  async function reconnectActiveSession() {
+    if (!selectedHost) return;
+    setIsReconnectingSession(true);
+    try {
+      const result = await invoke<ConnectSessionResponse>("reconnect_session", {
+        payload: { hostId: selectedHost.id },
+      });
+      setSessionEvents(result.events);
+      setActionSummary(`Reconnect requested for ${selectedHost.label}.`);
+      await Promise.all([refreshWorkspace(), refreshRegistry()]);
+      const snapshot = await invoke<TerminalSnapshot>("get_terminal_snapshot", { sessionId: result.session.sessionId });
+      setTerminalTail(snapshot.lines);
+    } finally {
+      setIsReconnectingSession(false);
+    }
+  }
+
   async function runAction(action: SuggestedAction) {
     if (!activeSession) return;
     setIsRunningAction(action.id);
@@ -314,6 +354,12 @@ function App() {
         <div className="topbar-actions">
           <button className="ghost-button">New host</button>
           <button className="ghost-button">Incident history</button>
+          <button className="ghost-button" onClick={() => void reconnectActiveSession()} disabled={isReconnectingSession}>
+            {isReconnectingSession ? "Reconnecting..." : "Reconnect"}
+          </button>
+          <button className="ghost-button" onClick={() => void disconnectActiveSession()} disabled={isDisconnectingSession}>
+            {isDisconnectingSession ? "Disconnecting..." : "Disconnect"}
+          </button>
           <button className="primary-button" onClick={() => void connectSelectedHost()} disabled={isConnectingSession}>
             {isConnectingSession ? "Connecting..." : "Connect session"}
           </button>

@@ -7,8 +7,9 @@ use session_manager::{
     connect_session as open_preview_session, get_session_events as load_session_events,
     get_session_registry as load_session_registry, get_terminal_snapshot as load_terminal_snapshot,
     get_workspace_state as load_workspace_state, run_suggested_action as execute_suggested_action,
-    submit_session_command as dispatch_session_command,
-    ConnectSessionRequest, ConnectSessionResponse, SessionEventListResponse, SessionRegistryResponse,
+    submit_session_command as dispatch_session_command, disconnect_session as close_session,
+    reconnect_session as reopen_session, ConnectSessionRequest, ConnectSessionResponse,
+    DisconnectSessionRequest, DisconnectSessionResponse, SessionEventListResponse, SessionRegistryResponse,
     SubmitCommandRequest, SubmitCommandResponse,
 };
 use session_store::{RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot};
@@ -44,6 +45,16 @@ fn submit_session_command(payload: SubmitCommandRequest) -> SubmitCommandRespons
 }
 
 #[tauri::command]
+fn disconnect_session(payload: DisconnectSessionRequest) -> DisconnectSessionResponse {
+    close_session(payload)
+}
+
+#[tauri::command]
+fn reconnect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
+    reopen_session(payload)
+}
+
+#[tauri::command]
 fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionResponse {
     execute_suggested_action(payload)
 }
@@ -59,6 +70,8 @@ pub fn run() {
             get_terminal_snapshot,
             connect_session,
             submit_session_command,
+            disconnect_session,
+            reconnect_session,
             run_suggested_action
         ])
         .run(tauri::generate_context!())

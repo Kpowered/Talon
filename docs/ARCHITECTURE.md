@@ -111,6 +111,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - stdout and stderr are read on background threads
   - the registry stores recent lifecycle events, a bounded rendered terminal buffer, and bounded per-session stdout/stderr tails
   - process exit transitions the session to `disconnected`
+  - operator-triggered disconnect uses the tracked ssh pid to stop the transport and let the registry observe normal process teardown
 
 This is intentionally a transport-first implementation. Command framing, exit detection, and structured failure capture still need to be layered on top of the live shell stream.
 

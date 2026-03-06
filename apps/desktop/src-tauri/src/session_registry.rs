@@ -78,6 +78,7 @@ struct SessionStreamState {
 
 struct SessionRuntimeHandle {
     stdin: Arc<Mutex<ChildStdin>>,
+    pid: u32,
 }
 
 pub struct SessionRegistry {
@@ -551,6 +552,7 @@ fn launch_runtime(session_id: String, host: Host, config: HostConnectionConfig) 
     }
 
     let mut child = command.spawn().map_err(|error| error.to_string())?;
+    let pid = child.id();
     let stdin = child.stdin.take().ok_or_else(|| "failed to open ssh stdin".to_string())?;
     let stdout = child.stdout.take().ok_or_else(|| "failed to open ssh stdout".to_string())?;
     let stderr = child.stderr.take().ok_or_else(|| "failed to open ssh stderr".to_string())?;
@@ -597,7 +599,7 @@ fn launch_runtime(session_id: String, host: Host, config: HostConnectionConfig) 
         }
     });
 
-    Ok(SessionRuntimeHandle { stdin })
+    Ok(SessionRuntimeHandle { stdin, pid })
 }
 
 pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>) -> ManagedSessionRecord {
@@ -748,6 +750,60 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
             "command-error",
             "No active SSH transport for this session.".into(),
         );
+    }
+
+    terminal_snapshot(session_id)
+}
+
+pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
+    let pid = {
+        let mut registry = registry().lock().expect("session registry lock poisoned");
+        registry.active_commands.remove(session_id);
+        let pid = registry.runtimes.get(session_id).map(|runtime| runtime.pid);
+        push_event(
+            &mut registry,
+            session_id,
+            "disconnecting",
+            "Operator requested session disconnect.".into(),
+        );
+        push_terminal_line(&mut registry, session_id, "Disconnecting SSH transport...".into());
+        pid
+    };
+
+    match pid {
+        Some(pid) => {
+            let result = Command::new("taskkill")
+                .arg("/PID")
+                .arg(pid.to_string())
+                .arg("/T")
+                .arg("/F")
+                .output();
+
+            if let Err(error) = result {
+                let mut registry = registry().lock().expect("session registry lock poisoned");
+                push_terminal_line(
+                    &mut registry,
+                    session_id,
+                    format!("Disconnect failed: {}", error),
+                );
+                push_event(
+                    &mut registry,
+                    session_id,
+                    "disconnect-error",
+                    format!("Failed to stop ssh pid {}: {}", pid, error),
+                );
+            }
+        }
+        None => {
+            let mut registry = registry().lock().expect("session registry lock poisoned");
+            update_session_state(&mut registry, session_id, "disconnected");
+            push_event(
+                &mut registry,
+                session_id,
+                "disconnect-error",
+                "No active SSH transport for this session.".into(),
+            );
+        }
     }
 
     terminal_snapshot(session_id)
