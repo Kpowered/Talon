@@ -134,6 +134,35 @@ Interpretation:
 - This validates the environment needed for end-to-end non-zero exit testing against a reachable host.
 - Talon still needs product-integrated password auth before this exact host can be exercised from the desktop workflow instead of an external validation probe.
 
+### Product-equivalent password-auth transport probe
+
+Command class:
+
+```powershell
+ssh -T -o StrictHostKeyChecking=yes -o ConnectTimeout=8 -o BatchMode=no -o PubkeyAuthentication=no -o PreferredAuthentications=password -o NumberOfPasswordPrompts=1 ...
+```
+
+Transcript:
+
+```text
+/root
+root
+/bin/bash
+```
+
+Follow-up non-zero probe:
+
+```text
+LOCAL_SSH_EXIT=1
+```
+
+Interpretation:
+
+- This matches the transport options Talon now uses for password-auth sessions.
+- The integrated `ssh.exe + SSH_ASKPASS + -T` path works against the external test host when run unsandboxed.
+- A controlled non-zero exit is also observable through the same command path.
+- The committed Rust integration test for this flow is marked `ignore` because child `ssh.exe` processes launched under `cargo test` do not inherit unrestricted network access in the current execution environment.
+
 ## Verified product behavior in this environment
 
 - Rust backend compiles with the current real SSH transport, disconnect/reconnect flow, and in-flight command guardrails.
@@ -145,6 +174,7 @@ Interpretation:
   - connection timeouts
   - network path failures such as connection refused or hostname resolution errors
 - External validation confirmed that a reachable password-auth host can be contacted from this machine and can return a controlled non-zero exit.
+- Product-equivalent `ssh.exe` invocation for password auth was also validated against the same host.
 
 ## Not yet verified end to end
 

@@ -32,9 +32,10 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added a verification log in `docs/VERIFICATION.md` and captured the current environment's local SSH probe transcripts.
 - Validated an operator-provided external password-auth SSH target outside the product flow, confirming reachable handshake, shell bootstrap, and a controlled non-zero remote exit.
 - Added product-integrated password authentication support through operator-supplied connection overrides in the desktop UI and backend-managed `SSH_ASKPASS` handling for `ssh.exe`.
+- Validated the product-equivalent password-auth transport options against the external test host, including successful shell bootstrap and a controlled non-zero exit through `ssh.exe + SSH_ASKPASS + -T`.
 
 ## In Progress
-- Validating the desktop product path against the already-tested external password-auth target.
+- Waiting on an interactive Tauri runtime session to complete click-through desktop validation against the already-tested external password-auth target.
 
 ## Next Steps
 1. Validate the full desktop flow against a reachable SSH target and capture at least one successful shell bootstrap transcript from the product path.
@@ -45,6 +46,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
 - Strict host key checking is enabled, so first-contact hosts without an existing known-hosts entry will fail until Talon exposes an explicit operator-confirmed trust flow.
 - Password auth is now supported in the product transport, but end-to-end desktop verification against the external host still depends on running the Tauri shell against that target.
+- Child `ssh.exe` processes launched from `cargo test` do not inherit unrestricted network access in the current execution environment, so automated Rust-side network tests for the external host must remain opt-in / ignored here.
 - Frontend verification is available via Node, but full desktop runtime verification beyond local probes still depends on local operator access to reachable SSH targets. In this session, `sshd` was stopped and `ssh-agent` was disabled on the local machine.
 
 ## Working Rules

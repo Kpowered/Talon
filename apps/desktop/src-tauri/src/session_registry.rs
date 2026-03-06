@@ -702,8 +702,6 @@ fn launch_runtime(
     command
         .arg("-T")
         .arg("-o")
-        .arg("BatchMode=yes")
-        .arg("-o")
         .arg("StrictHostKeyChecking=yes")
         .arg("-o")
         .arg(format!("ConnectTimeout={}", CONNECT_TIMEOUT_SECONDS))
@@ -717,6 +715,7 @@ fn launch_runtime(
     let mut askpass_path = None;
 
     if config.auth_method == "private-key" {
+        command.arg("-o").arg("BatchMode=yes");
         let key_path = resolve_private_key_path(&host.id)
             .ok_or_else(|| format!("No SSH private key found for host {}", host.id))?;
         command.arg("-i").arg(key_path);
@@ -729,6 +728,8 @@ fn launch_runtime(
         let helper_path = create_askpass_helper(&session_id)?;
         command
             .arg("-o")
+            .arg("BatchMode=no")
+            .arg("-o")
             .arg("PubkeyAuthentication=no")
             .arg("-o")
             .arg("PreferredAuthentications=password")
@@ -739,6 +740,8 @@ fn launch_runtime(
             .env("DISPLAY", "talon")
             .env("TALON_SSH_PASSWORD", password);
         askpass_path = Some(helper_path);
+    } else {
+        command.arg("-o").arg("BatchMode=yes");
     }
 
     let mut child = command.spawn().map_err(|error| error.to_string())?;

@@ -77,3 +77,103 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+    use std::thread;
+    use std::time::{Duration, Instant};
+
+    use crate::session_manager::{
+        connect_session, disconnect_session, get_session_events, get_terminal_snapshot, get_workspace_state,
+        submit_session_command, ConnectSessionRequest, DisconnectSessionRequest, SubmitCommandRequest,
+    };
+
+    fn env_required(key: &str) -> Option<String> {
+        env::var(key).ok().filter(|value| !value.trim().is_empty())
+    }
+
+    #[test]
+    #[ignore = "requires unsandboxed network access for child ssh.exe spawned by the test process"]
+    fn validates_password_auth_flow_against_external_host() {
+        let Some(address) = env_required("TALON_TEST_SSH_ADDRESS") else {
+            return;
+        };
+        let Some(password) = env_required("TALON_TEST_SSH_PASSWORD") else {
+            return;
+        };
+
+        let host_id = env_required("TALON_TEST_SSH_HOST_ID").unwrap_or_else(|| "host-prod-web-1".into());
+        let username = env_required("TALON_TEST_SSH_USERNAME").unwrap_or_else(|| "root".into());
+        let port = env_required("TALON_TEST_SSH_PORT")
+            .and_then(|value| value.parse::<u16>().ok())
+            .unwrap_or(22);
+
+        let connection = connect_session(ConnectSessionRequest {
+            host_id,
+            address: Some(address),
+            port: Some(port),
+            username: Some(username),
+            auth_method: Some("password".into()),
+            password: Some(password),
+        });
+
+        let session_id = connection.session.session_id.clone();
+        let deadline = Instant::now() + Duration::from_secs(20);
+        loop {
+            let workspace = get_workspace_state();
+            if let Some(session) = workspace.sessions.iter().find(|session| session.id == session_id) {
+                if session.state == "connected" {
+                    break;
+                }
+            }
+            if Instant::now() >= deadline {
+                let terminal = get_terminal_snapshot(session_id.clone()).lines.join("\n");
+                let events = get_session_events()
+                    .events
+                    .into_iter()
+                    .map(|event| format!("{}: {}", event.event_type, event.detail))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                panic!(
+                    "session did not reach connected state in time\nterminal:\n{}\n\nevents:\n{}",
+                    terminal, events
+                );
+            }
+            thread::sleep(Duration::from_millis(500));
+        }
+
+        submit_session_command(SubmitCommandRequest {
+            session_id: session_id.clone(),
+            command: "pwd".into(),
+        });
+
+        let command_deadline = Instant::now() + Duration::from_secs(20);
+        loop {
+            let workspace = get_workspace_state();
+            let terminal = workspace.terminal.lines.join("\n");
+            if workspace.active_session_id == session_id && terminal.contains("/root") {
+                break;
+            }
+            assert!(Instant::now() < command_deadline, "pwd output did not appear in time");
+            thread::sleep(Duration::from_millis(500));
+        }
+
+        submit_session_command(SubmitCommandRequest {
+            session_id: session_id.clone(),
+            command: "sh -c 'exit 7'".into(),
+        });
+
+        let failure_deadline = Instant::now() + Duration::from_secs(20);
+        loop {
+            let workspace = get_workspace_state();
+            if workspace.latest_failure.session_id == session_id && workspace.latest_failure.exit_code == 7 {
+                break;
+            }
+            assert!(Instant::now() < failure_deadline, "non-zero failure context was not captured in time");
+            thread::sleep(Duration::from_millis(500));
+        }
+
+        disconnect_session(DisconnectSessionRequest { session_id });
+    }
+}
