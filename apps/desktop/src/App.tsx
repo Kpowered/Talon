@@ -271,6 +271,14 @@ function App() {
   const timeline = workspace?.timeline ?? [];
   const activeAction = diagnosis?.suggestedActions.find((action: SuggestedAction) => action.status === "ready") ?? null;
   const activeSessionBusy = activeSession ? busySessionIds.includes(activeSession.id) : false;
+  const repeatedSignalCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of timeline) {
+      if (!item.stderrClass) continue;
+      counts.set(item.stderrClass, (counts.get(item.stderrClass) ?? 0) + 1);
+    }
+    return counts;
+  }, [timeline]);
 
   const metrics = useMemo(() => {
     if (!workspace || !diagnosis || !failure) return [];
@@ -873,10 +881,23 @@ function App() {
 
           <div className="timeline">
             {timeline.map((item: TimelineEvent) => (
-              <article key={item.id} className="timeline-item">
+              <article
+                key={item.id}
+                className={`timeline-item ${
+                  item.stderrClass && (repeatedSignalCounts.get(item.stderrClass) ?? 0) >= 2 ? "repeated-signal" : ""
+                }`}
+              >
                 <div className="timeline-time">{formatTime(item.occurredAt)}</div>
                 <div className="timeline-content">
-                  <div className="timeline-command">{item.title}</div>
+                  <div className="timeline-command-row">
+                    <div className="timeline-command">{item.title}</div>
+                    {item.stderrClass ? (
+                      <span className="timeline-signal-badge">
+                        {stderrClassLabel(item.stderrClass)}
+                        {(repeatedSignalCounts.get(item.stderrClass) ?? 0) >= 2 ? " x2+" : ""}
+                      </span>
+                    ) : null}
+                  </div>
                   <p>{item.detail}</p>
                 </div>
                 <div className={`exit-code ${item.exitCode === 0 ? "ok" : "fail"}`}>

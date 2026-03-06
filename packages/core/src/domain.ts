@@ -103,6 +103,8 @@ export interface TimelineEvent {
   kind: TimelineKind;
   title: string;
   detail: string;
+  stderrClass?: string | null;
+  stderrEvidence?: string | null;
   occurredAt: string;
   exitCode?: number | null;
 }

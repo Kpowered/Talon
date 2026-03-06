@@ -50,6 +50,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Surfaced `stderr_class` directly in the desktop diagnosis panel as a visible failure signal instead of leaving it only inside diagnosis prose.
 - Surfaced the matched `stderr` evidence snippet in the diagnosis panel so operators can see the concrete trigger line behind the classifier.
 - Projected the same `stderr` evidence into timeline events so incident memory stays self-contained outside the diagnosis card.
+- Added structured `stderr_class` / `stderr_evidence` timeline fields and frontend repeated-signal highlighting so recurring failure classes stand out in the current incident window.
 
 ## In Progress
 - Reducing the remaining placeholder responsibilities in `session_store` now that host inventory is registry-backed.
@@ -57,7 +58,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 ## Next Steps
 1. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
 2. Continue reducing mock `session_store` responsibilities as more runtime state becomes authoritative.
-3. Expand the command `stderr` pattern set beyond the current high-signal core and decide which additional classes deserve dedicated UI signals, diagnosis copy, suggested actions, or richer evidence snippets across both diagnosis and timeline views.
+3. Decide whether repeated signal highlighting should stay timeline-window scoped or graduate into a broader incident-history summary once more runtime history is available.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.

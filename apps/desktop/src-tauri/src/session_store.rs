@@ -131,6 +131,8 @@ pub struct TimelineEvent {
     pub kind: String,
     pub title: String,
     pub detail: String,
+    pub stderr_class: Option<String>,
+    pub stderr_evidence: Option<String>,
     pub occurred_at: String,
     pub exit_code: Option<i32>,
 }

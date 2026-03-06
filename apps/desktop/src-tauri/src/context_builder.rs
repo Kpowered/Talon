@@ -343,6 +343,8 @@ pub fn timeline_for_session(
                     .map(|evidence| format!(", evidence {}", evidence))
                     .unwrap_or_default()
             ),
+            stderr_class: entry.stderr_class.clone(),
+            stderr_evidence: entry.stderr_evidence.clone(),
             occurred_at: entry.completed_at.clone(),
             exit_code: Some(entry.exit_code),
         })
@@ -370,6 +372,8 @@ pub fn timeline_for_session(
                         .map(|evidence| format!(" and evidence {}", evidence))
                         .unwrap_or_default()
                 ),
+                stderr_class: failure.stderr_class.clone(),
+                stderr_evidence: failure.stderr_evidence.clone(),
                 occurred_at: failure.captured_at.clone(),
                 exit_code: None,
             },
@@ -384,6 +388,8 @@ pub fn timeline_for_session(
                 kind: "diagnosis".into(),
                 title: issue.title.clone(),
                 detail: format!("{} Suggested check: {}", issue.summary, issue.suggested_command),
+                stderr_class: None,
+                stderr_evidence: None,
                 occurred_at: issue.observed_at.clone(),
                 exit_code: None,
             },

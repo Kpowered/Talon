@@ -626,6 +626,11 @@ button {
   padding: 12px 14px;
 }
 
+.timeline-item.repeated-signal {
+  border: 1px solid rgba(47, 212, 255, 0.18);
+  background: linear-gradient(180deg, rgba(47, 212, 255, 0.08), rgba(255, 255, 255, 0.03));
+}
+
 .timeline-time {
   min-width: 72px;
   color: #7f8aa1;
@@ -637,10 +642,28 @@ button {
   flex: 1;
 }
 
+.timeline-command-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .timeline-command {
   color: #ebefff;
   font-family: "JetBrains Mono", monospace;
   margin-bottom: 4px;
+}
+
+.timeline-signal-badge {
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 0.74rem;
+  color: #8fe7ff;
+  background: rgba(47, 212, 255, 0.12);
+  border: 1px solid rgba(47, 212, 255, 0.18);
+  white-space: nowrap;
 }
 
 .panel-ai {
