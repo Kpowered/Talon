@@ -36,14 +36,15 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Projected connection issues into the workspace timeline and diagnosis state so pre-shell failures now appear as first-class incident history.
 - Replaced the static nginx incident fallback in `session_store` with neutral placeholder state until live runtime evidence exists.
 - Added backend support for persistent host connection configs stored in a local JSON file, including create/update/delete mutation commands.
+- Added desktop UI flows for creating, editing, and deleting persistent host configs without persisting passwords.
 
 ## In Progress
-- Wiring the persistent host config backend into desktop host creation and editing flows.
+- Deciding how much of the current mock host inventory should be replaced by fully persisted host records.
 
 ## Next Steps
-1. Add desktop UI flows for creating, editing, and deleting persistent host configs.
-2. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
-3. Continue reducing mock `session_store` responsibilities as more runtime state becomes authoritative.
+1. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
+2. Continue reducing mock `session_store` responsibilities as more runtime state becomes authoritative.
+3. Add a clearer distinction between saved host config and per-session connection overrides in the UI.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.

@@ -308,6 +308,12 @@ button {
   outline: none;
 }
 
+.host-config-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .host-list,
 .diagnosis-feed,
 .timeline,
@@ -695,6 +701,12 @@ button {
 .ghost-button {
   background: rgba(255, 255, 255, 0.04);
   color: #d8def0;
+}
+
+.ghost-button.destructive {
+  color: #ffb1b1;
+  border-color: rgba(255, 92, 92, 0.2);
+  background: rgba(255, 92, 92, 0.08);
 }
 
 .primary-button:hover,

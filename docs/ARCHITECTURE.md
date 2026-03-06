@@ -103,6 +103,10 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
 - Connection overrides:
   - the desktop UI can override the selected host's address, port, username, auth method, and password at connect time
   - overrides are session-scoped operator input and are not persisted into repository-backed mock state
+- Host config management:
+  - saved host config fields are now editable from the desktop UI
+  - saved config persists address, port, username, auth method, and fingerprint hint
+  - passwords are still operator-entered at connect time rather than persisted
 - Command framing:
   - submitted commands are wrapped with Talon control markers before being written to the remote shell
   - stdout parsing detects command start and command end markers

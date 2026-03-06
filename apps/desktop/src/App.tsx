@@ -68,6 +68,10 @@ type DisconnectSessionResponse = {
   events: SessionLifecycleEvent[];
 };
 
+type HostConfigMutationResponse = {
+  hostConfigs: HostConnectionConfig[];
+};
+
 type SessionConnectionIssue = {
   sessionId: string;
   kind: string;
@@ -133,6 +137,13 @@ function App() {
   const [connectionAuthMethod, setConnectionAuthMethod] = useState<ConnectionAuthMethod>("agent");
   const [connectionPassword, setConnectionPassword] = useState("");
   const initializedConnectionHostId = useRef<string | null>(null);
+  const [hostLabelInput, setHostLabelInput] = useState("");
+  const [hostAddressInput, setHostAddressInput] = useState("");
+  const [hostPortInput, setHostPortInput] = useState("22");
+  const [hostUsernameInput, setHostUsernameInput] = useState("");
+  const [hostAuthMethodInput, setHostAuthMethodInput] = useState<ConnectionAuthMethod>("agent");
+  const [isSavingHostConfig, setIsSavingHostConfig] = useState(false);
+  const [isDeletingHostConfig, setIsDeletingHostConfig] = useState(false);
 
   async function refreshWorkspace() {
     const state = await invoke<TalonWorkspaceState>("get_workspace_state");
@@ -215,6 +226,18 @@ function App() {
     setConnectionAuthMethod((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
     setConnectionPassword("");
     initializedConnectionHostId.current = nextHost.id;
+  }, [workspace?.hosts, selectedHostId, hostConfigs]);
+
+  useEffect(() => {
+    const nextHost = workspace?.hosts.find((host: Host) => host.id === selectedHostId) ?? workspace?.hosts[0];
+    if (!nextHost) return;
+    const nextConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === nextHost.id) ?? null;
+    const derivedUsername = nextHost.address.includes("@") ? nextHost.address.split("@")[0] : nextConfig?.username ?? "";
+    setHostLabelInput(nextHost.label);
+    setHostAddressInput(nextHost.address);
+    setHostPortInput(String(nextConfig?.port ?? 22));
+    setHostUsernameInput(nextConfig?.username ?? derivedUsername);
+    setHostAuthMethodInput((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
   }, [workspace?.hosts, selectedHostId, hostConfigs]);
 
   const activeSession = useMemo(
@@ -381,6 +404,92 @@ function App() {
     }
   }
 
+  async function saveHostConfig(hostId: string, fingerprintHint: string) {
+    setIsSavingHostConfig(true);
+    try {
+      const result = await invoke<HostConfigMutationResponse>("upsert_host_config", {
+        payload: {
+          hostId,
+          port: Number(hostPortInput) || 22,
+          username: hostUsernameInput.trim() || "root",
+          authMethod: hostAuthMethodInput,
+          fingerprintHint,
+        },
+      });
+      setHostConfigs(result.hostConfigs);
+      await refreshRegistry();
+    } finally {
+      setIsSavingHostConfig(false);
+    }
+  }
+
+  async function createHost() {
+    const hostId = `host-${crypto.randomUUID().slice(0, 8)}`;
+    const label = hostLabelInput.trim() || "new-host";
+    const address = hostAddressInput.trim() || `${hostUsernameInput.trim() || "root"}@127.0.0.1`;
+    const nextHost: Host = {
+      id: hostId,
+      label,
+      address,
+      region: "custom",
+      tags: ["custom"],
+      status: "healthy",
+      latencyMs: 0,
+      cpuPercent: 0,
+      memoryPercent: 0,
+      lastSeenAt: new Date().toISOString(),
+    };
+    setWorkspace((current) =>
+      current
+        ? {
+            ...current,
+            hosts: [nextHost, ...current.hosts],
+          }
+        : current,
+    );
+    setSelectedHostId(hostId);
+    initializedConnectionHostId.current = null;
+    await saveHostConfig(hostId, "Pending trust");
+    setActionSummary(`Created host config for ${label}.`);
+  }
+
+  async function updateSelectedHost() {
+    if (!selectedHost || !workspace) return;
+    const updatedHost: Host = {
+      ...selectedHost,
+      label: hostLabelInput.trim() || selectedHost.label,
+      address: hostAddressInput.trim() || selectedHost.address,
+    };
+    setWorkspace({
+      ...workspace,
+      hosts: workspace.hosts.map((host) => (host.id === selectedHost.id ? updatedHost : host)),
+    });
+    await saveHostConfig(selectedHost.id, selectedHostConfig?.fingerprintHint ?? "Pending trust");
+    setActionSummary(`Saved host config for ${updatedHost.label}.`);
+  }
+
+  async function deleteSelectedHost() {
+    if (!selectedHost || !workspace) return;
+    setIsDeletingHostConfig(true);
+    try {
+      await invoke<HostConfigMutationResponse>("delete_host_config", {
+        payload: { hostId: selectedHost.id },
+      });
+      const remainingHosts = workspace.hosts.filter((host) => host.id !== selectedHost.id);
+      setWorkspace({
+        ...workspace,
+        hosts: remainingHosts,
+        activeSessionId: workspace.activeSessionId,
+      });
+      setSelectedHostId(remainingHosts[0]?.id ?? null);
+      initializedConnectionHostId.current = null;
+      await refreshRegistry();
+      setActionSummary(`Deleted host config for ${selectedHost.label}.`);
+    } finally {
+      setIsDeletingHostConfig(false);
+    }
+  }
+
   if (!workspace || !diagnosis || !failure || !activeSession || !selectedHost) {
     return (
       <main className="app-shell loading-state">
@@ -412,7 +521,9 @@ function App() {
         </div>
 
         <div className="topbar-actions">
-          <button className="ghost-button">New host</button>
+          <button className="ghost-button" onClick={() => void createHost()} disabled={isSavingHostConfig}>
+            {isSavingHostConfig ? "Saving..." : "New host"}
+          </button>
           <button className="ghost-button">Incident history</button>
           <button className="ghost-button" onClick={() => void reconnectActiveSession()} disabled={isReconnectingSession}>
             {isReconnectingSession ? "Reconnecting..." : "Reconnect"}
@@ -488,6 +599,42 @@ function App() {
               <span>{selectedHostConfig?.username ?? "unknown"}</span>
               <span>port {selectedHostConfig?.port ?? 0}</span>
               <span>{selectedHostConfig?.fingerprintHint ?? "no fingerprint"}</span>
+            </div>
+            <div className="connection-form">
+              <label className="connection-field">
+                <span>Label</span>
+                <input value={hostLabelInput} onChange={(event) => setHostLabelInput(event.target.value)} />
+              </label>
+              <label className="connection-field">
+                <span>Saved address</span>
+                <input value={hostAddressInput} onChange={(event) => setHostAddressInput(event.target.value)} />
+              </label>
+              <div className="connection-grid">
+                <label className="connection-field">
+                  <span>Saved port</span>
+                  <input value={hostPortInput} onChange={(event) => setHostPortInput(event.target.value)} inputMode="numeric" />
+                </label>
+                <label className="connection-field">
+                  <span>Saved user</span>
+                  <input value={hostUsernameInput} onChange={(event) => setHostUsernameInput(event.target.value)} />
+                </label>
+              </div>
+              <label className="connection-field">
+                <span>Saved auth</span>
+                <select value={hostAuthMethodInput} onChange={(event) => setHostAuthMethodInput(event.target.value as ConnectionAuthMethod)}>
+                  <option value="agent">agent</option>
+                  <option value="private-key">private-key</option>
+                  <option value="password">password</option>
+                </select>
+              </label>
+              <div className="host-config-actions">
+                <button className="ghost-button small" onClick={() => void updateSelectedHost()} disabled={isSavingHostConfig}>
+                  {isSavingHostConfig ? "Saving..." : "Save host"}
+                </button>
+                <button className="ghost-button small destructive" onClick={() => void deleteSelectedHost()} disabled={isDeletingHostConfig}>
+                  {isDeletingHostConfig ? "Deleting..." : "Delete host"}
+                </button>
+              </div>
             </div>
             <div className="connection-form">
               <label className="connection-field">
