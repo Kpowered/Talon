@@ -33,10 +33,22 @@ pub struct TalonWorkspaceState {
 #[serde(rename_all = "camelCase")]
 pub struct Host {
     pub id: String,
+    pub config: HostConfig,
+    pub observed: HostObservedState,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostConfig {
     pub label: String,
     pub address: String,
     pub region: String,
     pub tags: Vec<String>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostObservedState {
     pub status: String,
     pub latency_ms: u32,
     pub cpu_percent: u8,

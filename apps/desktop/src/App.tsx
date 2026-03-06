@@ -226,8 +226,8 @@ function App() {
     if (initializedConnectionHostId.current === nextHost.id) return;
 
     const nextConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === nextHost.id) ?? null;
-    const derivedUsername = nextHost.address.includes("@") ? nextHost.address.split("@")[0] : nextConfig?.username ?? "";
-    setConnectionAddress(nextHost.address);
+    const derivedUsername = nextHost.config.address.includes("@") ? nextHost.config.address.split("@")[0] : nextConfig?.username ?? "";
+    setConnectionAddress(nextHost.config.address);
     setConnectionPort(String(nextConfig?.port ?? 22));
     setConnectionUsername(nextConfig?.username ?? derivedUsername);
     setConnectionAuthMethod((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
@@ -239,11 +239,11 @@ function App() {
     const nextHost = workspace?.hosts.find((host: Host) => host.id === selectedHostId) ?? workspace?.hosts[0];
     if (!nextHost) return;
     const nextConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === nextHost.id) ?? null;
-    const derivedUsername = nextHost.address.includes("@") ? nextHost.address.split("@")[0] : nextConfig?.username ?? "";
-    setHostLabelInput(nextHost.label);
-    setHostAddressInput(nextHost.address);
-    setHostRegionInput(nextHost.region);
-    setHostTagsInput(nextHost.tags.join(", "));
+    const derivedUsername = nextHost.config.address.includes("@") ? nextHost.config.address.split("@")[0] : nextConfig?.username ?? "";
+    setHostLabelInput(nextHost.config.label);
+    setHostAddressInput(nextHost.config.address);
+    setHostRegionInput(nextHost.config.region);
+    setHostTagsInput(nextHost.config.tags.join(", "));
     setHostPortInput(String(nextConfig?.port ?? 22));
     setHostUsernameInput(nextConfig?.username ?? derivedUsername);
     setHostAuthMethodInput((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
@@ -267,7 +267,7 @@ function App() {
   const metrics = useMemo(() => {
     if (!workspace || !diagnosis || !failure) return [];
 
-    const connectedHosts = workspace.hosts.filter((host: Host) => host.status !== "critical").length;
+    const connectedHosts = workspace.hosts.filter((host: Host) => host.observed.status !== "critical").length;
 
     return [
       {
@@ -324,7 +324,7 @@ function App() {
         },
       });
       setSessionEvents(result.events);
-      setActionSummary(`Managed session ready for ${selectedHost.label} in ${result.session.cwd}.`);
+      setActionSummary(`Managed session ready for ${selectedHost.config.label} in ${result.session.cwd}.`);
       await Promise.all([refreshWorkspace(), refreshRegistry()]);
       const snapshot = await invoke<TerminalSnapshot>("get_terminal_snapshot", { sessionId: result.session.sessionId });
       setTerminalTail(snapshot.lines);
@@ -384,7 +384,7 @@ function App() {
         },
       });
       setSessionEvents(result.events);
-      setActionSummary(`Reconnect requested for ${selectedHost.label}.`);
+      setActionSummary(`Reconnect requested for ${selectedHost.config.label}.`);
       await Promise.all([refreshWorkspace(), refreshRegistry()]);
       const snapshot = await invoke<TerminalSnapshot>("get_terminal_snapshot", { sessionId: result.session.sessionId });
       setTerminalTail(snapshot.lines);
@@ -417,13 +417,13 @@ function App() {
   function resetConnectionOverride() {
     if (!selectedHost) return;
     const nextConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === selectedHost.id) ?? null;
-    const derivedUsername = selectedHost.address.includes("@") ? selectedHost.address.split("@")[0] : nextConfig?.username ?? "";
-    setConnectionAddress(selectedHost.address);
+    const derivedUsername = selectedHost.config.address.includes("@") ? selectedHost.config.address.split("@")[0] : nextConfig?.username ?? "";
+    setConnectionAddress(selectedHost.config.address);
     setConnectionPort(String(nextConfig?.port ?? 22));
     setConnectionUsername(nextConfig?.username ?? derivedUsername);
     setConnectionAuthMethod((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
     setConnectionPassword("");
-    setActionSummary(`Reset connection override for ${selectedHost.label} back to saved host config.`);
+    setActionSummary(`Reset connection override for ${selectedHost.config.label} back to saved host config.`);
   }
 
   function parseTags(input: string) {
@@ -476,9 +476,9 @@ function App() {
     if (!selectedHost) return;
     const updatedHost = {
       id: selectedHost.id,
-      label: hostLabelInput.trim() || selectedHost.label,
-      address: hostAddressInput.trim() || selectedHost.address,
-      region: hostRegionInput.trim() || selectedHost.region,
+      label: hostLabelInput.trim() || selectedHost.config.label,
+      address: hostAddressInput.trim() || selectedHost.config.address,
+      region: hostRegionInput.trim() || selectedHost.config.region,
       tags: parseTags(hostTagsInput),
     };
     await invoke<HostMutationResponse>("upsert_host", {
@@ -501,7 +501,7 @@ function App() {
       setSelectedHostId(remainingHosts[0]?.id ?? null);
       initializedConnectionHostId.current = null;
       await refreshRegistry();
-      setActionSummary(`Deleted host config for ${selectedHost.label}.`);
+      setActionSummary(`Deleted host config for ${selectedHost.config.label}.`);
     } finally {
       setIsDeletingHostConfig(false);
     }
@@ -576,30 +576,30 @@ function App() {
 
           <div className="search-box">
             <span>Host</span>
-            <input value={selectedHost.label} readOnly aria-label="Selected host" />
+            <input value={selectedHost.config.label} readOnly aria-label="Selected host" />
           </div>
 
           <div className="host-list">
             {hosts.map((host: Host) => (
               <button
                 key={host.id}
-                className={`host-card status-${host.status} ${host.id === selectedHost.id ? "selected" : ""}`}
+                className={`host-card status-${host.observed.status} ${host.id === selectedHost.id ? "selected" : ""}`}
                 onClick={() => setSelectedHostId(host.id)}
               >
                 <div className="host-row">
                   <div>
-                    <h3>{host.label}</h3>
-                    <p>{host.address}</p>
+                    <h3>{host.config.label}</h3>
+                    <p>{host.config.address}</p>
                   </div>
-                  <span className={`status-badge status-${host.status}`}>{statusLabel(host.status)}</span>
+                  <span className={`status-badge status-${host.observed.status}`}>{statusLabel(host.observed.status)}</span>
                 </div>
                 <div className="host-details">
-                  <span>{host.region}</span>
-                  <span>{host.latencyMs}ms</span>
-                  <span>CPU {host.cpuPercent}%</span>
-                  <span>RAM {host.memoryPercent}%</span>
+                  <span>{host.config.region}</span>
+                  <span>{host.observed.latencyMs}ms</span>
+                  <span>CPU {host.observed.cpuPercent}%</span>
+                  <span>RAM {host.observed.memoryPercent}%</span>
                 </div>
-                <div className="host-meta">Last seen {formatTime(host.lastSeenAt)}</div>
+                <div className="host-meta">Last seen {formatTime(host.observed.lastSeenAt)}</div>
               </button>
             ))}
           </div>
@@ -786,7 +786,7 @@ function App() {
             <div>
               <p className="panel-kicker">Live terminal</p>
               <div className="title-row compact">
-                <h2>{selectedHost.label}</h2>
+                <h2>{selectedHost.config.label}</h2>
                 <span className={`live-dot status-${failure.severity}`}>{statusLabel(failure.severity)}</span>
               </div>
             </div>
@@ -810,7 +810,7 @@ function App() {
               <i />
             </span>
             <span className="terminal-path">
-              {activeSession.cwd} | {selectedHost.address} | session #{activeSession.id}
+              {activeSession.cwd} | {selectedHost.config.address} | session #{activeSession.id}
             </span>
             <span className="terminal-mode">
               {activeSessionBusy
@@ -899,8 +899,8 @@ function App() {
           <div className="insight-grid">
             <article className="insight-card">
               <span>Active host</span>
-              <strong>{selectedHost.label}</strong>
-              <p>{selectedHost.address}</p>
+              <strong>{selectedHost.config.label}</strong>
+              <p>{selectedHost.config.address}</p>
             </article>
             <article className="insight-card">
               <span>Likely causes</span>

@@ -8,17 +8,25 @@ export type TimelineKind = "command" | "diagnosis" | "action";
 
 export type SuggestedActionStatus = "ready" | "blocked" | "completed";
 
-export interface Host {
-  id: string;
+export interface HostConfig {
   label: string;
   address: string;
   region: string;
   tags: string[];
+}
+
+export interface HostObservedState {
   status: HealthStatus;
   latencyMs: number;
   cpuPercent: number;
   memoryPercent: number;
   lastSeenAt: string;
+}
+
+export interface Host {
+  id: string;
+  config: HostConfig;
+  observed: HostObservedState;
 }
 
 export interface Session {

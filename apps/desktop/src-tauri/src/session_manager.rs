@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::session_registry;
 use crate::session_registry::{HostConnectionConfig, SessionConnectionIssue, SessionLifecycleEvent};
 use crate::session_store;
-use crate::session_store::{Host, RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot};
+use crate::session_store::{Host, HostConfig as HostRecordConfig, HostObservedState, RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -153,15 +153,16 @@ pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse
         .expect("workspace state must include at least one host");
     let mut effective_host = host.clone();
     if let Some(address) = payload.address.as_ref().filter(|value| !value.trim().is_empty()) {
-        effective_host.address = address.trim().into();
+        effective_host.config.address = address.trim().into();
     }
     if let Some(username) = payload.username.as_ref().filter(|value| !value.trim().is_empty()) {
         let target = effective_host
+            .config
             .address
             .split_once('@')
             .map(|(_, hostname)| hostname.to_string())
-            .unwrap_or_else(|| effective_host.address.clone());
-        effective_host.address = format!("{}@{}", username.trim(), target);
+            .unwrap_or_else(|| effective_host.config.address.clone());
+        effective_host.config.address = format!("{}@{}", username.trim(), target);
     }
 
     let mut host_config = session_registry::host_config_for(&host.id).unwrap_or(HostConnectionConfig {
@@ -247,18 +248,25 @@ pub fn upsert_host(payload: UpsertHostRequest) -> HostMutationResponse {
     HostMutationResponse {
         hosts: session_registry::upsert_host(Host {
             id: payload.id,
-            label: payload.label,
-            address: payload.address,
-            region: payload.region,
-            tags: payload.tags,
-            status: existing.as_ref().map(|host| host.status.clone()).unwrap_or_else(|| "healthy".into()),
-            latency_ms: existing.as_ref().map(|host| host.latency_ms).unwrap_or(0),
-            cpu_percent: existing.as_ref().map(|host| host.cpu_percent).unwrap_or(0),
-            memory_percent: existing.as_ref().map(|host| host.memory_percent).unwrap_or(0),
-            last_seen_at: existing
-                .as_ref()
-                .map(|host| host.last_seen_at.clone())
-                .unwrap_or_else(|| "2026-03-07T00:00:00Z".into()),
+            config: HostRecordConfig {
+                label: payload.label,
+                address: payload.address,
+                region: payload.region,
+                tags: payload.tags,
+            },
+            observed: HostObservedState {
+                status: existing
+                    .as_ref()
+                    .map(|host| host.observed.status.clone())
+                    .unwrap_or_else(|| "healthy".into()),
+                latency_ms: existing.as_ref().map(|host| host.observed.latency_ms).unwrap_or(0),
+                cpu_percent: existing.as_ref().map(|host| host.observed.cpu_percent).unwrap_or(0),
+                memory_percent: existing.as_ref().map(|host| host.observed.memory_percent).unwrap_or(0),
+                last_seen_at: existing
+                    .as_ref()
+                    .map(|host| host.observed.last_seen_at.clone())
+                    .unwrap_or_else(|| "2026-03-07T00:00:00Z".into()),
+            },
         })
         .expect("host update must succeed"),
     }

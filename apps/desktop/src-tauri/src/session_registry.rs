@@ -10,7 +10,7 @@ use std::thread;
 use serde::{Deserialize, Serialize};
 
 use crate::context_builder;
-use crate::session_store::{self, FailureContext, Host, Session, TalonWorkspaceState, TerminalSnapshot};
+use crate::session_store::{self, FailureContext, Host, HostConfig as HostRecordConfig, HostObservedState, Session, TalonWorkspaceState, TerminalSnapshot};
 
 const META_SHELL_PREFIX: &str = "__TALON_META_SHELL__";
 const META_CWD_PREFIX: &str = "__TALON_META_CWD__";
@@ -159,39 +159,51 @@ fn default_hosts() -> Vec<Host> {
     vec![
         Host {
             id: "host-prod-web-1".into(),
-            label: "prod-web-1".into(),
-            address: "root@10.0.0.12".into(),
-            region: "sjc-1".into(),
-            tags: vec!["production".into(), "edge".into()],
-            status: "critical".into(),
-            latency_ms: 186,
-            cpu_percent: 74,
-            memory_percent: 81,
-            last_seen_at: "2026-03-06T13:41:32Z".into(),
+            config: HostRecordConfig {
+                label: "prod-web-1".into(),
+                address: "root@10.0.0.12".into(),
+                region: "sjc-1".into(),
+                tags: vec!["production".into(), "edge".into()],
+            },
+            observed: HostObservedState {
+                status: "critical".into(),
+                latency_ms: 186,
+                cpu_percent: 74,
+                memory_percent: 81,
+                last_seen_at: "2026-03-06T13:41:32Z".into(),
+            },
         },
         Host {
             id: "host-api-gateway".into(),
-            label: "api-gateway".into(),
-            address: "root@10.0.0.23".into(),
-            region: "hkg-1".into(),
-            tags: vec!["production".into(), "api".into()],
-            status: "warning".into(),
-            latency_ms: 92,
-            cpu_percent: 46,
-            memory_percent: 67,
-            last_seen_at: "2026-03-06T13:41:09Z".into(),
+            config: HostRecordConfig {
+                label: "api-gateway".into(),
+                address: "root@10.0.0.23".into(),
+                region: "hkg-1".into(),
+                tags: vec!["production".into(), "api".into()],
+            },
+            observed: HostObservedState {
+                status: "warning".into(),
+                latency_ms: 92,
+                cpu_percent: 46,
+                memory_percent: 67,
+                last_seen_at: "2026-03-06T13:41:09Z".into(),
+            },
         },
         Host {
             id: "host-db-primary".into(),
-            label: "db-primary".into(),
-            address: "postgres@10.0.0.31".into(),
-            region: "hkg-1".into(),
-            tags: vec!["production".into(), "database".into()],
-            status: "healthy".into(),
-            latency_ms: 41,
-            cpu_percent: 31,
-            memory_percent: 54,
-            last_seen_at: "2026-03-06T13:40:58Z".into(),
+            config: HostRecordConfig {
+                label: "db-primary".into(),
+                address: "postgres@10.0.0.31".into(),
+                region: "hkg-1".into(),
+                tags: vec!["production".into(), "database".into()],
+            },
+            observed: HostObservedState {
+                status: "healthy".into(),
+                latency_ms: 41,
+                cpu_percent: 31,
+                memory_percent: 54,
+                last_seen_at: "2026-03-06T13:40:58Z".into(),
+            },
         },
     ]
 }
@@ -498,7 +510,7 @@ fn clear_connection_issue(registry: &mut SessionRegistry, session_id: &str) {
 
 fn classify_connection_issue(host: &Host, line: &str) -> Option<(String, String, String, String, String)> {
     let normalized = line.to_ascii_lowercase();
-    let escaped_host = host.address.replace('\'', "''");
+    let escaped_host = host.config.address.replace('\'', "''");
 
     if normalized.contains("host key verification failed")
         || normalized.contains("no host key is known")
@@ -515,7 +527,7 @@ fn classify_connection_issue(host: &Host, line: &str) -> Option<(String, String,
             "Review the server fingerprint out of band before trusting this host."
         };
         let suggested_command = if normalized.contains("changed") {
-            format!("ssh-keygen -R \"{}\"", host.address)
+            format!("ssh-keygen -R \"{}\"", host.config.address)
         } else {
             format!("ssh-keyscan -H \"{}\"", escaped_host)
         };
@@ -547,7 +559,7 @@ fn classify_connection_issue(host: &Host, line: &str) -> Option<(String, String,
             "SSH connection timed out".into(),
             line.into(),
             "Confirm host reachability and network path before retrying.".into(),
-            format!("ssh -vvv {}", host.address),
+            format!("ssh -vvv {}", host.config.address),
         ));
     }
 
@@ -561,7 +573,7 @@ fn classify_connection_issue(host: &Host, line: &str) -> Option<(String, String,
             "SSH network path failed".into(),
             line.into(),
             "Verify DNS, port reachability, and whether sshd is accepting connections on the target.".into(),
-            format!("ssh -vvv {}", host.address),
+            format!("ssh -vvv {}", host.config.address),
         ));
     }
 
@@ -574,7 +586,7 @@ fn classify_local_connection_error(host: &Host, line: &str) -> (String, String, 
         "SSH transport launch failed".into(),
         line.into(),
         "Review the local SSH configuration, selected auth method, and transport prerequisites before retrying.".into(),
-        format!("ssh -vvv {}", host.address),
+        format!("ssh -vvv {}", host.config.address),
     ))
 }
 
@@ -694,7 +706,7 @@ fn parse_host_target(host: &Host, config: Option<&HostConnectionConfig>) -> (Str
         .map(|value| value.username.clone())
         .unwrap_or_else(|| "root".into());
 
-    let address = host.address.trim();
+    let address = host.config.address.trim();
     if let Some((username, hostname)) = address.split_once('@') {
         return (username.to_string(), hostname.to_string());
     }
@@ -1003,7 +1015,7 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
         registry.terminal_buffers.insert(
             record.id.clone(),
             vec![
-                format!("Opening SSH transport to {}", host.address),
+                format!("Opening SSH transport to {}", host.config.address),
                 format!(
                     "Auth: {} on port {} with strict host key checking",
                     host_config.auth_method, host_config.port
@@ -1014,7 +1026,7 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
             &mut registry,
             &record.id,
             "connecting",
-            format!("Launching ssh.exe for {}", host.address),
+            format!("Launching ssh.exe for {}", host.config.address),
         );
     }
 
