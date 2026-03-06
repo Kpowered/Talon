@@ -123,6 +123,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - connection-issue timeline events now also map `issue.kind` / `issue.summary` into that structured signal metadata so pre-shell failures participate in the same UI treatment
   - the desktop timeline now renders a compact summary row above the event list for repeated signal classes within the current incident window
   - those summary pills now act as a frontend-only filter over the current timeline window, allowing operators to isolate a single repeated signal class without changing backend state
+  - the selected timeline signal filter is intentionally sticky across polling refreshes and auto-clears only when that signal no longer exists in the current timeline window; the active pill remains rendered even if its count drops below the repeated threshold
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
 - Command framing:
@@ -193,3 +194,4 @@ This is intentionally a transport-first implementation. Command framing, exit de
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+

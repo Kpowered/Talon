@@ -287,11 +287,33 @@ function App() {
         .sort((left, right) => right[1] - left[1]),
     [repeatedSignalCounts],
   );
+  const timelineSignalSummary = useMemo(() => {
+    if (!activeTimelineSignalFilter) return repeatedSignals;
+
+    if (!repeatedSignalCounts.has(activeTimelineSignalFilter)) {
+      return repeatedSignals;
+    }
+
+    if (repeatedSignals.some(([signal]) => signal === activeTimelineSignalFilter)) {
+      return repeatedSignals;
+    }
+
+    return [
+      [activeTimelineSignalFilter, repeatedSignalCounts.get(activeTimelineSignalFilter) ?? 1] as [string, number],
+      ...repeatedSignals,
+    ];
+  }, [repeatedSignals, repeatedSignalCounts, activeTimelineSignalFilter]);
   const visibleTimeline = useMemo(
     () =>
       activeTimelineSignalFilter ? timeline.filter((item) => item.stderrClass === activeTimelineSignalFilter) : timeline,
     [timeline, activeTimelineSignalFilter],
   );
+
+  useEffect(() => {
+    if (!activeTimelineSignalFilter) return;
+    if (timeline.some((item) => item.stderrClass === activeTimelineSignalFilter)) return;
+    setActiveTimelineSignalFilter(null);
+  }, [timeline, activeTimelineSignalFilter]);
 
   const metrics = useMemo(() => {
     if (!workspace || !diagnosis || !failure) return [];
@@ -892,9 +914,9 @@ function App() {
             <span className="pill subtle">Captured {formatTime(failure.capturedAt)}</span>
           </div>
 
-          {repeatedSignals.length > 0 ? (
+          {timelineSignalSummary.length > 0 ? (
             <div className="timeline-signal-summary">
-              {repeatedSignals.map(([signal, count]) => (
+              {timelineSignalSummary.map(([signal, count]) => (
                 <button
                   key={signal}
                   className={`timeline-summary-pill ${activeTimelineSignalFilter === signal ? "active" : ""}`}
@@ -1023,3 +1045,4 @@ function App() {
 }
 
 export default App;
+

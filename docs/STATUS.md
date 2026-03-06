@@ -54,6 +54,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Extended the same structured signal treatment to connection-issue timeline events, so pre-shell failures now badge and repeat-highlight consistently with command failures.
 - Added a compact timeline signal summary row that surfaces repeated failure classes in the current incident window without scanning each event card.
 - Made timeline signal summary pills interactive so operators can toggle the visible timeline down to a single repeated `stderr_class` and clear the filter in place.
+- Kept the active timeline signal filter stable across polling refreshes, only clearing it when that signal disappears from the current timeline window; the active summary pill now remains visible even after the count drops below the repeated threshold.
 
 ## In Progress
 - Reducing the remaining placeholder responsibilities in `session_store` now that host inventory is registry-backed.
@@ -61,7 +62,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 ## Next Steps
 1. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
 2. Continue reducing mock `session_store` responsibilities as more runtime state becomes authoritative.
-3. Decide whether repeated signal highlighting, summary pills, and filtering should stay timeline-window scoped or graduate into a broader incident-history summary once more runtime history is available.
+3. Continue compacting the desktop layout so the terminal workspace feels denser and more Termius-like without obscuring diagnosis context.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
@@ -75,3 +76,4 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
