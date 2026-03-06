@@ -47,6 +47,7 @@ pub struct ConnectSessionResponse {
 pub struct SessionRegistryResponse {
     pub host_configs: Vec<HostConnectionConfig>,
     pub active_session_id: String,
+    pub busy_session_ids: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -60,6 +61,8 @@ pub struct SessionEventListResponse {
 pub struct SubmitCommandResponse {
     pub terminal: TerminalSnapshot,
     pub events: Vec<SessionLifecycleEvent>,
+    pub accepted: bool,
+    pub message: String,
 }
 
 #[derive(Serialize)]
@@ -78,6 +81,7 @@ pub fn get_session_registry() -> SessionRegistryResponse {
     SessionRegistryResponse {
         host_configs: session_registry::list_host_configs(),
         active_session_id: state.active_session_id,
+        busy_session_ids: session_registry::busy_session_ids(),
     }
 }
 
@@ -117,9 +121,17 @@ pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse
 }
 
 pub fn submit_session_command(payload: SubmitCommandRequest) -> SubmitCommandResponse {
+    let before = session_registry::busy_session_ids();
+    let accepted = !before.iter().any(|session_id| session_id == &payload.session_id);
     SubmitCommandResponse {
         terminal: session_registry::submit_command(&payload.session_id, &payload.command),
         events: session_registry::recent_events(),
+        accepted,
+        message: if accepted {
+            format!("Queued command for {}", payload.session_id)
+        } else {
+            format!("Rejected command for {} because another command is still in flight", payload.session_id)
+        },
     }
 }
 

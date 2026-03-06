@@ -46,6 +46,7 @@ type ConnectSessionResponse = {
 type SessionRegistryResponse = {
   hostConfigs: HostConnectionConfig[];
   activeSessionId: string;
+  busySessionIds: string[];
 };
 
 type SessionEventListResponse = {
@@ -55,6 +56,8 @@ type SessionEventListResponse = {
 type SubmitCommandResponse = {
   terminal: TerminalSnapshot;
   events: SessionLifecycleEvent[];
+  accepted: boolean;
+  message: string;
 };
 
 type DisconnectSessionResponse = {
@@ -105,6 +108,7 @@ function App() {
   const [sessionEvents, setSessionEvents] = useState<SessionLifecycleEvent[]>([]);
   const [hostConfigs, setHostConfigs] = useState<HostConnectionConfig[]>([]);
   const [registryActiveSessionId, setRegistryActiveSessionId] = useState<string | null>(null);
+  const [busySessionIds, setBusySessionIds] = useState<string[]>([]);
   const [composerValue, setComposerValue] = useState("");
   const [isSubmittingCommand, setIsSubmittingCommand] = useState(false);
   const [isDisconnectingSession, setIsDisconnectingSession] = useState(false);
@@ -124,6 +128,7 @@ function App() {
     ]);
     setHostConfigs(registry.hostConfigs);
     setRegistryActiveSessionId(registry.activeSessionId);
+    setBusySessionIds(registry.busySessionIds);
     setSessionEvents(events.events);
   }
 
@@ -143,6 +148,7 @@ function App() {
         setSelectedHostId((current) => current ?? state.sessions[0]?.hostId ?? state.hosts[0]?.id ?? null);
         setHostConfigs(registry.hostConfigs);
         setRegistryActiveSessionId(registry.activeSessionId);
+        setBusySessionIds(registry.busySessionIds);
         setSessionEvents(events.events);
         setTerminalTail(state.terminal.lines);
         setComposerValue(state.latestDiagnosis.suggestedActions[0]?.command ?? "");
@@ -175,22 +181,23 @@ function App() {
   }, [workspace?.activeSessionId]);
 
   const activeSession = useMemo(
-    () => workspace?.sessions.find((session) => session.id === workspace.activeSessionId) ?? null,
+    () => workspace?.sessions.find((session: Session) => session.id === workspace.activeSessionId) ?? null,
     [workspace],
   );
 
   const hosts = workspace?.hosts ?? [];
-  const selectedHost = hosts.find((host) => host.id === selectedHostId) ?? hosts[0] ?? null;
-  const selectedHostConfig = hostConfigs.find((config) => config.hostId === selectedHostId) ?? null;
+  const selectedHost = hosts.find((host: Host) => host.id === selectedHostId) ?? hosts[0] ?? null;
+  const selectedHostConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === selectedHostId) ?? null;
   const diagnosis = workspace?.latestDiagnosis ?? null;
   const failure = workspace?.latestFailure ?? null;
   const timeline = workspace?.timeline ?? [];
-  const activeAction = diagnosis?.suggestedActions.find((action) => action.status === "ready") ?? null;
+  const activeAction = diagnosis?.suggestedActions.find((action: SuggestedAction) => action.status === "ready") ?? null;
+  const activeSessionBusy = activeSession ? busySessionIds.includes(activeSession.id) : false;
 
   const metrics = useMemo(() => {
     if (!workspace || !diagnosis || !failure) return [];
 
-    const connectedHosts = workspace.hosts.filter((host) => host.status !== "critical").length;
+    const connectedHosts = workspace.hosts.filter((host: Host) => host.status !== "critical").length;
 
     return [
       {
@@ -225,7 +232,8 @@ function App() {
     if (activeTab === "shell") return terminalTail;
     if (activeTab === "timeline") {
       return timeline.map(
-        (item) => `${formatTime(item.occurredAt)}  ${item.title}\n${item.detail}${item.exitCode !== undefined ? ` | exit ${item.exitCode}` : ""}`,
+        (item: TimelineEvent) =>
+          `${formatTime(item.occurredAt)}  ${item.title}\n${item.detail}${item.exitCode !== undefined ? ` | exit ${item.exitCode}` : ""}`,
       );
     }
     return failure?.relatedArtifacts ?? [];
@@ -261,7 +269,8 @@ function App() {
       });
       setTerminalTail(result.terminal.lines);
       setSessionEvents(result.events);
-      setActionSummary(`Command submitted to ${activeSession.id}: ${command}`);
+      setActionSummary(result.accepted ? `Command submitted to ${activeSession.id}: ${command}` : result.message);
+      await refreshRegistry();
     } finally {
       setIsSubmittingCommand(false);
     }
@@ -498,11 +507,17 @@ function App() {
             <span className="terminal-path">
               {activeSession.cwd} | {selectedHost.address} | session #{activeSession.id}
             </span>
-            <span className="terminal-mode">{activeSession.autoCaptureEnabled ? "Auto-capture ON" : "Auto-capture OFF"}</span>
+            <span className="terminal-mode">
+              {activeSessionBusy
+                ? "Command in flight"
+                : activeSession.autoCaptureEnabled
+                  ? "Auto-capture ON"
+                  : "Auto-capture OFF"}
+            </span>
           </div>
 
           <div className="terminal-window">
-            {terminalContent.map((line, index) => (
+            {terminalContent.map((line: string, index: number) => (
               <div
                 key={`${line}-${index}`}
                 className={line.startsWith("$") || /^\d{2}:\d{2}:\d{2}/.test(line) ? "terminal-line prompt" : "terminal-line"}
@@ -528,9 +543,9 @@ function App() {
               <button
                 className="primary-button small"
                 onClick={() => void submitCommand(composerValue)}
-                disabled={isSubmittingCommand || !composerValue.trim()}
+                disabled={isSubmittingCommand || activeSessionBusy || !composerValue.trim()}
               >
-                {isSubmittingCommand ? "Sending..." : "Send command"}
+                {isSubmittingCommand ? "Sending..." : activeSessionBusy ? "Busy..." : "Send command"}
               </button>
             </div>
           </div>

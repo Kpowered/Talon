@@ -103,6 +103,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - submitted commands are wrapped with Talon control markers before being written to the remote shell
   - stdout parsing detects command start and command end markers
   - command completion records now store exit code, updated cwd, and bounded stdout/stderr tails
+  - a session can have only one wrapped command in flight; additional submissions are rejected until completion markers are observed
 - Failure packaging:
   - non-zero command completions are converted into structured `FailureContext` records
   - workspace timeline and diagnosis state are now derived from live command history when failure data exists

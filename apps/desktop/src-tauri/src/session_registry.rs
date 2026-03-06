@@ -191,6 +191,16 @@ pub fn list_host_configs() -> Vec<HostConnectionConfig> {
     registry().lock().expect("session registry lock poisoned").host_configs.clone()
 }
 
+pub fn busy_session_ids() -> Vec<String> {
+    registry()
+        .lock()
+        .expect("session registry lock poisoned")
+        .active_commands
+        .keys()
+        .cloned()
+        .collect()
+}
+
 pub fn host_config_for(host_id: &str) -> Option<HostConnectionConfig> {
     registry()
         .lock()
@@ -679,6 +689,25 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>) -> Manag
 
 pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
     let trimmed = command.trim();
+
+    {
+        let mut registry = registry().lock().expect("session registry lock poisoned");
+        if registry.active_commands.contains_key(session_id) {
+            push_terminal_line(
+                &mut registry,
+                session_id,
+                "Command rejected: another command is still running in this session.".into(),
+            );
+            push_event(
+                &mut registry,
+                session_id,
+                "command-rejected",
+                "Command rejected because another wrapped command is still in flight.".into(),
+            );
+            return terminal_snapshot(session_id);
+        }
+    }
+
     let stdin = {
         let mut registry = registry().lock().expect("session registry lock poisoned");
         let command_id = next_command_id(&mut registry, session_id);

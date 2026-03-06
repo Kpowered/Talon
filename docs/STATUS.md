@@ -26,14 +26,16 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Projected live command history and captured failures back into the workspace timeline and diagnosis pane instead of always relying on static sample incident data.
 - Extracted failure, diagnosis, and timeline shaping into a dedicated backend `context_builder` module so the session registry stays focused on transport/runtime state.
 - Added explicit backend disconnect and reconnect flows for managed SSH sessions and surfaced those controls in the desktop shell.
+- Added in-flight command guardrails so each session now serializes wrapped command execution and rejects concurrent submissions until completion.
+- Added desktop-side busy-session awareness so the composer reflects when a managed shell already has an active command in progress.
 
 ## In Progress
-- Adding stronger in-flight command guardrails so wrapped commands remain serialized per session.
+- Adding operator-visible handling for first-contact host trust failures and unsupported auth flows.
 
 ## Next Steps
-1. Reject concurrent command submission while another wrapped command is still in flight.
-2. Add operator-visible handling for first-contact host trust failures and unsupported auth flows.
-3. Verify the full desktop flow against reachable SSH targets and collect real incident transcripts.
+1. Add operator-visible handling for first-contact host trust failures and unsupported auth flows.
+2. Verify the full desktop flow against reachable SSH targets and collect real incident transcripts.
+3. Decide whether the desktop frontend should consume `packages/core` through a workspace package or continue using TS path aliases during the current phase.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
