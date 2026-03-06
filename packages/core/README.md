@@ -2,9 +2,16 @@
 
 Shared types, contracts, and business logic for Talon.
 
-Planned contents:
+## Current status
+Initial domain model is in place under `src/domain.ts`.
+
+## Implemented in this phase
 - host definitions
 - session models
 - command failure context schema
-- AI diagnosis response schema
-- app-level state contracts
+- diagnosis response schema
+- workspace state contract
+- suggested action result contract
+
+## Next step
+Split these types into runtime-safe boundaries once the SSH layer and agent layer start producing real data.

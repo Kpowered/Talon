@@ -44,8 +44,12 @@ button {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+}
+
+.loading-state {
+  align-items: center;
+  justify-content: center;
 }
 
 .topbar,
@@ -90,7 +94,8 @@ button {
 .host-card h3,
 .metric-card h3,
 .incident-hero h3,
-.insight-card strong {
+.insight-card strong,
+.empty-panel h2 {
   margin: 0;
 }
 
@@ -142,53 +147,24 @@ button {
 .subtitle {
   margin: 6px 0 0;
   color: #9ca7bd;
-  max-width: 640px;
+  max-width: 680px;
 }
 
 .topbar-actions,
 .terminal-tabs,
 .window-dots,
-.command-composer,
-.scenario-strip {
+.command-composer {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.scenario-strip {
-  border-radius: 18px;
-  padding: 6px;
-  background: rgba(8, 13, 24, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
 }
-
-.scenario-chip {
-  border-radius: 14px;
-  padding: 10px 14px;
-  border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.03);
-  color: #dbe3f6;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-
-.scenario-chip strong {
-  font-size: 0.78rem;
-  color: #8c99b5;
-}
-
-.scenario-chip.active {
-  background: rgba(111, 124, 255, 0.14);
-  border-color: rgba(122, 139, 255, 0.22);
-}
-
-.scenario-chip.active strong {
-  color: #d6dcff;
-}
-
 
 .metric-card {
   border-radius: 18px;
@@ -232,6 +208,10 @@ button {
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.empty-panel {
+  width: min(560px, 100%);
 }
 
 .panel-header,
@@ -290,7 +270,7 @@ button {
 .host-list,
 .diagnosis-feed,
 .timeline,
-.chip-grid {
+.session-facts {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -342,7 +322,8 @@ button {
 .host-meta,
 .timeline-item p,
 .diagnosis-card p,
-.insight-card p {
+.insight-card p,
+.empty-panel p {
   margin: 0;
   color: #97a3bb;
 }
@@ -353,7 +334,8 @@ button {
   font-size: 0.82rem;
 }
 
-.host-details span {
+.host-details span,
+.session-facts span {
   padding: 4px 8px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
@@ -365,19 +347,22 @@ button {
 
 .status-badge.status-healthy,
 .exit-code.ok,
-.live-dot {
+.live-dot.status-healthy {
   background: rgba(30, 196, 122, 0.12);
   color: #7df0b1;
   border: 1px solid rgba(30, 196, 122, 0.2);
 }
 
+.live-dot.status-warning,
 .status-badge.status-warning,
 .tone-warning,
 .metric-card.tone-warn {
   background: rgba(255, 184, 77, 0.09);
+  color: #ffd18c;
   border-color: rgba(255, 184, 77, 0.24);
 }
 
+.live-dot.status-critical,
 .status-badge.status-critical,
 .exit-code.fail,
 .tone-critical,
@@ -410,21 +395,6 @@ button {
   padding: 14px;
 }
 
-.chip-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-}
-
-.chip-button {
-  border-radius: 12px;
-  padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  color: #d7deef;
-  text-align: left;
-  cursor: pointer;
-}
-
 .panel-terminal {
   gap: 14px;
 }
@@ -445,9 +415,11 @@ button {
 .window-dots i:nth-child(1) {
   background: #ff6b6b;
 }
+
 .window-dots i:nth-child(2) {
   background: #ffb84d;
 }
+
 .window-dots i:nth-child(3) {
   background: #34d399;
 }
@@ -588,6 +560,12 @@ button {
   gap: 10px;
 }
 
+.action-button {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .primary-button,
 .ghost-button {
   border-radius: 14px;
@@ -610,8 +588,8 @@ button {
 
 .primary-button:hover,
 .ghost-button:hover,
-.chip-button:hover,
-.scenario-chip:hover {
+.host-card:hover,
+.tab:hover {
   transform: translateY(-1px);
   border-color: rgba(255, 255, 255, 0.2);
 }
@@ -659,8 +637,7 @@ button {
 
   .metrics-grid,
   .workspace-grid,
-  .insight-grid,
-  .chip-grid {
+  .insight-grid {
     grid-template-columns: 1fr;
   }
 
@@ -674,7 +651,9 @@ button {
   }
 
   .terminal-toolbar,
-  .command-composer {
+  .command-composer,
+  .action-button {
     align-items: flex-start;
+    flex-direction: column;
   }
 }

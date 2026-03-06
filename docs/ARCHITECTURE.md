@@ -29,6 +29,14 @@ Talon is split into four layers:
    - Structured diagnosis output
    - future: tool-mediated read-only diagnostics
 
+## Current implementation snapshot
+
+As of 2026-03-06:
+- `apps/desktop` renders a workspace state model instead of scenario-specific UI state.
+- `packages/core` contains the first shared domain contracts.
+- `packages/ssh` contains initial TypeScript-side lifecycle contracts only.
+- `apps/desktop/src-tauri/src/session_store.rs` is the temporary backend session provider that serves mock workspace state.
+
 ## Proposed repo layout
 
 ```text
@@ -58,6 +66,14 @@ Talon/
    - diagnosis
    - likely causes
    - suggested next commands
+
+## Temporary implementation flow
+
+1. Desktop UI calls `get_workspace_state`
+2. Tauri backend delegates to `session_store`
+3. `session_store` returns mock host/session/failure/diagnosis state
+4. Desktop UI renders the workspace model
+5. User-triggered read-only actions call `run_suggested_action`
 
 ## Context schema (draft)
 
