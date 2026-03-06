@@ -49,6 +49,18 @@ pub struct SessionLifecycleEvent {
     pub occurred_at: String,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionConnectionIssue {
+    pub session_id: String,
+    pub kind: String,
+    pub title: String,
+    pub summary: String,
+    pub operator_action: String,
+    pub suggested_command: String,
+    pub observed_at: String,
+}
+
 #[derive(Clone)]
 pub struct CommandHistoryEntry {
     pub id: String,
@@ -88,6 +100,7 @@ pub struct SessionRegistry {
     pub recent_events: Vec<SessionLifecycleEvent>,
     pub terminal_buffers: HashMap<String, Vec<String>>,
     stream_state: HashMap<String, SessionStreamState>,
+    connection_issues: HashMap<String, SessionConnectionIssue>,
     latest_failures: HashMap<String, FailureContext>,
     active_commands: HashMap<String, ActiveCommandState>,
     command_history: Vec<CommandHistoryEntry>,
@@ -177,6 +190,7 @@ fn registry() -> &'static Mutex<SessionRegistry> {
             recent_events: default_events(),
             terminal_buffers,
             stream_state: HashMap::new(),
+            connection_issues: HashMap::new(),
             latest_failures: HashMap::new(),
             active_commands: HashMap::new(),
             command_history: Vec::new(),
@@ -199,6 +213,15 @@ pub fn busy_session_ids() -> Vec<String> {
         .keys()
         .cloned()
         .collect()
+}
+
+pub fn connection_issue_for(session_id: &str) -> Option<SessionConnectionIssue> {
+    registry()
+        .lock()
+        .expect("session registry lock poisoned")
+        .connection_issues
+        .get(session_id)
+        .cloned()
 }
 
 pub fn host_config_for(host_id: &str) -> Option<HostConnectionConfig> {
@@ -287,6 +310,115 @@ fn capture_command_stream_line(registry: &mut SessionRegistry, session_id: &str,
             _ => push_stream_tail(&mut command.stdout_tail, line.into()),
         }
     }
+}
+
+fn set_connection_issue(
+    registry: &mut SessionRegistry,
+    session_id: &str,
+    kind: &str,
+    title: &str,
+    summary: String,
+    operator_action: &str,
+    suggested_command: String,
+) {
+    registry.connection_issues.insert(
+        session_id.into(),
+        SessionConnectionIssue {
+            session_id: session_id.into(),
+            kind: kind.into(),
+            title: title.into(),
+            summary,
+            operator_action: operator_action.into(),
+            suggested_command,
+            observed_at: now_iso(),
+        },
+    );
+}
+
+fn clear_connection_issue(registry: &mut SessionRegistry, session_id: &str) {
+    registry.connection_issues.remove(session_id);
+}
+
+fn classify_connection_issue(host: &Host, line: &str) -> Option<(String, String, String, String, String)> {
+    let normalized = line.to_ascii_lowercase();
+    let escaped_host = host.address.replace('\'', "''");
+
+    if normalized.contains("host key verification failed")
+        || normalized.contains("no host key is known")
+        || normalized.contains("remote host identification has changed")
+    {
+        let title = if normalized.contains("changed") {
+            "Host key mismatch"
+        } else {
+            "Host trust confirmation required"
+        };
+        let operator_action = if normalized.contains("changed") {
+            "Compare the expected fingerprint with an operator-approved value before changing known_hosts."
+        } else {
+            "Review the server fingerprint out of band before trusting this host."
+        };
+        let suggested_command = if normalized.contains("changed") {
+            format!("ssh-keygen -R \"{}\"", host.address)
+        } else {
+            format!("ssh-keyscan -H \"{}\"", escaped_host)
+        };
+        return Some((
+            "host-trust".into(),
+            title.into(),
+            line.into(),
+            operator_action.into(),
+            suggested_command,
+        ));
+    }
+
+    if normalized.contains("permission denied")
+        || normalized.contains("no supported authentication methods available")
+        || normalized.contains("publickey")
+    {
+        return Some((
+            "auth".into(),
+            "SSH authentication failed".into(),
+            line.into(),
+            "Confirm the username, agent state, and selected private key before retrying.".into(),
+            "ssh-add -L".into(),
+        ));
+    }
+
+    if normalized.contains("connection timed out") || normalized.contains("operation timed out") {
+        return Some((
+            "timeout".into(),
+            "SSH connection timed out".into(),
+            line.into(),
+            "Confirm host reachability and network path before retrying.".into(),
+            format!("ssh -vvv {}", host.address),
+        ));
+    }
+
+    if normalized.contains("could not resolve hostname")
+        || normalized.contains("connection refused")
+        || normalized.contains("no route to host")
+        || normalized.contains("name or service not known")
+    {
+        return Some((
+            "network".into(),
+            "SSH network path failed".into(),
+            line.into(),
+            "Verify DNS, port reachability, and whether sshd is accepting connections on the target.".into(),
+            format!("ssh -vvv {}", host.address),
+        ));
+    }
+
+    None
+}
+
+fn classify_local_connection_error(host: &Host, line: &str) -> (String, String, String, String, String) {
+    classify_connection_issue(host, line).unwrap_or((
+        "transport".into(),
+        "SSH transport launch failed".into(),
+        line.into(),
+        "Review the local SSH configuration, selected auth method, and transport prerequisites before retrying.".into(),
+        format!("ssh -vvv {}", host.address),
+    ))
 }
 
 fn next_command_id(registry: &mut SessionRegistry, session_id: &str) -> String {
@@ -452,6 +584,7 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
                         let cwd = cwd.trim();
                         update_session_metadata(&mut state, &session_id, None, Some(cwd));
                         update_session_state(&mut state, &session_id, "connected");
+                        clear_connection_issue(&mut state, &session_id);
                         push_event(
                             &mut state,
                             &session_id,
@@ -502,7 +635,7 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
     });
 }
 
-fn start_stderr_reader(session_id: String, stderr: ChildStderr) {
+fn start_stderr_reader(session_id: String, host: Host, stderr: ChildStderr) {
     thread::spawn(move || {
         let mut reader = BufReader::new(stderr);
         loop {
@@ -515,6 +648,19 @@ fn start_stderr_reader(session_id: String, stderr: ChildStderr) {
                     push_terminal_line(&mut state, &session_id, format!("stderr: {}", line));
                     capture_stream_line(&mut state, &session_id, "stderr", &line);
                     capture_command_stream_line(&mut state, &session_id, "stderr", &line);
+                    if let Some((kind, title, summary, operator_action, suggested_command)) =
+                        classify_connection_issue(&host, &line)
+                    {
+                        set_connection_issue(
+                            &mut state,
+                            &session_id,
+                            &kind,
+                            &title,
+                            summary,
+                            &operator_action,
+                            suggested_command,
+                        );
+                    }
                     push_event(&mut state, &session_id, "stderr", line);
                 }
                 Err(error) => {
@@ -569,7 +715,7 @@ fn launch_runtime(session_id: String, host: Host, config: HostConnectionConfig) 
     let stdin = Arc::new(Mutex::new(stdin));
 
     start_stdout_reader(session_id.clone(), stdout);
-    start_stderr_reader(session_id.clone(), stderr);
+    start_stderr_reader(session_id.clone(), host.clone(), stderr);
 
     {
         let mut guard = stdin.lock().expect("ssh stdin lock poisoned");
@@ -672,6 +818,17 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>) -> Manag
         Err(error) => {
             let mut registry = registry().lock().expect("session registry lock poisoned");
             update_session_state(&mut registry, &record.id, "disconnected");
+            let (kind, title, summary, operator_action, suggested_command) =
+                classify_local_connection_error(host, &error);
+            set_connection_issue(
+                &mut registry,
+                &record.id,
+                &kind,
+                &title,
+                summary,
+                &operator_action,
+                suggested_command,
+            );
             push_terminal_line(&mut registry, &record.id, format!("Connection failed: {}", error));
             push_event(&mut registry, &record.id, "connection-error", error);
         }

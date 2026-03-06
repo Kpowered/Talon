@@ -28,20 +28,22 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added explicit backend disconnect and reconnect flows for managed SSH sessions and surfaced those controls in the desktop shell.
 - Added in-flight command guardrails so each session now serializes wrapped command execution and rejects concurrent submissions until completion.
 - Added desktop-side busy-session awareness so the composer reflects when a managed shell already has an active command in progress.
+- Added operator-visible connection issue handling for host trust, authentication, timeout, and network-path failures, including suggested operator actions and recommended commands in the UI.
+- Added a verification log in `docs/VERIFICATION.md` and captured the current environment's local SSH probe transcripts.
 
 ## In Progress
-- Adding operator-visible handling for first-contact host trust failures and unsupported auth flows.
+- Waiting on an operator-approved reachable SSH target to validate the real happy path and collect a live incident transcript.
 
 ## Next Steps
-1. Add operator-visible handling for first-contact host trust failures and unsupported auth flows.
-2. Verify the full desktop flow against reachable SSH targets and collect real incident transcripts.
+1. Validate the full desktop flow against a reachable SSH target and capture at least one successful shell bootstrap transcript.
+2. Capture a real non-zero incident command transcript from a reachable host so the live failure context path is validated end to end.
 3. Decide whether the desktop frontend should consume `packages/core` through a workspace package or continue using TS path aliases during the current phase.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
 - Strict host key checking is enabled, so first-contact hosts without an existing known-hosts entry will fail until Talon exposes an explicit operator-confirmed trust flow.
 - Password auth is still unsupported in the backend; the current real path assumes agent or private-key auth.
-- Frontend verification is available via Node, but full desktop runtime verification beyond `cargo check` still depends on local operator access to reachable SSH targets.
+- Frontend verification is available via Node, but full desktop runtime verification beyond local probes still depends on local operator access to reachable SSH targets. In this session, `sshd` was stopped and `ssh-agent` was disabled on the local machine.
 
 ## Working Rules
 - Keep execution human-confirmed.

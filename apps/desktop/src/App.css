@@ -348,6 +348,48 @@ button {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.connection-issue {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.connection-issue strong,
+.connection-issue p,
+.connection-issue span,
+.connection-issue code {
+  margin: 0;
+}
+
+.connection-issue p,
+.connection-issue span {
+  color: #b9c3d9;
+  font-size: 0.88rem;
+}
+
+.connection-issue code {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(8, 12, 20, 0.7);
+  color: #dce5ff;
+  white-space: pre-wrap;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+}
+
+.issue-host-trust,
+.issue-auth,
+.issue-timeout,
+.issue-network {
+  border-color: rgba(255, 184, 77, 0.24);
+  background: rgba(255, 184, 77, 0.08);
+}
+
 .host-meta {
   font-size: 0.84rem;
 }

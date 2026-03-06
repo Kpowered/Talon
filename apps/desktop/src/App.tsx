@@ -47,6 +47,7 @@ type SessionRegistryResponse = {
   hostConfigs: HostConnectionConfig[];
   activeSessionId: string;
   busySessionIds: string[];
+  activeConnectionIssue: SessionConnectionIssue | null;
 };
 
 type SessionEventListResponse = {
@@ -63,6 +64,16 @@ type SubmitCommandResponse = {
 type DisconnectSessionResponse = {
   terminal: TerminalSnapshot;
   events: SessionLifecycleEvent[];
+};
+
+type SessionConnectionIssue = {
+  sessionId: string;
+  kind: string;
+  title: string;
+  summary: string;
+  operatorAction: string;
+  suggestedCommand: string;
+  observedAt: string;
 };
 
 function statusLabel(status: HealthStatus) {
@@ -109,6 +120,7 @@ function App() {
   const [hostConfigs, setHostConfigs] = useState<HostConnectionConfig[]>([]);
   const [registryActiveSessionId, setRegistryActiveSessionId] = useState<string | null>(null);
   const [busySessionIds, setBusySessionIds] = useState<string[]>([]);
+  const [activeConnectionIssue, setActiveConnectionIssue] = useState<SessionConnectionIssue | null>(null);
   const [composerValue, setComposerValue] = useState("");
   const [isSubmittingCommand, setIsSubmittingCommand] = useState(false);
   const [isDisconnectingSession, setIsDisconnectingSession] = useState(false);
@@ -129,6 +141,7 @@ function App() {
     setHostConfigs(registry.hostConfigs);
     setRegistryActiveSessionId(registry.activeSessionId);
     setBusySessionIds(registry.busySessionIds);
+    setActiveConnectionIssue(registry.activeConnectionIssue);
     setSessionEvents(events.events);
   }
 
@@ -149,6 +162,7 @@ function App() {
         setHostConfigs(registry.hostConfigs);
         setRegistryActiveSessionId(registry.activeSessionId);
         setBusySessionIds(registry.busySessionIds);
+        setActiveConnectionIssue(registry.activeConnectionIssue);
         setSessionEvents(events.events);
         setTerminalTail(state.terminal.lines);
         setComposerValue(state.latestDiagnosis.suggestedActions[0]?.command ?? "");
@@ -438,6 +452,14 @@ function App() {
               <span>port {selectedHostConfig?.port ?? 0}</span>
               <span>{selectedHostConfig?.fingerprintHint ?? "no fingerprint"}</span>
             </div>
+            {activeConnectionIssue ? (
+              <div className={`connection-issue issue-${activeConnectionIssue.kind}`}>
+                <strong>{activeConnectionIssue.title}</strong>
+                <p>{activeConnectionIssue.summary}</p>
+                <span>{activeConnectionIssue.operatorAction}</span>
+                <code>{activeConnectionIssue.suggestedCommand}</code>
+              </div>
+            ) : null}
           </div>
 
           <div className="section-block">

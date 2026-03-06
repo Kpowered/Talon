@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::session_registry;
-use crate::session_registry::{HostConnectionConfig, SessionLifecycleEvent};
+use crate::session_registry::{HostConnectionConfig, SessionConnectionIssue, SessionLifecycleEvent};
 use crate::session_store;
 use crate::session_store::{RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot};
 
@@ -48,6 +48,7 @@ pub struct SessionRegistryResponse {
     pub host_configs: Vec<HostConnectionConfig>,
     pub active_session_id: String,
     pub busy_session_ids: Vec<String>,
+    pub active_connection_issue: Option<SessionConnectionIssue>,
 }
 
 #[derive(Serialize)]
@@ -78,10 +79,12 @@ pub fn get_workspace_state() -> TalonWorkspaceState {
 
 pub fn get_session_registry() -> SessionRegistryResponse {
     let state = session_registry::workspace_state();
+    let active_session_id = state.active_session_id.clone();
     SessionRegistryResponse {
         host_configs: session_registry::list_host_configs(),
-        active_session_id: state.active_session_id,
+        active_session_id: active_session_id.clone(),
         busy_session_ids: session_registry::busy_session_ids(),
+        active_connection_issue: session_registry::connection_issue_for(&active_session_id),
     }
 }
 
