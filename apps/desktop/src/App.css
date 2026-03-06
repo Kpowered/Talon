@@ -656,14 +656,28 @@ button {
   background: linear-gradient(180deg, rgba(111, 124, 255, 0.12), rgba(255, 255, 255, 0.03));
 }
 
+.hero-badges {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .confidence-badge {
   color: #d8deff;
   background: rgba(255, 255, 255, 0.06);
 }
 
+.signal-badge {
+  color: #8fe7ff;
+  background: rgba(47, 212, 255, 0.12);
+  border: 1px solid rgba(47, 212, 255, 0.18);
+}
+
 .insight-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 

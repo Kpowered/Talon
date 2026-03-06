@@ -116,6 +116,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - high-signal command `stderr` patterns currently override the consecutive-failure rule: auth/permission errors map to `warning`, while network-path, disk, and memory exhaustion patterns map to `critical`
   - the matched command `stderr` class is now preserved in failure context and projected into diagnosis copy and timeline details for operator visibility
   - diagnosis scaffolding now branches likely causes and read-only suggested actions by `stderr_class` for filesystem, resource-pressure, network-path, and permission failures
+  - the desktop diagnosis panel now renders `stderr_class` as an explicit visual failure signal in addition to the generated diagnosis text
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
 - Command framing:

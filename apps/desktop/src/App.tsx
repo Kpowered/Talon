@@ -117,6 +117,14 @@ function sessionStateLabel(session: Session["state"]) {
   return "Connected";
 }
 
+function stderrClassLabel(value?: string | null) {
+  if (!value) return "No classifier";
+  return value
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function App() {
   const [workspace, setWorkspace] = useState<TalonWorkspaceState | null>(null);
   const [activeTab, setActiveTab] = useState<TerminalTab>("shell");
@@ -893,7 +901,10 @@ function App() {
               <p className="incident-label">Primary finding</p>
               <h3>{actionSummary ?? diagnosis.summary}</h3>
             </div>
-            <span className="confidence-badge">{failure.exitCode !== 0 ? `exit ${failure.exitCode}` : "clean"}</span>
+            <div className="hero-badges">
+              {failure.stderrClass ? <span className="confidence-badge signal-badge">{stderrClassLabel(failure.stderrClass)}</span> : null}
+              <span className="confidence-badge">{failure.exitCode !== 0 ? `exit ${failure.exitCode}` : "clean"}</span>
+            </div>
           </article>
 
           <div className="insight-grid">
@@ -901,6 +912,11 @@ function App() {
               <span>Active host</span>
               <strong>{selectedHost.config.label}</strong>
               <p>{selectedHost.config.address}</p>
+            </article>
+            <article className="insight-card">
+              <span>Failure signal</span>
+              <strong>{stderrClassLabel(failure.stderrClass)}</strong>
+              <p>{failure.stderrClass ? "Matched stderr classifier" : "Using generic exit-code heuristics"}</p>
             </article>
             <article className="insight-card">
               <span>Likely causes</span>
