@@ -22,16 +22,17 @@ As of 2026-03-06, the repository has moved from a scenario demo to a backend-man
 - Added local command echo to the terminal buffer before remote output arrives, keeping the stream readable during async execution.
 - Added backend command framing markers so submitted commands now produce explicit start/end lifecycle events, captured exit codes, and updated remote cwd values.
 - Added completed command records in the backend with per-command stdout/stderr tails for later failure packaging.
+- Added live failure-context packaging for non-zero exits, including host/session metadata, stdout tail, stderr tail, cwd, shell, and captured timestamp.
+- Projected live command history and captured failures back into the workspace timeline and diagnosis pane instead of always relying on static sample incident data.
 
 ## In Progress
-- Converting non-zero command completions into structured failure context attached to the active session.
-- Converting live failures into structured capture packets instead of leaving diagnosis state on the static mock payload.
+- Replacing the temporary diagnosis placeholder with a proper agent-facing context contract and model invocation path.
 
 ## Next Steps
-1. Build structured failure context from the completed command record, host/session metadata, and captured output tails.
-2. Project the latest live command result into workspace timeline/failure state instead of relying on static mock values.
-3. Swap the static diagnosis placeholder for an agent-facing context contract built from captured runtime state.
-4. Add operator-visible handling for first-contact host trust and unsupported auth flows.
+1. Move the failure packet builder behind a dedicated agent/context module instead of keeping it inside the session registry.
+2. Add operator-visible handling for first-contact host trust failures and unsupported auth flows.
+3. Expose richer session controls such as disconnect/reconnect and in-flight command guardrails.
+4. Verify the full desktop flow against reachable SSH targets and collect real incident transcripts.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
