@@ -18,9 +18,11 @@ As of 2026-03-06, the repository has moved from a scenario demo to a backend-man
 - Replaced preview-only session connect behavior with a real `ssh.exe`-backed backend session transport.
 - Added backend-managed SSH process lifecycle tracking, stdout/stderr reader threads, remote shell metadata probes, and stricter host key / batch-mode connection defaults.
 - Added desktop polling so asynchronous backend session state and terminal updates are reflected without a reload.
+- Added bounded per-session stdout/stderr tail capture in the backend so live stream state is preserved beyond the rendered terminal buffer.
+- Added local command echo to the terminal buffer before remote output arrives, keeping the stream readable during async execution.
 
 ## In Progress
-- Replacing preview terminal output with structured live stream handling on top of the real SSH transport.
+- Wrapping submitted commands with control markers so the live stream can expose reliable command start/end boundaries and exit codes.
 - Detecting command completion and non-zero exits from the managed remote shell stream.
 - Converting live failures into structured capture packets instead of leaving diagnosis state on the static mock payload.
 

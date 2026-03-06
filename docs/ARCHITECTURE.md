@@ -100,7 +100,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - stdout parsing converts those markers into live session metadata
 - State propagation:
   - stdout and stderr are read on background threads
-  - the registry stores recent lifecycle events and a bounded terminal buffer
+  - the registry stores recent lifecycle events, a bounded rendered terminal buffer, and bounded per-session stdout/stderr tails
   - process exit transitions the session to `disconnected`
 
 This is intentionally a transport-first implementation. Command framing, exit detection, and structured failure capture still need to be layered on top of the live shell stream.

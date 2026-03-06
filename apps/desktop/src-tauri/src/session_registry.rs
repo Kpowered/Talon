@@ -53,6 +53,13 @@ pub struct CommandHistoryEntry {
     pub occurred_at: String,
 }
 
+#[derive(Default)]
+struct SessionStreamState {
+    stdout_tail: Vec<String>,
+    stderr_tail: Vec<String>,
+    last_updated_at: String,
+}
+
 struct SessionRuntimeHandle {
     stdin: Arc<Mutex<ChildStdin>>,
 }
@@ -63,6 +70,7 @@ pub struct SessionRegistry {
     pub active_session_id: String,
     pub recent_events: Vec<SessionLifecycleEvent>,
     pub terminal_buffers: HashMap<String, Vec<String>>,
+    stream_state: HashMap<String, SessionStreamState>,
     command_history: Vec<CommandHistoryEntry>,
     runtimes: HashMap<String, SessionRuntimeHandle>,
     event_counter: usize,
@@ -148,6 +156,7 @@ fn registry() -> &'static Mutex<SessionRegistry> {
             active_session_id: default_session.id.clone(),
             recent_events: default_events(),
             terminal_buffers,
+            stream_state: HashMap::new(),
             command_history: Vec::new(),
             runtimes: HashMap::new(),
             event_counter: 0,
@@ -214,6 +223,27 @@ fn push_terminal_line(registry: &mut SessionRegistry, session_id: &str, line: St
     if lines.len() > 400 {
         let drain = lines.len() - 400;
         lines.drain(0..drain);
+    }
+}
+
+fn push_stream_tail(target: &mut Vec<String>, line: String) {
+    target.push(line);
+    if target.len() > 80 {
+        let drain = target.len() - 80;
+        target.drain(0..drain);
+    }
+}
+
+fn capture_stream_line(registry: &mut SessionRegistry, session_id: &str, stream: &str, line: &str) {
+    let state = registry
+        .stream_state
+        .entry(session_id.into())
+        .or_insert_with(SessionStreamState::default);
+
+    state.last_updated_at = now_iso();
+    match stream {
+        "stderr" => push_stream_tail(&mut state.stderr_tail, line.into()),
+        _ => push_stream_tail(&mut state.stdout_tail, line.into()),
     }
 }
 
@@ -314,6 +344,7 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
                     }
 
                     push_terminal_line(&mut state, &session_id, line.clone());
+                    capture_stream_line(&mut state, &session_id, "stdout", &line);
                     push_event(&mut state, &session_id, "stdout", line);
                 }
                 Err(error) => {
@@ -343,6 +374,7 @@ fn start_stderr_reader(session_id: String, stderr: ChildStderr) {
                     let line = line.trim_end_matches(['\r', '\n']).to_string();
                     let mut state = registry().lock().expect("session registry lock poisoned");
                     push_terminal_line(&mut state, &session_id, format!("stderr: {}", line));
+                    capture_stream_line(&mut state, &session_id, "stderr", &line);
                     push_event(&mut state, &session_id, "stderr", line);
                 }
                 Err(error) => {
@@ -532,6 +564,7 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
             "command-submitted",
             format!("Queued command: {}", trimmed),
         );
+        push_terminal_line(&mut registry, session_id, format!("$ {}", trimmed));
 
         if let Some(session) = registry.managed_sessions.iter_mut().find(|session| session.id == session_id) {
             session.last_command_at = now_iso();
