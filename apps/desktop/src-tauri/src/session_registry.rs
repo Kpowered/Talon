@@ -7,7 +7,7 @@ use std::process::{ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::context_builder;
 use crate::session_store::{self, FailureContext, Host, Session, TalonWorkspaceState, TerminalSnapshot};
@@ -18,7 +18,7 @@ const CMD_START_PREFIX: &str = "__TALON_CMD_START__";
 const CMD_END_PREFIX: &str = "__TALON_CMD_END__";
 const CONNECT_TIMEOUT_SECONDS: u64 = 8;
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HostConnectionConfig {
     pub host_id: String,
@@ -112,6 +112,7 @@ pub struct SessionRegistry {
 }
 
 static REGISTRY: OnceLock<Mutex<SessionRegistry>> = OnceLock::new();
+const HOST_CONFIGS_FILE_NAME: &str = "host-configs.json";
 
 fn now_iso() -> String {
     let output = Command::new("powershell")
@@ -152,6 +153,33 @@ fn default_host_configs() -> Vec<HostConnectionConfig> {
     ]
 }
 
+fn host_configs_path() -> Option<PathBuf> {
+    let base = dirs::data_local_dir().or_else(dirs::data_dir)?;
+    Some(base.join("Talon").join(HOST_CONFIGS_FILE_NAME))
+}
+
+fn load_host_configs() -> Vec<HostConnectionConfig> {
+    let Some(path) = host_configs_path() else {
+        return default_host_configs();
+    };
+
+    match fs::read_to_string(&path) {
+        Ok(contents) => serde_json::from_str::<Vec<HostConnectionConfig>>(&contents).unwrap_or_else(|_| default_host_configs()),
+        Err(_) => default_host_configs(),
+    }
+}
+
+fn save_host_configs(host_configs: &[HostConnectionConfig]) -> Result<(), String> {
+    let Some(path) = host_configs_path() else {
+        return Err("Could not resolve local data directory for Talon host configs.".into());
+    };
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let payload = serde_json::to_string_pretty(host_configs).map_err(|error| error.to_string())?;
+    fs::write(path, payload).map_err(|error| error.to_string())
+}
+
 fn default_session() -> ManagedSessionRecord {
     ManagedSessionRecord {
         id: "session-a91f".into(),
@@ -186,7 +214,7 @@ fn registry() -> &'static Mutex<SessionRegistry> {
         terminal_buffers.insert(default_session.id.clone(), default_terminal_buffer());
 
         Mutex::new(SessionRegistry {
-            host_configs: default_host_configs(),
+            host_configs: load_host_configs(),
             managed_sessions: vec![default_session.clone()],
             active_session_id: default_session.id.clone(),
             recent_events: default_events(),
@@ -205,6 +233,28 @@ fn registry() -> &'static Mutex<SessionRegistry> {
 
 pub fn list_host_configs() -> Vec<HostConnectionConfig> {
     registry().lock().expect("session registry lock poisoned").host_configs.clone()
+}
+
+pub fn upsert_host_config(config: HostConnectionConfig) -> Result<Vec<HostConnectionConfig>, String> {
+    let mut registry = registry().lock().expect("session registry lock poisoned");
+    if let Some(existing) = registry
+        .host_configs
+        .iter_mut()
+        .find(|existing| existing.host_id == config.host_id)
+    {
+        *existing = config;
+    } else {
+        registry.host_configs.insert(0, config);
+    }
+    save_host_configs(&registry.host_configs)?;
+    Ok(registry.host_configs.clone())
+}
+
+pub fn delete_host_config(host_id: &str) -> Result<Vec<HostConnectionConfig>, String> {
+    let mut registry = registry().lock().expect("session registry lock poisoned");
+    registry.host_configs.retain(|config| config.host_id != host_id);
+    save_host_configs(&registry.host_configs)?;
+    Ok(registry.host_configs.clone())
 }
 
 pub fn busy_session_ids() -> Vec<String> {

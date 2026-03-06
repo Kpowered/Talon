@@ -29,6 +29,22 @@ pub struct DisconnectSessionRequest {
     pub session_id: String,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertHostConfigRequest {
+    pub host_id: String,
+    pub port: u16,
+    pub username: String,
+    pub auth_method: String,
+    pub fingerprint_hint: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteHostConfigRequest {
+    pub host_id: String,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionSummary {
@@ -76,6 +92,12 @@ pub struct SubmitCommandResponse {
 pub struct DisconnectSessionResponse {
     pub terminal: TerminalSnapshot,
     pub events: Vec<SessionLifecycleEvent>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostConfigMutationResponse {
+    pub host_configs: Vec<HostConnectionConfig>,
 }
 
 pub fn get_workspace_state() -> TalonWorkspaceState {
@@ -180,6 +202,26 @@ pub fn disconnect_session(payload: DisconnectSessionRequest) -> DisconnectSessio
 
 pub fn reconnect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
     connect_session(payload)
+}
+
+pub fn upsert_host_config(payload: UpsertHostConfigRequest) -> HostConfigMutationResponse {
+    HostConfigMutationResponse {
+        host_configs: session_registry::upsert_host_config(HostConnectionConfig {
+            host_id: payload.host_id,
+            port: payload.port,
+            username: payload.username,
+            auth_method: payload.auth_method,
+            fingerprint_hint: payload.fingerprint_hint,
+        })
+        .expect("host config update must succeed"),
+    }
+}
+
+pub fn delete_host_config(payload: DeleteHostConfigRequest) -> HostConfigMutationResponse {
+    HostConfigMutationResponse {
+        host_configs: session_registry::delete_host_config(&payload.host_id)
+            .expect("host config deletion must succeed"),
+    }
 }
 
 pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionResponse {

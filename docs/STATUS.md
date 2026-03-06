@@ -35,12 +35,13 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Validated the product-equivalent password-auth transport options against the external test host, including successful shell bootstrap and a controlled non-zero exit through `ssh.exe + SSH_ASKPASS + -T`.
 - Projected connection issues into the workspace timeline and diagnosis state so pre-shell failures now appear as first-class incident history.
 - Replaced the static nginx incident fallback in `session_store` with neutral placeholder state until live runtime evidence exists.
+- Added backend support for persistent host connection configs stored in a local JSON file, including create/update/delete mutation commands.
 
 ## In Progress
-- Tightening operator UX around session-only connection overrides and explicit reset semantics.
+- Wiring the persistent host config backend into desktop host creation and editing flows.
 
 ## Next Steps
-1. Add explicit `Reset to host default` / session-only override UX so operators can see what is temporary versus default config.
+1. Add desktop UI flows for creating, editing, and deleting persistent host configs.
 2. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
 3. Continue reducing mock `session_store` responsibilities as more runtime state becomes authoritative.
 
