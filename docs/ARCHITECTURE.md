@@ -111,6 +111,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the current desktop shell allows editing host label, address, region, tags, port, username, auth method, and fingerprint trust hints
   - host health, latency, CPU, memory, and last-seen timestamps now live under `host.observed` and are rendered read-only in the UI
   - real SSH lifecycle events currently update `host.observed.status` and `host.observed.lastSeenAt` on shell-ready, disconnect, and connection-path failure transitions
+  - `host.observed.latencyMs` is now populated from the elapsed time between SSH transport launch and shell metadata readiness
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
 - Command framing:

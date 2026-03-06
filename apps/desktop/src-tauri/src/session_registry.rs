@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::process::{ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
+use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
@@ -93,6 +94,7 @@ struct SessionRuntimeHandle {
     stdin: Arc<Mutex<ChildStdin>>,
     pid: u32,
     askpass_path: Option<PathBuf>,
+    started_at: Instant,
 }
 
 pub struct SessionRegistry {
@@ -690,13 +692,22 @@ fn update_session_state(registry: &mut SessionRegistry, session_id: &str, state:
     }
 }
 
-fn update_host_observed(registry: &mut SessionRegistry, host_id: &str, status: Option<&str>, last_seen_at: Option<&str>) {
+fn update_host_observed(
+    registry: &mut SessionRegistry,
+    host_id: &str,
+    status: Option<&str>,
+    last_seen_at: Option<&str>,
+    latency_ms: Option<u32>,
+) {
     if let Some(host) = registry.hosts.iter_mut().find(|host| host.id == host_id) {
         if let Some(status) = status {
             host.observed.status = status.into();
         }
         if let Some(last_seen_at) = last_seen_at {
             host.observed.last_seen_at = last_seen_at.into();
+        }
+        if let Some(latency_ms) = latency_ms {
+            host.observed.latency_ms = latency_ms;
         }
         let _ = save_hosts(&registry.hosts);
     }
@@ -716,8 +727,15 @@ fn update_host_observed_for_session(
 
     if let Some(host_id) = host_id {
         let last_seen = if touch_last_seen { Some(now_iso()) } else { None };
-        update_host_observed(registry, &host_id, status, last_seen.as_deref());
+        update_host_observed(registry, &host_id, status, last_seen.as_deref(), None);
     }
+}
+
+fn capture_connect_latency_ms(registry: &SessionRegistry, session_id: &str) -> Option<u32> {
+    registry
+        .runtimes
+        .get(session_id)
+        .map(|runtime| runtime.started_at.elapsed().as_millis().min(u128::from(u32::MAX)) as u32)
 }
 
 fn update_session_metadata(registry: &mut SessionRegistry, session_id: &str, shell: Option<&str>, cwd: Option<&str>) {
@@ -791,9 +809,17 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
 
                     if let Some(cwd) = line.strip_prefix(META_CWD_PREFIX) {
                         let cwd = cwd.trim();
+                        let latency_ms = capture_connect_latency_ms(&state, &session_id);
                         update_session_metadata(&mut state, &session_id, None, Some(cwd));
                         update_session_state(&mut state, &session_id, "connected");
-                        update_host_observed_for_session(&mut state, &session_id, Some("healthy"), true);
+                        let host_id = state
+                            .managed_sessions
+                            .iter()
+                            .find(|session| session.id == session_id)
+                            .map(|session| session.host_id.clone());
+                        if let Some(host_id) = host_id {
+                            update_host_observed(&mut state, &host_id, Some("healthy"), Some(&now_iso()), latency_ms);
+                        }
                         clear_connection_issue(&mut state, &session_id);
                         push_event(
                             &mut state,
@@ -1019,6 +1045,7 @@ fn launch_runtime(
         stdin,
         pid,
         askpass_path,
+        started_at: Instant::now(),
     })
 }
 
@@ -1089,7 +1116,7 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
             } else {
                 "critical"
             };
-            update_host_observed(&mut registry, &host.id, Some(observed_status), Some(&now_iso()));
+            update_host_observed(&mut registry, &host.id, Some(observed_status), Some(&now_iso()), None);
             set_connection_issue(
                 &mut registry,
                 &record.id,
