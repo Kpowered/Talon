@@ -72,6 +72,10 @@ type HostConfigMutationResponse = {
   hostConfigs: HostConnectionConfig[];
 };
 
+type HostMutationResponse = {
+  hosts: Host[];
+};
+
 type SessionConnectionIssue = {
   sessionId: string;
   kind: string;
@@ -439,60 +443,48 @@ function App() {
     const hostId = `host-${crypto.randomUUID().slice(0, 8)}`;
     const label = hostLabelInput.trim() || "new-host";
     const address = hostAddressInput.trim() || `${hostUsernameInput.trim() || "root"}@127.0.0.1`;
-    const nextHost: Host = {
-      id: hostId,
-      label,
-      address,
-      region: "custom",
-      tags: ["custom"],
-      status: "healthy",
-      latencyMs: 0,
-      cpuPercent: 0,
-      memoryPercent: 0,
-      lastSeenAt: new Date().toISOString(),
-    };
-    setWorkspace((current) =>
-      current
-        ? {
-            ...current,
-            hosts: [nextHost, ...current.hosts],
-          }
-        : current,
-    );
+    await invoke<HostMutationResponse>("upsert_host", {
+      payload: {
+        id: hostId,
+        label,
+        address,
+        region: "custom",
+        tags: ["custom"],
+      },
+    });
     setSelectedHostId(hostId);
     initializedConnectionHostId.current = null;
     await saveHostConfig(hostId, "Pending trust");
+    await refreshWorkspace();
     setActionSummary(`Created host config for ${label}.`);
   }
 
   async function updateSelectedHost() {
-    if (!selectedHost || !workspace) return;
-    const updatedHost: Host = {
-      ...selectedHost,
+    if (!selectedHost) return;
+    const updatedHost = {
+      id: selectedHost.id,
       label: hostLabelInput.trim() || selectedHost.label,
       address: hostAddressInput.trim() || selectedHost.address,
+      region: selectedHost.region,
+      tags: selectedHost.tags,
     };
-    setWorkspace({
-      ...workspace,
-      hosts: workspace.hosts.map((host) => (host.id === selectedHost.id ? updatedHost : host)),
+    await invoke<HostMutationResponse>("upsert_host", {
+      payload: updatedHost,
     });
     await saveHostConfig(selectedHost.id, selectedHostConfig?.fingerprintHint ?? "Pending trust");
+    await refreshWorkspace();
     setActionSummary(`Saved host config for ${updatedHost.label}.`);
   }
 
   async function deleteSelectedHost() {
-    if (!selectedHost || !workspace) return;
+    if (!selectedHost) return;
     setIsDeletingHostConfig(true);
     try {
-      await invoke<HostConfigMutationResponse>("delete_host_config", {
+      await invoke<HostMutationResponse>("delete_host", {
         payload: { hostId: selectedHost.id },
       });
-      const remainingHosts = workspace.hosts.filter((host) => host.id !== selectedHost.id);
-      setWorkspace({
-        ...workspace,
-        hosts: remainingHosts,
-        activeSessionId: workspace.activeSessionId,
-      });
+      await refreshWorkspace();
+      const remainingHosts = (await invoke<TalonWorkspaceState>("get_workspace_state")).hosts;
       setSelectedHostId(remainingHosts[0]?.id ?? null);
       initializedConnectionHostId.current = null;
       await refreshRegistry();

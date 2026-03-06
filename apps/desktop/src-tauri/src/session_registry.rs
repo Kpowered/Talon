@@ -96,6 +96,7 @@ struct SessionRuntimeHandle {
 }
 
 pub struct SessionRegistry {
+    pub hosts: Vec<Host>,
     pub host_configs: Vec<HostConnectionConfig>,
     pub managed_sessions: Vec<ManagedSessionRecord>,
     pub active_session_id: String,
@@ -113,6 +114,7 @@ pub struct SessionRegistry {
 
 static REGISTRY: OnceLock<Mutex<SessionRegistry>> = OnceLock::new();
 const HOST_CONFIGS_FILE_NAME: &str = "host-configs.json";
+const HOSTS_FILE_NAME: &str = "hosts.json";
 
 fn now_iso() -> String {
     let output = Command::new("powershell")
@@ -153,9 +155,55 @@ fn default_host_configs() -> Vec<HostConnectionConfig> {
     ]
 }
 
+fn default_hosts() -> Vec<Host> {
+    vec![
+        Host {
+            id: "host-prod-web-1".into(),
+            label: "prod-web-1".into(),
+            address: "root@10.0.0.12".into(),
+            region: "sjc-1".into(),
+            tags: vec!["production".into(), "edge".into()],
+            status: "critical".into(),
+            latency_ms: 186,
+            cpu_percent: 74,
+            memory_percent: 81,
+            last_seen_at: "2026-03-06T13:41:32Z".into(),
+        },
+        Host {
+            id: "host-api-gateway".into(),
+            label: "api-gateway".into(),
+            address: "root@10.0.0.23".into(),
+            region: "hkg-1".into(),
+            tags: vec!["production".into(), "api".into()],
+            status: "warning".into(),
+            latency_ms: 92,
+            cpu_percent: 46,
+            memory_percent: 67,
+            last_seen_at: "2026-03-06T13:41:09Z".into(),
+        },
+        Host {
+            id: "host-db-primary".into(),
+            label: "db-primary".into(),
+            address: "postgres@10.0.0.31".into(),
+            region: "hkg-1".into(),
+            tags: vec!["production".into(), "database".into()],
+            status: "healthy".into(),
+            latency_ms: 41,
+            cpu_percent: 31,
+            memory_percent: 54,
+            last_seen_at: "2026-03-06T13:40:58Z".into(),
+        },
+    ]
+}
+
 fn host_configs_path() -> Option<PathBuf> {
     let base = dirs::data_local_dir().or_else(dirs::data_dir)?;
     Some(base.join("Talon").join(HOST_CONFIGS_FILE_NAME))
+}
+
+fn hosts_path() -> Option<PathBuf> {
+    let base = dirs::data_local_dir().or_else(dirs::data_dir)?;
+    Some(base.join("Talon").join(HOSTS_FILE_NAME))
 }
 
 fn load_host_configs() -> Vec<HostConnectionConfig> {
@@ -169,6 +217,17 @@ fn load_host_configs() -> Vec<HostConnectionConfig> {
     }
 }
 
+fn load_hosts() -> Vec<Host> {
+    let Some(path) = hosts_path() else {
+        return default_hosts();
+    };
+
+    match fs::read_to_string(&path) {
+        Ok(contents) => serde_json::from_str::<Vec<Host>>(&contents).unwrap_or_else(|_| default_hosts()),
+        Err(_) => default_hosts(),
+    }
+}
+
 fn save_host_configs(host_configs: &[HostConnectionConfig]) -> Result<(), String> {
     let Some(path) = host_configs_path() else {
         return Err("Could not resolve local data directory for Talon host configs.".into());
@@ -177,6 +236,17 @@ fn save_host_configs(host_configs: &[HostConnectionConfig]) -> Result<(), String
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
     let payload = serde_json::to_string_pretty(host_configs).map_err(|error| error.to_string())?;
+    fs::write(path, payload).map_err(|error| error.to_string())
+}
+
+fn save_hosts(hosts: &[Host]) -> Result<(), String> {
+    let Some(path) = hosts_path() else {
+        return Err("Could not resolve local data directory for Talon hosts.".into());
+    };
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let payload = serde_json::to_string_pretty(hosts).map_err(|error| error.to_string())?;
     fs::write(path, payload).map_err(|error| error.to_string())
 }
 
@@ -214,6 +284,7 @@ fn registry() -> &'static Mutex<SessionRegistry> {
         terminal_buffers.insert(default_session.id.clone(), default_terminal_buffer());
 
         Mutex::new(SessionRegistry {
+            hosts: load_hosts(),
             host_configs: load_host_configs(),
             managed_sessions: vec![default_session.clone()],
             active_session_id: default_session.id.clone(),
@@ -233,6 +304,17 @@ fn registry() -> &'static Mutex<SessionRegistry> {
 
 pub fn list_host_configs() -> Vec<HostConnectionConfig> {
     registry().lock().expect("session registry lock poisoned").host_configs.clone()
+}
+
+pub fn upsert_host(host: Host) -> Result<Vec<Host>, String> {
+    let mut registry = registry().lock().expect("session registry lock poisoned");
+    if let Some(existing) = registry.hosts.iter_mut().find(|existing| existing.id == host.id) {
+        *existing = host;
+    } else {
+        registry.hosts.insert(0, host);
+    }
+    save_hosts(&registry.hosts)?;
+    Ok(registry.hosts.clone())
 }
 
 pub fn upsert_host_config(config: HostConnectionConfig) -> Result<Vec<HostConnectionConfig>, String> {
@@ -255,6 +337,15 @@ pub fn delete_host_config(host_id: &str) -> Result<Vec<HostConnectionConfig>, St
     registry.host_configs.retain(|config| config.host_id != host_id);
     save_host_configs(&registry.host_configs)?;
     Ok(registry.host_configs.clone())
+}
+
+pub fn delete_host(host_id: &str) -> Result<Vec<Host>, String> {
+    let mut registry = registry().lock().expect("session registry lock poisoned");
+    registry.hosts.retain(|host| host.id != host_id);
+    registry.host_configs.retain(|config| config.host_id != host_id);
+    save_hosts(&registry.hosts)?;
+    save_host_configs(&registry.host_configs)?;
+    Ok(registry.hosts.clone())
 }
 
 pub fn busy_session_ids() -> Vec<String> {
@@ -284,6 +375,20 @@ pub fn host_config_for(host_id: &str) -> Option<HostConnectionConfig> {
         .iter()
         .find(|config| config.host_id == host_id)
         .cloned()
+}
+
+pub fn host_for(host_id: &str) -> Option<Host> {
+    registry()
+        .lock()
+        .expect("session registry lock poisoned")
+        .hosts
+        .iter()
+        .find(|host| host.id == host_id)
+        .cloned()
+}
+
+pub fn first_host() -> Option<Host> {
+    registry().lock().expect("session registry lock poisoned").hosts.first().cloned()
 }
 
 pub fn recent_events() -> Vec<SessionLifecycleEvent> {
@@ -1107,6 +1212,7 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
 pub fn workspace_state() -> TalonWorkspaceState {
     let registry = registry().lock().expect("session registry lock poisoned");
     let mut state = session_store::get_workspace_state();
+    state.hosts = registry.hosts.clone();
     state.sessions = registry
         .managed_sessions
         .iter()

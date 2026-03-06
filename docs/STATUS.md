@@ -38,14 +38,15 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added backend support for persistent host connection configs stored in a local JSON file, including create/update/delete mutation commands.
 - Added desktop UI flows for creating, editing, and deleting persistent host configs without persisting passwords.
 - Split the desktop connection controls into explicit saved host defaults versus per-session connection overrides, including reset-to-default actions and non-persistent password messaging.
+- Moved the desktop host inventory onto backend-persisted host records so host create/edit/delete now survives refresh without relying on `session_store` mock hosts.
 
 ## In Progress
-- Deciding how much of the current mock host inventory should be replaced by fully persisted host records.
+- Reducing the remaining placeholder responsibilities in `session_store` now that host inventory is registry-backed.
 
 ## Next Steps
 1. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
 2. Continue reducing mock `session_store` responsibilities as more runtime state becomes authoritative.
-3. Decide when to replace the remaining mock host inventory with fully persisted host records.
+3. Add explicit UI affordances for editing host metadata beyond label/address defaults.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.

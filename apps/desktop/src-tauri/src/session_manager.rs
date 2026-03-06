@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::session_registry;
 use crate::session_registry::{HostConnectionConfig, SessionConnectionIssue, SessionLifecycleEvent};
 use crate::session_store;
-use crate::session_store::{RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot};
+use crate::session_store::{Host, RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,6 +42,22 @@ pub struct UpsertHostConfigRequest {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteHostConfigRequest {
+    pub host_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertHostRequest {
+    pub id: String,
+    pub label: String,
+    pub address: String,
+    pub region: String,
+    pub tags: Vec<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteHostRequest {
     pub host_id: String,
 }
 
@@ -100,6 +116,12 @@ pub struct HostConfigMutationResponse {
     pub host_configs: Vec<HostConnectionConfig>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostMutationResponse {
+    pub hosts: Vec<Host>,
+}
+
 pub fn get_workspace_state() -> TalonWorkspaceState {
     session_registry::workspace_state()
 }
@@ -126,12 +148,8 @@ pub fn get_terminal_snapshot(session_id: String) -> TerminalSnapshot {
 }
 
 pub fn connect_session(payload: ConnectSessionRequest) -> ConnectSessionResponse {
-    let state = session_store::get_workspace_state();
-    let host = state
-        .hosts
-        .iter()
-        .find(|host| host.id == payload.host_id)
-        .or_else(|| state.hosts.first())
+    let host = session_registry::host_for(&payload.host_id)
+        .or_else(session_registry::first_host)
         .expect("workspace state must include at least one host");
     let mut effective_host = host.clone();
     if let Some(address) = payload.address.as_ref().filter(|value| !value.trim().is_empty()) {
@@ -221,6 +239,34 @@ pub fn delete_host_config(payload: DeleteHostConfigRequest) -> HostConfigMutatio
     HostConfigMutationResponse {
         host_configs: session_registry::delete_host_config(&payload.host_id)
             .expect("host config deletion must succeed"),
+    }
+}
+
+pub fn upsert_host(payload: UpsertHostRequest) -> HostMutationResponse {
+    let existing = session_registry::host_for(&payload.id);
+    HostMutationResponse {
+        hosts: session_registry::upsert_host(Host {
+            id: payload.id,
+            label: payload.label,
+            address: payload.address,
+            region: payload.region,
+            tags: payload.tags,
+            status: existing.as_ref().map(|host| host.status.clone()).unwrap_or_else(|| "healthy".into()),
+            latency_ms: existing.as_ref().map(|host| host.latency_ms).unwrap_or(0),
+            cpu_percent: existing.as_ref().map(|host| host.cpu_percent).unwrap_or(0),
+            memory_percent: existing.as_ref().map(|host| host.memory_percent).unwrap_or(0),
+            last_seen_at: existing
+                .as_ref()
+                .map(|host| host.last_seen_at.clone())
+                .unwrap_or_else(|| "2026-03-07T00:00:00Z".into()),
+        })
+        .expect("host update must succeed"),
+    }
+}
+
+pub fn delete_host(payload: DeleteHostRequest) -> HostMutationResponse {
+    HostMutationResponse {
+        hosts: session_registry::delete_host(&payload.host_id).expect("host deletion must succeed"),
     }
 }
 

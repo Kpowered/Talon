@@ -9,9 +9,10 @@ use session_manager::{
     get_workspace_state as load_workspace_state, run_suggested_action as execute_suggested_action,
     submit_session_command as dispatch_session_command, disconnect_session as close_session,
     reconnect_session as reopen_session, ConnectSessionRequest, ConnectSessionResponse,
-    DeleteHostConfigRequest, DisconnectSessionRequest, DisconnectSessionResponse, HostConfigMutationResponse,
+    DeleteHostConfigRequest, DeleteHostRequest, DisconnectSessionRequest, DisconnectSessionResponse, HostConfigMutationResponse,
+    HostMutationResponse,
     SessionEventListResponse, SessionRegistryResponse, SubmitCommandRequest, SubmitCommandResponse,
-    UpsertHostConfigRequest,
+    UpsertHostConfigRequest, UpsertHostRequest,
 };
 use session_store::{RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot};
 
@@ -66,6 +67,16 @@ fn delete_host_config(payload: DeleteHostConfigRequest) -> HostConfigMutationRes
 }
 
 #[tauri::command]
+fn upsert_host(payload: UpsertHostRequest) -> HostMutationResponse {
+    session_manager::upsert_host(payload)
+}
+
+#[tauri::command]
+fn delete_host(payload: DeleteHostRequest) -> HostMutationResponse {
+    session_manager::delete_host(payload)
+}
+
+#[tauri::command]
 fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionResponse {
     execute_suggested_action(payload)
 }
@@ -85,6 +96,8 @@ pub fn run() {
             reconnect_session,
             upsert_host_config,
             delete_host_config,
+            upsert_host,
+            delete_host,
             run_suggested_action
         ])
         .run(tauri::generate_context!())

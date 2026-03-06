@@ -29,7 +29,7 @@ pub struct TalonWorkspaceState {
     pub terminal: TerminalSnapshot,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Host {
     pub id: String,
@@ -130,44 +130,7 @@ pub struct TerminalSnapshot {
 
 pub fn get_workspace_state() -> TalonWorkspaceState {
     TalonWorkspaceState {
-        hosts: vec![
-            Host {
-                id: "host-prod-web-1".into(),
-                label: "prod-web-1".into(),
-                address: "root@10.0.0.12".into(),
-                region: "sjc-1".into(),
-                tags: vec!["production".into(), "edge".into()],
-                status: "critical".into(),
-                latency_ms: 186,
-                cpu_percent: 74,
-                memory_percent: 81,
-                last_seen_at: "2026-03-06T13:41:32Z".into(),
-            },
-            Host {
-                id: "host-api-gateway".into(),
-                label: "api-gateway".into(),
-                address: "root@10.0.0.23".into(),
-                region: "hkg-1".into(),
-                tags: vec!["production".into(), "api".into()],
-                status: "warning".into(),
-                latency_ms: 92,
-                cpu_percent: 46,
-                memory_percent: 67,
-                last_seen_at: "2026-03-06T13:41:09Z".into(),
-            },
-            Host {
-                id: "host-db-primary".into(),
-                label: "db-primary".into(),
-                address: "postgres@10.0.0.31".into(),
-                region: "hkg-1".into(),
-                tags: vec!["production".into(), "database".into()],
-                status: "healthy".into(),
-                latency_ms: 41,
-                cpu_percent: 31,
-                memory_percent: 54,
-                last_seen_at: "2026-03-06T13:40:58Z".into(),
-            },
-        ],
+        hosts: vec![],
         sessions: vec![Session {
             id: "session-a91f".into(),
             host_id: "host-prod-web-1".into(),

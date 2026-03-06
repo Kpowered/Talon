@@ -36,8 +36,8 @@ As of 2026-03-06:
 - `packages/core` contains the first shared domain contracts.
 - `packages/ssh` contains initial TypeScript-side lifecycle contracts.
 - `apps/desktop/src-tauri/src/session_store.rs` is the temporary backend state provider for neutral workspace placeholders while runtime state is still being wired through the registry.
-- `apps/desktop/src-tauri/src/session_registry.rs` holds the in-memory host config list, managed sessions, active session id, recent lifecycle events, terminal buffers, command history, and live SSH runtime handles.
-- `apps/desktop/src-tauri/src/session_registry.rs` now also persists host connection configs to a local JSON file under the user's local app data directory.
+- `apps/desktop/src-tauri/src/session_registry.rs` holds the persisted host inventory, persisted host connection config list, managed sessions, active session id, recent lifecycle events, terminal buffers, command history, and live SSH runtime handles.
+- `apps/desktop/src-tauri/src/session_registry.rs` now persists both host records and host connection configs to local JSON files under the user's local app data directory.
 - `apps/desktop/src-tauri/src/session_manager.rs` is the backend boundary that exposes registry-backed session and terminal commands to the UI.
 - `apps/desktop/src-tauri/src/context_builder.rs` now owns the temporary agent-facing shaping logic for failure packets, diagnosis scaffolding, and timeline construction.
 - Real session connection management is now handled by backend-spawned `ssh.exe` child processes with piped stdin/stdout/stderr and reader threads owned by the registry layer.
@@ -77,7 +77,7 @@ Talon/
 1. Desktop UI calls `get_workspace_state`, `get_session_registry`, `get_session_events`, and `get_terminal_snapshot`
 2. Tauri backend delegates to `session_manager`
 3. `session_manager` reads and mutates managed state in `session_registry`
-4. `session_registry` still merges active session information with the mock incident payload from `session_store`
+4. `session_registry` now supplies the host inventory and active session information, while `session_store` only supplies placeholder incident scaffolding where live runtime evidence is still absent
 5. Desktop UI can request `connect_session` for a selected host and `submit_session_command` for the active session
 6. `connect_session` now spawns a real `ssh.exe` child process in batch mode with strict host key checking, piped stdin/stdout/stderr, and remote shell metadata probes
 7. Reader threads append terminal lines and lifecycle events back into `session_registry`
@@ -105,6 +105,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the operator can override the selected host's address, port, username, auth method, and password at connect time
   - overrides are session-scoped operator input and are not persisted into saved host config
 - Host config management:
+  - saved host records are now created, updated, and deleted through backend Tauri commands instead of frontend-only state mutation
   - saved host config fields are now editable from the desktop UI
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
