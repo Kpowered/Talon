@@ -663,6 +663,12 @@ fn complete_active_command(registry: &mut SessionRegistry, session_id: &str, com
         format!("{} exited with code {} in {}", command.command, exit_code, cwd),
     );
 
+    if exit_code == 0 {
+        update_host_observed_for_session(registry, session_id, Some("healthy"), true);
+    } else {
+        update_host_observed_for_session(registry, session_id, Some("warning"), true);
+    }
+
     if exit_code != 0 {
         let session = registry.managed_sessions.iter().find(|session| session.id == session_id);
         let command_entry = registry
