@@ -685,6 +685,16 @@ button {
   padding: 14px;
 }
 
+.evidence-card {
+  border: 1px solid rgba(47, 212, 255, 0.16);
+  background: linear-gradient(180deg, rgba(47, 212, 255, 0.08), rgba(255, 255, 255, 0.03));
+}
+
+.evidence-text {
+  font-family: "JetBrains Mono", monospace;
+  color: #d8e6fb;
+}
+
 .diagnosis-feed {
   flex: 1;
   min-height: 0;

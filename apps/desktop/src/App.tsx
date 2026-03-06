@@ -925,6 +925,14 @@ function App() {
             </article>
           </div>
 
+          {failure.stderrEvidence ? (
+            <article className="insight-card evidence-card">
+              <span>Signal evidence</span>
+              <strong>{stderrClassLabel(failure.stderrClass)}</strong>
+              <p className="evidence-text">{failure.stderrEvidence}</p>
+            </article>
+          ) : null}
+
           <div className="diagnosis-feed">
             {diagnosis.messages.map((message: DiagnosisMessage) => (
               <article key={message.id} className={`diagnosis-card tone-${message.tone}`}>

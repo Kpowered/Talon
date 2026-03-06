@@ -183,6 +183,7 @@ pub fn build_failure_context(
         ),
         severity: severity.into(),
         stderr_class: command.stderr_class.clone(),
+        stderr_evidence: command.stderr_evidence.clone(),
         cwd,
         shell,
         exit_code: command.exit_code,
@@ -196,6 +197,11 @@ pub fn build_failure_context(
                 .as_ref()
                 .map(|class| format!("stderr-class: {}", class))
                 .unwrap_or_else(|| "stderr-class: none".into()),
+            command
+                .stderr_evidence
+                .as_ref()
+                .map(|evidence| format!("stderr-evidence: {}", evidence))
+                .unwrap_or_else(|| "stderr-evidence: none".into()),
         ],
         captured_at: command.completed_at.clone(),
     }
@@ -230,13 +236,18 @@ pub fn build_diagnosis_from_failure(failure: &FailureContext) -> DiagnosisRespon
                 tone: failure.severity.clone(),
                 title: "Live failure captured".into(),
                 body: format!(
-                    "Talon packaged exit code {}, cwd {}, and the latest stdout/stderr tails from the managed SSH session{}.",
+                    "Talon packaged exit code {}, cwd {}, and the latest stdout/stderr tails from the managed SSH session{}{}.",
                     failure.exit_code,
                     failure.cwd,
                     failure
                         .stderr_class
                         .as_ref()
                         .map(|class| format!(", including '{}' stderr classification", class))
+                        .unwrap_or_default(),
+                    failure
+                        .stderr_evidence
+                        .as_ref()
+                        .map(|evidence| format!(" Evidence: {}", evidence))
                         .unwrap_or_default()
                 ),
             },
@@ -386,6 +397,7 @@ mod tests {
             summary: "failed".into(),
             severity: "critical".into(),
             stderr_class: stderr_class.map(|value| value.into()),
+            stderr_evidence: stderr_class.map(|value| format!("matched: {}", value)),
             cwd: "/srv/app".into(),
             shell: "/bin/bash".into(),
             exit_code: 1,

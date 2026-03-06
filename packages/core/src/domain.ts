@@ -59,6 +59,7 @@ export interface FailureContext {
   summary: string;
   severity: HealthStatus;
   stderrClass?: string | null;
+  stderrEvidence?: string | null;
   cwd: string;
   shell: string;
   exitCode: number;

@@ -72,6 +72,7 @@ pub struct CommandHistoryEntry {
     pub completed_at: String,
     pub exit_code: i32,
     pub stderr_class: Option<String>,
+    pub stderr_evidence: Option<String>,
     pub stdout_tail: Vec<String>,
     pub stderr_tail: Vec<String>,
 }
@@ -642,7 +643,9 @@ fn complete_active_command(registry: &mut SessionRegistry, session_id: &str, com
 
     update_session_metadata(registry, session_id, None, Some(cwd));
     let completed_at = now_iso();
-    let stderr_class = classify_command_stderr_signal(&command.stderr_tail).map(|(class, _)| class.to_string());
+    let stderr_signal = classify_command_stderr_signal(&command.stderr_tail);
+    let stderr_class = stderr_signal.as_ref().map(|(class, _, _)| (*class).to_string());
+    let stderr_evidence = stderr_signal.as_ref().map(|(_, _, evidence)| evidence.clone());
     registry.command_history.insert(
         0,
         CommandHistoryEntry {
@@ -653,6 +656,7 @@ fn complete_active_command(registry: &mut SessionRegistry, session_id: &str, com
             completed_at: completed_at.clone(),
             exit_code,
             stderr_class,
+            stderr_evidence,
             stdout_tail: command.stdout_tail.clone(),
             stderr_tail: command.stderr_tail.clone(),
         },
@@ -744,7 +748,7 @@ fn capture_connect_latency_ms(registry: &SessionRegistry, session_id: &str) -> O
         .map(|runtime| runtime.started_at.elapsed().as_millis().min(u128::from(u32::MAX)) as u32)
 }
 
-fn classify_command_stderr_signal(stderr_tail: &[String]) -> Option<(&'static str, &'static str)> {
+fn classify_command_stderr_signal(stderr_tail: &[String]) -> Option<(&'static str, &'static str, String)> {
     for line in stderr_tail.iter().rev() {
         let normalized = line.to_ascii_lowercase();
 
@@ -753,14 +757,14 @@ fn classify_command_stderr_signal(stderr_tail: &[String]) -> Option<(&'static st
             || normalized.contains("no route to host")
             || normalized.contains("network is unreachable")
         {
-            return Some(("network-path", "critical"));
+            return Some(("network-path", "critical", line.clone()));
         }
 
         if normalized.contains("no space left on device")
             || normalized.contains("disk quota exceeded")
             || normalized.contains("read-only file system")
         {
-            return Some(("filesystem", "critical"));
+            return Some(("filesystem", "critical", line.clone()));
         }
 
         if normalized.contains("out of memory")
@@ -769,14 +773,14 @@ fn classify_command_stderr_signal(stderr_tail: &[String]) -> Option<(&'static st
             || normalized.starts_with("killed")
             || normalized.contains("oom")
         {
-            return Some(("resource-pressure", "critical"));
+            return Some(("resource-pressure", "critical", line.clone()));
         }
 
         if normalized.contains("permission denied")
             || normalized.contains("access denied")
             || normalized.contains("operation not permitted")
         {
-            return Some(("permission", "warning"));
+            return Some(("permission", "warning", line.clone()));
         }
     }
 
@@ -784,7 +788,7 @@ fn classify_command_stderr_signal(stderr_tail: &[String]) -> Option<(&'static st
 }
 
 fn classify_command_stderr_severity(stderr_tail: &[String]) -> Option<&'static str> {
-    classify_command_stderr_signal(stderr_tail).map(|(_, severity)| severity)
+    classify_command_stderr_signal(stderr_tail).map(|(_, severity, _)| severity)
 }
 
 fn host_health_from_recent_commands(registry: &SessionRegistry, session_id: &str) -> &'static str {
@@ -1458,6 +1462,7 @@ mod tests {
             completed_at: "2026-03-07T00:00:01Z".into(),
             exit_code,
             stderr_class: None,
+            stderr_evidence: None,
             stdout_tail: Vec::new(),
             stderr_tail: Vec::new(),
         }

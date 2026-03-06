@@ -48,6 +48,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Projected matched command `stderr` classes into live failure context, diagnosis text, and timeline details so the UI explains why host health changed.
 - Branched diagnosis likely causes and read-only suggested actions by `stderr_class`, so filesystem, resource-pressure, network-path, and permission failures no longer share generic next steps.
 - Surfaced `stderr_class` directly in the desktop diagnosis panel as a visible failure signal instead of leaving it only inside diagnosis prose.
+- Surfaced the matched `stderr` evidence snippet in the diagnosis panel so operators can see the concrete trigger line behind the classifier.
 
 ## In Progress
 - Reducing the remaining placeholder responsibilities in `session_store` now that host inventory is registry-backed.
@@ -55,7 +56,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 ## Next Steps
 1. Decide whether to persist operator-entered connection overrides locally or keep them session-only.
 2. Continue reducing mock `session_store` responsibilities as more runtime state becomes authoritative.
-3. Expand the command `stderr` pattern set beyond the current high-signal core and decide which additional classes deserve dedicated UI signals, diagnosis copy, or suggested actions.
+3. Expand the command `stderr` pattern set beyond the current high-signal core and decide which additional classes deserve dedicated UI signals, diagnosis copy, suggested actions, or richer evidence snippets.
 
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.

@@ -117,6 +117,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the matched command `stderr` class is now preserved in failure context and projected into diagnosis copy and timeline details for operator visibility
   - diagnosis scaffolding now branches likely causes and read-only suggested actions by `stderr_class` for filesystem, resource-pressure, network-path, and permission failures
   - the desktop diagnosis panel now renders `stderr_class` as an explicit visual failure signal in addition to the generated diagnosis text
+  - the desktop diagnosis panel now also renders the matched `stderr` evidence line when available so operators can see the concrete classifier trigger
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
 - Command framing:
