@@ -72,14 +72,13 @@ export function ShellWorkspace({
   }, [managedBusy]);
 
   return (
-    <section className="terminal-stage panel compact-panel">
-      <div className="terminal-stage-header">
-        <div className="terminal-stage-copy">
+    <section className="terminal-stage panel compact-panel terminal-stage-compact">
+      <div className="terminal-stage-header terminal-stage-header-compact">
+        <div className="terminal-stage-copy terminal-stage-copy-compact">
           <p className="panel-kicker">Live terminal</p>
           <h2>{selectedHost.config.label}</h2>
-          <span>{selectedHost.config.address}</span>
         </div>
-        <div className="terminal-stage-actions">
+        <div className="terminal-stage-actions terminal-stage-actions-compact">
           {inspectNotice ? <span className="inspect-summary-pill">{inspectNotice}</span> : null}
           <button className={`ghost-button small inspect-toggle ${inspectNotice ? "has-signal" : ""}`} onClick={inspectOpen ? onCloseInspect : onOpenInspect}>
             {inspectOpen ? "Hide Inspect" : "Inspect"}
@@ -95,23 +94,20 @@ export function ShellWorkspace({
       ) : null}
 
       {inspectNotice && !inspectOpen ? (
-        <div className="inspect-hint-banner">
+        <div className="inspect-hint-banner inspect-hint-banner-compact">
           <strong>Inspect ready</strong>
-          <p>Timeline, diagnosis, and artifacts stay available on demand without taking over the terminal.</p>
+          <p>Open it only when you need surrounding context.</p>
           <button className="ghost-button small" onClick={onOpenInspect}>
             Open inspect
           </button>
         </div>
       ) : null}
 
-      <div className="terminal-stage-toolbar">
-        <span className="terminal-meta-chip strong">{activeSession.cwd}</span>
-        <span className="terminal-meta-chip">{activeSession.shell}</span>
-        <span className="terminal-meta-chip">{activeSession.state}</span>
-        {failure.exitCode !== 0 ? <span className="terminal-meta-chip tone-warn">exit {failure.exitCode}</span> : null}
-        {managedBusy ? <span className="terminal-meta-chip tone-busy">command in flight</span> : null}
-        {runningDurationLabel ? <span className="terminal-meta-chip">running {runningDurationLabel}</span> : null}
-        {activeCommand?.command ? <span className="terminal-meta-chip truncate">{activeCommand.command}</span> : null}
+      <div className="terminal-stage-hints terminal-stage-hints-compact">
+        <span>Direct terminal input</span>
+        <span>Enter submits</span>
+        <span>History {commandHistorySize > 0 ? `(${commandHistorySize})` : ""}</span>
+        <span>Esc clears</span>
         <div className="terminal-stage-toolbar-actions">
           <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={!activeAction || managedBusy}>
             Use suggested
@@ -122,13 +118,6 @@ export function ShellWorkspace({
             </button>
           ) : null}
         </div>
-      </div>
-
-      <div className="terminal-stage-hints">
-        <span>Direct terminal input</span>
-        <span>Enter submits</span>
-        <span>Up/Down history {commandHistorySize > 0 ? `(${commandHistorySize})` : ""}</span>
-        <span>Esc clears</span>
       </div>
 
       <div className="terminal-stage-body">
@@ -144,6 +133,18 @@ export function ShellWorkspace({
           onClearDraft={onClearComposerValue}
           onInterrupt={onInterrupt}
         />
+      </div>
+
+      <div className="terminal-statusline">
+        <span className={`terminal-status-dot tone-${activeSession.state}`} />
+        <span>{activeSession.state}</span>
+        <span>{selectedHost.config.address}</span>
+        <span>{activeSession.cwd}</span>
+        <span>{activeSession.shell}</span>
+        {managedBusy ? <span>command in flight</span> : null}
+        {runningDurationLabel ? <span>running {runningDurationLabel}</span> : null}
+        {failure.exitCode !== 0 ? <span className="tone-warn">exit {failure.exitCode}</span> : null}
+        {activeCommand?.command ? <span className="truncate">{activeCommand.command}</span> : null}
       </div>
     </section>
   );

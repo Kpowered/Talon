@@ -2058,3 +2058,174 @@ button {
   min-height: 0;
   height: 100%;
 }
+
+.workspace-topbar-minimal {
+  padding: 10px 14px;
+  border-radius: 18px;
+}
+
+.workspace-topbar-minimal .workspace-topbar-copy h1 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.workspace-topbar-minimal .workspace-topbar-address,
+.workspace-topbar-minimal .workspace-topbar-kicker {
+  font-size: 0.74rem;
+}
+
+.workspace-topbar-minimal .workspace-topbar-actions {
+  gap: 6px;
+}
+
+.sidebar-shell {
+  gap: 10px;
+  padding: 12px 10px;
+  border-radius: 18px;
+}
+
+.sidebar-brand {
+  gap: 10px;
+  padding-bottom: 4px;
+}
+
+.sidebar-brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+}
+
+.sidebar-primary-action,
+.sidebar-ghost-action {
+  padding: 9px 10px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+}
+
+.sidebar-host-item {
+  padding: 8px 9px;
+  border-radius: 12px;
+}
+
+.sidebar-selected-host,
+.sidebar-issue-card {
+  padding: 10px;
+  border-radius: 14px;
+}
+
+.workspace-shell {
+  gap: 10px;
+}
+
+.workspace-main {
+  gap: 10px;
+}
+
+.workspace-main.inspect-open {
+  grid-template-columns: minmax(0, 1fr) 292px;
+}
+
+.terminal-stage-compact {
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+}
+
+.terminal-stage-header-compact {
+  gap: 10px;
+}
+
+.terminal-stage-copy-compact h2 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.terminal-stage-actions-compact {
+  gap: 6px;
+}
+
+.inspect-summary-pill {
+  padding: 5px 9px;
+  font-size: 0.7rem;
+}
+
+.inspect-hint-banner-compact {
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.terminal-stage-hints-compact {
+  justify-content: space-between;
+  gap: 6px 10px;
+  font-size: 0.68rem;
+}
+
+.terminal-stage-hints-compact .terminal-stage-toolbar-actions {
+  margin-left: auto;
+}
+
+.terminal-stage-body {
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.terminal-statusline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 24px;
+  padding-top: 2px;
+  color: #8e98af;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+.terminal-statusline .truncate {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminal-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.terminal-status-dot.tone-connected {
+  background: #7df0b1;
+}
+
+.terminal-status-dot.tone-connecting,
+.terminal-status-dot.tone-degraded {
+  background: #ffcc80;
+}
+
+.terminal-status-dot.tone-disconnected {
+  background: #ff8a8a;
+}
+
+.terminal-statusline .tone-warn {
+  color: #ffd89a;
+}
+
+.inspect-drawer {
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+}
+
+.inspect-drawer-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.inspect-tabbar {
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+}

@@ -147,6 +147,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the operator-facing frame is now fixed as a two-column shell: a narrow left navigation rail for hosts and a right-hand terminal workspace with a lightweight top status bar
   - host creation and host maintenance remain dialog-driven; host metadata and credential forms are no longer rendered as persistent page furniture in the connected workspace
   - timeline, diagnosis, and artifacts now exist only inside the Inspect drawer, which opens beside the terminal instead of occupying the main shell by default
+  - live connection state, cwd, shell, and managed-command activity are now rendered as a compact terminal footer/status line rather than as large header chips, keeping the upper workspace visually quieter
   - the connected-session Host Rail is intentionally minimal and defers detailed host editing, password management, and provider settings to dedicated dialogs
   - the shell surface is now a managed terminal transcript view; frontend keyboard input is captured directly inside the terminal pane and rendered by React rather than `xterm.js`
 - session state is now explicitly lifecycle-based: `connecting` at spawn time, `connected` only after live shell output, `disconnected` on transport exit, and `degraded` on stream/wait failures
@@ -231,6 +232,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+
 
 
 

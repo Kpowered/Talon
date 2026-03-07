@@ -98,6 +98,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Fixed the desktop window to a single operator baseline of `1024x768` and disabled resize so Talon now opens with a predictable layout footprint instead of drifting across ad hoc window sizes.
 - Rebuilt the desktop shell into a fixed Termius-style frame: a narrow always-on left host sidebar, a single terminal-first main workspace, and an on-demand Inspect drawer for timeline, diagnosis, and artifacts.
 - Removed the old always-visible multi-panel host/config layout from the main surface so host creation, editing, and deeper configuration now live in dialogs while the live terminal stays primary.
+- Reduced layout crowding after the shell rewrite: connection state and in-flight command indicators now live in a compact terminal footer line instead of occupying the upper-right workspace header.
 ## In Progress
 - Tightening the new terminal-first shell after the layout rewrite, including spacing density, copy hierarchy, and any regressions around host-management entry points.
 
@@ -117,6 +118,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 
 
 

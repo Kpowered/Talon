@@ -51,9 +51,7 @@ function App() {
     isLoadingState,
     hostConfigs,
     setHostConfigs,
-    registryActiveSessionId,
-    busySessionIds,
-    activeConnectionIssue,
+    registryActiveSessionId,    activeConnectionIssue,
     setActiveConnectionIssue,
     activeCommand,
     terminalTail,
@@ -86,9 +84,7 @@ function App() {
   const failure = workspace?.latestFailure ?? null;
   const timeline = workspace?.timeline ?? [];
   const activeAction = diagnosis?.suggestedActions.find((action: SuggestedAction) => action.status === "ready") ?? null;
-  const composerValue = activeSession ? commandDraftBySessionId[activeSession.id] ?? "" : "";
-  const activeSessionBusy = activeSession ? busySessionIds.includes(activeSession.id) : false;
-  const inspectNotice = activeConnectionIssue?.title ?? (failure?.exitCode != null && failure.exitCode !== 0 ? `Exit ${failure.exitCode}` : null);
+  const composerValue = activeSession ? commandDraftBySessionId[activeSession.id] ?? "" : "";  const inspectNotice = activeConnectionIssue?.title ?? (failure?.exitCode != null && failure.exitCode !== 0 ? `Exit ${failure.exitCode}` : null);
   const {
     activeSignalFilter,
     setActiveSignalFilter,
@@ -389,14 +385,10 @@ function App() {
           <TopBar
             selectedHostLabel={selectedHost.config.label}
             selectedHostAddress={selectedHost.config.address}
-            sessionState={activeSession.state}
-            currentPath={activeSession.cwd}
             isConnected={activeSession.state === "connected"}
             isConnectingSession={actions.isConnectingSession || isConnectingNewHost || activeSession.state === "connecting"}
             isDisconnectingSession={actions.isDisconnectingSession}
             isReconnectingSession={actions.isReconnectingSession}
-            isBusy={activeSessionBusy}
-            activeCommandLabel={activeCommand?.command ?? null}
             onManageHosts={() => setIsManageHostsDialogOpen(true)}
             onReconnect={() => void actions.reconnectActiveSession()}
             onDisconnect={() => void actions.disconnectActiveSession()}
@@ -447,6 +439,9 @@ function App() {
 }
 
 export default App;
+
+
+
 
 
 
