@@ -12,7 +12,7 @@ import { useOperatorActions } from "./hooks/useOperatorActions";
 import { useActionNotice } from "./hooks/useActionNotice";
 import { useTimelineSignals } from "./hooks/useTimelineSignals";
 import { useHostRailState } from "./hooks/useHostRailState";
-import { getHostPassword } from "./lib/tauri";
+import { connectSession, deleteHost, getHostPassword } from "./lib/tauri";
 import "./App.css";
 
 const EMPTY_NEW_HOST_DRAFT: NewHostDraft = {
@@ -320,6 +320,72 @@ function App() {
     setIsNewHostDialogOpen(true);
   }
 
+  const connectHostFromRail = useCallback(async (hostId: string) => {
+    const host = hosts.find((entry) => entry.id === hostId);
+    if (!host) {
+      return;
+    }
+
+    const hostConfig = hostConfigs.find((entry) => entry.hostId === hostId);
+    const authMethod = (hostConfig?.authMethod ?? "agent") as HostConnectionConfig["authMethod"];
+    let password: string | undefined;
+
+    if (authMethod === "password") {
+      const response = await getHostPassword(hostId);
+      if (!response.password?.trim()) {
+        setActionNotice({ kind: "error", message: `No saved password is available for ${host.config.label}. Open Manage and update the host first.` });
+        return;
+      }
+      password = response.password;
+    }
+
+    try {
+      setSelectedHostId(hostId);
+      const result = await connectSession({
+        hostId,
+        address: host.config.address,
+        port: hostConfig?.port ?? 22,
+        username: hostConfig?.username ?? "root",
+        authMethod: authMethod as "agent" | "private-key" | "password",
+        password,
+      });
+      setActionNotice({ kind: "success", message: `Managed session ready for ${host.config.label} in ${result.session.cwd}.` });
+      await refreshAll();
+      await loadTerminalSnapshot(result.session.sessionId);
+    } catch (error) {
+      const commandError = error as AppCommandError;
+      setActionNotice({ kind: "error", message: commandError.message ?? `Failed to connect ${host.config.label}.` });
+    }
+  }, [hostConfigs, hosts, loadTerminalSnapshot, refreshAll, setActionNotice, setSelectedHostId]);
+
+  const openManageHostById = useCallback((hostId: string) => {
+    setSelectedHostId(hostId);
+    setIsManageHostsDialogOpen(true);
+  }, [setSelectedHostId]);
+
+  const deleteHostFromRail = useCallback(async (hostId: string) => {
+    const host = hosts.find((entry) => entry.id === hostId);
+    if (!host) {
+      return;
+    }
+
+    if (!window.confirm(`Delete saved host ${host.config.label}?`)) {
+      return;
+    }
+
+    try {
+      await deleteHost(hostId);
+      setActionNotice({ kind: "success", message: `Deleted host ${host.config.label}.` });
+      await refreshAll();
+      if (selectedHostId === hostId) {
+        const nextHost = hosts.find((entry) => entry.id !== hostId) ?? null;
+        setSelectedHostId(nextHost?.id ?? null);
+      }
+    } catch (error) {
+      const commandError = error as AppCommandError;
+      setActionNotice({ kind: "error", message: commandError.message ?? `Failed to delete ${host.config.label}.` });
+    }
+  }, [hosts, refreshAll, selectedHostId, setActionNotice, setSelectedHostId]);
   function closeNewHostDialog() {
     if (isSavingNewHost || isConnectingNewHost) return;
     setIsNewHostDialogOpen(false);
@@ -375,6 +441,9 @@ function App() {
           onSelectHost={setSelectedHostId}
           onCreateHost={openNewHostDialog}
           onManageHosts={() => setIsManageHostsDialogOpen(true)}
+          onConnectHost={(hostId) => void connectHostFromRail(hostId)}
+          onEditHost={openManageHostById}
+          onDeleteHost={(hostId) => void deleteHostFromRail(hostId)}
         />
 
         <section className="workspace-shell">
@@ -424,6 +493,9 @@ function App() {
 }
 
 export default App;
+
+
+
 
 
 

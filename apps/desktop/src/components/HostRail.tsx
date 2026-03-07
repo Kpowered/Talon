@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { Host } from "@talon/core";
 import type { SessionConnectionIssue } from "../types/app";
 
@@ -8,6 +9,15 @@ type HostRailProps = {
   onSelectHost: (hostId: string) => void;
   onCreateHost: () => void;
   onManageHosts: () => void;
+  onConnectHost: (hostId: string) => void;
+  onEditHost: (hostId: string) => void;
+  onDeleteHost: (hostId: string) => void;
+};
+
+type HostContextMenuState = {
+  hostId: string;
+  x: number;
+  y: number;
 };
 
 export function HostRail({
@@ -17,7 +27,34 @@ export function HostRail({
   onSelectHost,
   onCreateHost,
   onManageHosts,
+  onConnectHost,
+  onEditHost,
+  onDeleteHost,
 }: HostRailProps) {
+  const [contextMenu, setContextMenu] = useState<HostContextMenuState | null>(null);
+
+  useEffect(() => {
+    if (!contextMenu) {
+      return undefined;
+    }
+
+    const closeMenu = () => setContextMenu(null);
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeMenu();
+      }
+    };
+
+    window.addEventListener("click", closeMenu);
+    window.addEventListener("contextmenu", closeMenu);
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("click", closeMenu);
+      window.removeEventListener("contextmenu", closeMenu);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [contextMenu]);
+
   return (
     <aside className="sidebar-shell sidebar-shell-nav sidebar-shell-ultralight">
       <div className="sidebar-brand sidebar-brand-compact">
@@ -43,7 +80,17 @@ export function HostRail({
           {hosts.map((host) => {
             const selected = host.id === selectedHost.id;
             return (
-              <button key={host.id} className={`sidebar-host-row ${selected ? "selected" : ""}`} onClick={() => onSelectHost(host.id)}>
+              <button
+                key={host.id}
+                className={`sidebar-host-row ${selected ? "selected" : ""}`}
+                onClick={() => onSelectHost(host.id)}
+                onDoubleClick={() => onConnectHost(host.id)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  onSelectHost(host.id);
+                  setContextMenu({ hostId: host.id, x: event.clientX, y: event.clientY });
+                }}
+              >
                 <span className={`sidebar-host-dot tone-${host.observed.status}`} />
                 <div className="sidebar-host-row-copy">
                   <strong>{host.config.label}</strong>
@@ -56,6 +103,14 @@ export function HostRail({
       </div>
 
       {activeConnectionIssue ? <div className="sidebar-inline-issue">{activeConnectionIssue.title}</div> : null}
+
+      {contextMenu ? (
+        <div className="host-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
+          <button onClick={() => onConnectHost(contextMenu.hostId)}>Connect</button>
+          <button onClick={() => onEditHost(contextMenu.hostId)}>Edit</button>
+          <button className="destructive" onClick={() => onDeleteHost(contextMenu.hostId)}>Delete</button>
+        </div>
+      ) : null}
     </aside>
   );
 }
