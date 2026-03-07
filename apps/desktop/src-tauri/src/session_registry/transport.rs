@@ -204,57 +204,63 @@ fn launch_runtime(
         guard.flush().map_err(|error| error.to_string())?;
     }
 
+    let waited_pid = pid;
+    let waited_askpass_path = askpass_path.clone();
     thread::spawn(move || match child.wait() {
         Ok(status) => {
             let mut state = lock_registry();
-            let askpass_path = state
+            let is_current_runtime = state
                 .runtimes
                 .get(&session_id)
-                .and_then(|runtime| runtime.askpass_path.clone());
-            update_session_state(&mut state, &session_id, "disconnected");
-            update_host_observed_for_session(&mut state, &session_id, Some("warning"), true);
-            state.runtimes.remove(&session_id);
+                .map(|runtime| runtime.pid == waited_pid)
+                .unwrap_or(false);
+            if is_current_runtime {
+                update_session_state(&mut state, &session_id, "disconnected");
+                update_host_observed_for_session(&mut state, &session_id, Some("warning"), true);
+                state.runtimes.remove(&session_id);
+                push_event(
+                    &mut state,
+                    &session_id,
+                    "disconnected",
+                    format!("ssh process exited with status {}", status),
+                );
+                push_terminal_line(
+                    &mut state,
+                    &session_id,
+                    format!("SSH session closed with status {}", status),
+                );
+            }
             drop(state);
-            if let Some(path) = askpass_path {
+            if let Some(path) = waited_askpass_path {
                 let _ = fs::remove_file(path);
             }
-            let mut state = lock_registry();
-            push_event(
-                &mut state,
-                &session_id,
-                "disconnected",
-                format!("ssh process exited with status {}", status),
-            );
-            push_terminal_line(
-                &mut state,
-                &session_id,
-                format!("SSH session closed with status {}", status),
-            );
         }
         Err(error) => {
             let mut state = lock_registry();
-            let askpass_path = state
+            let is_current_runtime = state
                 .runtimes
                 .get(&session_id)
-                .and_then(|runtime| runtime.askpass_path.clone());
-            update_session_state(&mut state, &session_id, "degraded");
-            state.runtimes.remove(&session_id);
+                .map(|runtime| runtime.pid == waited_pid)
+                .unwrap_or(false);
+            if is_current_runtime {
+                update_session_state(&mut state, &session_id, "degraded");
+                state.runtimes.remove(&session_id);
+                push_event(
+                    &mut state,
+                    &session_id,
+                    "disconnected",
+                    format!("ssh process wait failed: {}", error),
+                );
+                push_terminal_line(
+                    &mut state,
+                    &session_id,
+                    format!("SSH session wait failed: {}", error),
+                );
+            }
             drop(state);
-            if let Some(path) = askpass_path {
+            if let Some(path) = waited_askpass_path {
                 let _ = fs::remove_file(path);
             }
-            let mut state = lock_registry();
-            push_event(
-                &mut state,
-                &session_id,
-                "disconnected",
-                format!("ssh process wait failed: {}", error),
-            );
-            push_terminal_line(
-                &mut state,
-                &session_id,
-                format!("SSH session wait failed: {}", error),
-            );
         }
     });
 
