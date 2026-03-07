@@ -32,9 +32,6 @@ function getDefaultBounds(authMethod: ConnectionAuthMethod): WindowBounds {
   };
 }
 
-const MIN_WIDTH = 340;
-const MIN_HEIGHT = 320;
-
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -54,7 +51,6 @@ export function ManageHostsDialog({
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [bounds, setBounds] = useState<WindowBounds>(() => getDefaultBounds(savedHostForm.authMethod));
   const dragStateRef = useRef<{ pointerX: number; pointerY: number; left: number; top: number } | null>(null);
-  const resizeStateRef = useRef<{ pointerX: number; width: number; height: number; ratio: number } | null>(null);
 
   useEffect(() => {
     setBounds(getDefaultBounds(savedHostForm.authMethod));
@@ -63,48 +59,23 @@ export function ManageHostsDialog({
   useEffect(() => {
     function handleMouseMove(event: MouseEvent) {
       const dragState = dragStateRef.current;
-      if (dragState) {
-        const nextLeft = dragState.left + (event.clientX - dragState.pointerX);
-        const nextTop = dragState.top + (event.clientY - dragState.pointerY);
-        const maxLeft = Math.max(12, window.innerWidth - bounds.width - 12);
-        const maxTop = Math.max(12, window.innerHeight - bounds.height - 12);
-        setBounds((current) => ({
-          ...current,
-          left: clamp(nextLeft, 12, maxLeft),
-          top: clamp(nextTop, 12, maxTop),
-        }));
+      if (!dragState) {
         return;
       }
 
-      const resizeState = resizeStateRef.current;
-      if (resizeState) {
-        let nextWidth = clamp(resizeState.width + (event.clientX - resizeState.pointerX), MIN_WIDTH, window.innerWidth - bounds.left - 12);
-        let nextHeight = nextWidth / resizeState.ratio;
-        if (nextHeight < MIN_HEIGHT) {
-          nextHeight = MIN_HEIGHT;
-          nextWidth = nextHeight * resizeState.ratio;
-        }
-        const maxHeight = Math.max(MIN_HEIGHT, window.innerHeight - bounds.top - 12);
-        if (nextHeight > maxHeight) {
-          nextHeight = maxHeight;
-          nextWidth = nextHeight * resizeState.ratio;
-        }
-        const maxWidth = Math.max(MIN_WIDTH, window.innerWidth - bounds.left - 12);
-        if (nextWidth > maxWidth) {
-          nextWidth = maxWidth;
-          nextHeight = nextWidth / resizeState.ratio;
-        }
-        setBounds((current) => ({
-          ...current,
-          width: Math.round(nextWidth),
-          height: Math.round(nextHeight),
-        }));
-      }
+      const nextLeft = dragState.left + (event.clientX - dragState.pointerX);
+      const nextTop = dragState.top + (event.clientY - dragState.pointerY);
+      const maxLeft = Math.max(12, window.innerWidth - bounds.width - 12);
+      const maxTop = Math.max(12, window.innerHeight - bounds.height - 12);
+      setBounds((current) => ({
+        ...current,
+        left: clamp(nextLeft, 12, maxLeft),
+        top: clamp(nextTop, 12, maxTop),
+      }));
     }
 
     function handleMouseUp() {
       dragStateRef.current = null;
-      resizeStateRef.current = null;
     }
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -125,7 +96,7 @@ export function ManageHostsDialog({
   }
 
   function handleDragStart(event: ReactMouseEvent<HTMLDivElement>) {
-    if ((event.target as HTMLElement).closest("button")) {
+    if ((event.target as HTMLElement).closest("button,input,select,textarea")) {
       return;
     }
     dragStateRef.current = {
@@ -133,16 +104,6 @@ export function ManageHostsDialog({
       pointerY: event.clientY,
       left: bounds.left,
       top: bounds.top,
-    };
-  }
-
-  function handleResizeStart(event: ReactMouseEvent<HTMLDivElement>) {
-    event.stopPropagation();
-    resizeStateRef.current = {
-      pointerX: event.clientX,
-      width: bounds.width,
-      height: bounds.height,
-      ratio: bounds.width / bounds.height,
     };
   }
 
@@ -158,11 +119,7 @@ export function ManageHostsDialog({
         style={{ left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height }}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="manage-hosts-popover-header compact editor editor-actions-only drag-handle" onMouseDown={handleDragStart}>
-          <button className="ghost-button small compact-close" onClick={onClose} type="button">
-            x
-          </button>
-        </div>
+        <div className="manage-hosts-popover-header compact editor editor-actions-only drag-handle" onMouseDown={handleDragStart} />
 
         <div className="manage-hosts-editor-stack">
           <label className="connection-field compact-field">
@@ -257,10 +214,7 @@ export function ManageHostsDialog({
             {isDeletingHostConfig ? "Deleting..." : "Delete"}
           </button>
         </div>
-
-        <div className="manage-hosts-resize-handle" onMouseDown={handleResizeStart} />
       </section>
     </div>
   );
 }
-
