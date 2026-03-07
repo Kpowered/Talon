@@ -21,6 +21,13 @@ function isPrintableKey(event: React.KeyboardEvent<HTMLDivElement>) {
 }
 
 function rawSequenceForKey(event: React.KeyboardEvent<HTMLDivElement>) {
+  if (event.ctrlKey && !event.altKey && !event.metaKey && event.key.length === 1) {
+    const upper = event.key.toUpperCase();
+    if (upper >= "A" && upper <= "Z") {
+      return String.fromCharCode(upper.charCodeAt(0) - 64);
+    }
+  }
+
   switch (event.key) {
     case "Enter":
       return "\r";
@@ -28,6 +35,18 @@ function rawSequenceForKey(event: React.KeyboardEvent<HTMLDivElement>) {
       return "\u007f";
     case "Tab":
       return "\t";
+    case "Escape":
+      return "\u001b";
+    case "Delete":
+      return "\u001b[3~";
+    case "Home":
+      return "\u001b[H";
+    case "End":
+      return "\u001b[F";
+    case "PageUp":
+      return "\u001b[5~";
+    case "PageDown":
+      return "\u001b[6~";
     case "ArrowUp":
       return "\u001b[A";
     case "ArrowDown":
@@ -98,7 +117,11 @@ export function XtermShell({
       onKeyDown={(event) => {
         if (event.ctrlKey && event.key.toLowerCase() === "c") {
           event.preventDefault();
-          onInterrupt();
+          if (sessionMode === "raw") {
+            onSendRawInput("\u0003");
+          } else {
+            onInterrupt();
+          }
           return;
         }
 

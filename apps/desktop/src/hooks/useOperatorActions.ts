@@ -22,6 +22,16 @@ import {
   writeSessionInput,
 } from "../lib/tauri";
 
+const INTERACTIVE_COMMAND_PREFIXES = ["top", "htop", "btop", "less", "more", "most", "vim", "vi", "nano", "tmux", "screen", "mysql", "psql", "redis-cli", "ssh"];
+
+function looksInteractiveCommand(command: string) {
+  const trimmed = command.trim();
+  if (!trimmed) {
+    return false;
+  }
+  const firstToken = trimmed.split(/\s+/)[0]?.toLowerCase() ?? "";
+  return INTERACTIVE_COMMAND_PREFIXES.includes(firstToken);
+}
 type OperatorActionsOptions = {
   selectedHost: TalonWorkspaceState["hosts"][number] | null;
   activeSession: TalonWorkspaceState["sessions"][number] | null;
@@ -150,11 +160,19 @@ export function useOperatorActions(options: OperatorActionsOptions) {
 
   const submitCommand = useCallback(async (command: string) => {
     if (!activeSession || !command.trim()) return false;
+    const interactiveHint = activeSession.mode === "managed" && looksInteractiveCommand(command);
     setIsSubmittingCommand(true);
     try {
       const result = await submitSessionCommand(activeSession.id, command);
       setTerminalTail(result.terminal.lines);
-      setActionNotice({ kind: result.accepted ? "success" : "error", message: result.accepted ? `Command submitted to ${activeSession.id}: ${command}` : result.message });
+      setActionNotice({
+        kind: result.accepted ? "success" : "error",
+        message: result.accepted
+          ? interactiveHint
+            ? `Command submitted to ${activeSession.id}: ${command}. This looks interactive; switch to raw mode if terminal controls become limited.`
+            : `Command submitted to ${activeSession.id}: ${command}`
+          : result.message,
+      });
       await refreshRegistry();
       return result.accepted;
     } catch (error) {
