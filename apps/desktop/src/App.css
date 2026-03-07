@@ -1295,3 +1295,24 @@ button {
     min-height: 0;
   }
 }
+
+.action-notice {
+  margin: 10px 18px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.notice-success {
+  background: linear-gradient(180deg, rgba(28, 78, 58, 0.34), rgba(255, 255, 255, 0.03));
+  border-color: rgba(88, 214, 141, 0.28);
+  color: #d9f8e8;
+}
+
+.notice-error {
+  background: linear-gradient(180deg, rgba(109, 39, 39, 0.34), rgba(255, 255, 255, 0.03));
+  border-color: rgba(255, 130, 130, 0.28);
+  color: #ffd9d9;
+}

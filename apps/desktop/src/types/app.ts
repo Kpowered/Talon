@@ -2,6 +2,18 @@ import type { DiagnosisContextPacket, Host, TerminalSnapshot } from "@talon/core
 
 export type TerminalTab = "shell" | "timeline" | "diagnosis" | "artifacts";
 
+export type ActionNotice = {
+  kind: "success" | "error";
+  message: string;
+};
+
+export type AppCommandError = {
+  message: string;
+  kind: "transport" | "validation" | "auth" | "host-trust" | "network" | "agent" | "unknown";
+  source: string;
+  raw?: string;
+};
+
 export type SessionLifecycleEvent = {
   id: string;
   sessionId: string;
