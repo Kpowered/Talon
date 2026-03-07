@@ -48,7 +48,7 @@ type OperatorActionsOptions = {
   setHostConfigs: React.Dispatch<React.SetStateAction<HostConnectionConfig[]>>;
   setTerminalTail: React.Dispatch<React.SetStateAction<string[]>>;
   setActionNotice: React.Dispatch<React.SetStateAction<ActionNotice | null>>;
-  setComposerValue: React.Dispatch<React.SetStateAction<string>>;
+  setComposerValue: (value: React.SetStateAction<string>) => void;
   setAgentSettings: React.Dispatch<React.SetStateAction<AgentSettings | null>>;
   setSavedHostPasswordInput: React.Dispatch<React.SetStateAction<string>>;
   setActiveConnectionIssue: React.Dispatch<React.SetStateAction<SessionConnectionIssue | null>>;
@@ -147,15 +147,17 @@ export function useOperatorActions(options: OperatorActionsOptions) {
   }, [connectionAddress, connectionAuthMethod, connectionPassword, connectionPort, connectionUsername, loadTerminalSnapshot, refreshAll, reportError, selectedHost, setActionNotice]);
 
   const submitCommand = useCallback(async (command: string) => {
-    if (!activeSession || !command.trim()) return;
+    if (!activeSession || !command.trim()) return false;
     setIsSubmittingCommand(true);
     try {
       const result = await submitSessionCommand(activeSession.id, command);
       setTerminalTail(result.terminal.lines);
       setActionNotice({ kind: result.accepted ? "success" : "error", message: result.accepted ? `Command submitted to ${activeSession.id}: ${command}` : result.message });
       await refreshRegistry();
+      return result.accepted;
     } catch (error) {
       reportError(error);
+      return false;
     } finally {
       setIsSubmittingCommand(false);
     }

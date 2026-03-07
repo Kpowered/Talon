@@ -23,6 +23,7 @@ type WorkspacePanelsProps = {
   isRunningAction: string | null;
   isSubmittingCommand: boolean;
   composerValue: string;
+  commandHistorySize: number;
   activeAction: SuggestedAction | null;
   actionSummary: string | null;
   agentSettings: AgentSettings | null;
@@ -33,7 +34,11 @@ type WorkspacePanelsProps = {
   repeatedSignalCounts: Map<string, number>;
   onSetActiveTab: (tab: TerminalTab) => void;
   onSetComposerValue: (value: string) => void;
+  onClearComposerValue: () => void;
   onSubmitCommand: () => void;
+  onUseSuggestedCommand: () => void;
+  onRecallPreviousCommand: () => void;
+  onRecallNextCommand: () => void;
   onToggleSignalFilter: (signal: string) => void;
   onClearSignalFilter: () => void;
   onRerunDiagnosis: () => void;
@@ -54,6 +59,7 @@ export function WorkspacePanels({
   isRunningAction,
   isSubmittingCommand,
   composerValue,
+  commandHistorySize,
   activeAction,
   actionSummary,
   agentSettings,
@@ -64,7 +70,11 @@ export function WorkspacePanels({
   repeatedSignalCounts,
   onSetActiveTab,
   onSetComposerValue,
+  onClearComposerValue,
   onSubmitCommand,
+  onUseSuggestedCommand,
+  onRecallPreviousCommand,
+  onRecallNextCommand,
   onToggleSignalFilter,
   onClearSignalFilter,
   onRerunDiagnosis,
@@ -85,10 +95,15 @@ export function WorkspacePanels({
         isRunningAction={isRunningAction}
         isSubmittingCommand={isSubmittingCommand}
         composerValue={composerValue}
+        commandHistorySize={commandHistorySize}
         activeAction={activeAction}
         onSetActiveTab={onSetActiveTab}
         onSetComposerValue={onSetComposerValue}
+        onClearComposerValue={onClearComposerValue}
         onSubmitCommand={onSubmitCommand}
+        onUseSuggestedCommand={onUseSuggestedCommand}
+        onRecallPreviousCommand={onRecallPreviousCommand}
+        onRecallNextCommand={onRecallNextCommand}
       />
 
       {activeTab === "timeline" ? (

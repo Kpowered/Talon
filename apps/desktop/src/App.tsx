@@ -30,7 +30,10 @@ const EMPTY_NEW_HOST_DRAFT: NewHostDraft = {
 function App() {
   const [activeTab, setActiveTab] = useState<TerminalTab>("shell");
   const { notice: actionNotice, setNotice: setActionNotice, clearNotice } = useActionNotice();
-  const [composerValue, setComposerValue] = useState("");
+  const [commandDraftBySessionId, setCommandDraftBySessionId] = useState<Record<string, string>>({});
+  const [commandHistoryBySessionId, setCommandHistoryBySessionId] = useState<Record<string, string[]>>({});
+  const [commandHistoryCursorBySessionId, setCommandHistoryCursorBySessionId] = useState<Record<string, number | null>>({});
+  const [commandHistoryScratchBySessionId, setCommandHistoryScratchBySessionId] = useState<Record<string, string>>({});
   const [isNewHostDialogOpen, setIsNewHostDialogOpen] = useState(false);
   const [isManageHostsDialogOpen, setIsManageHostsDialogOpen] = useState(false);
   const [newHostDraft, setNewHostDraft] = useState<NewHostDraft>(EMPTY_NEW_HOST_DRAFT);
@@ -80,6 +83,7 @@ function App() {
   const failure = workspace?.latestFailure ?? null;
   const timeline = workspace?.timeline ?? [];
   const activeAction = diagnosis?.suggestedActions.find((action: SuggestedAction) => action.status === "ready") ?? null;
+  const composerValue = activeSession ? commandDraftBySessionId[activeSession.id] ?? "" : "";
   const activeSessionBusy = activeSession ? busySessionIds.includes(activeSession.id) : false;
   const showOperationalPanels = activeSession?.state !== "disconnected";
   const {
@@ -96,6 +100,60 @@ function App() {
     agentSettings,
     activeConnectionIssue,
   });
+
+
+  const setComposerValue = useCallback(
+    (value: React.SetStateAction<string>) => {
+      if (!activeSession) return;
+      setCommandDraftBySessionId((current) => {
+        const nextValue = typeof value === "function" ? value(current[activeSession.id] ?? "") : value;
+        return { ...current, [activeSession.id]: nextValue };
+      });
+      setCommandHistoryCursorBySessionId((current) => ({ ...current, [activeSession.id]: null }));
+    },
+    [activeSession],
+  );
+
+  const clearComposerValue = useCallback(() => {
+    if (!activeSession) return;
+    setCommandDraftBySessionId((current) => ({ ...current, [activeSession.id]: "" }));
+    setCommandHistoryCursorBySessionId((current) => ({ ...current, [activeSession.id]: null }));
+    setCommandHistoryScratchBySessionId((current) => ({ ...current, [activeSession.id]: "" }));
+  }, [activeSession]);
+
+  const recallPreviousCommand = useCallback(() => {
+    if (!activeSession) return;
+    const history = commandHistoryBySessionId[activeSession.id] ?? [];
+    if (history.length === 0) return;
+    const cursor = commandHistoryCursorBySessionId[activeSession.id] ?? null;
+    if (cursor === null) {
+      setCommandHistoryScratchBySessionId((current) => ({ ...current, [activeSession.id]: composerValue }));
+    }
+    const nextCursor = cursor === null ? history.length - 1 : Math.max(cursor - 1, 0);
+    setCommandHistoryCursorBySessionId((current) => ({ ...current, [activeSession.id]: nextCursor }));
+    setCommandDraftBySessionId((current) => ({ ...current, [activeSession.id]: history[nextCursor] ?? "" }));
+  }, [activeSession, commandHistoryBySessionId, commandHistoryCursorBySessionId, composerValue]);
+
+  const recallNextCommand = useCallback(() => {
+    if (!activeSession) return;
+    const history = commandHistoryBySessionId[activeSession.id] ?? [];
+    const cursor = commandHistoryCursorBySessionId[activeSession.id] ?? null;
+    if (history.length === 0 || cursor === null) return;
+    const nextCursor = cursor + 1;
+    if (nextCursor >= history.length) {
+      const scratch = commandHistoryScratchBySessionId[activeSession.id] ?? "";
+      setCommandHistoryCursorBySessionId((current) => ({ ...current, [activeSession.id]: null }));
+      setCommandDraftBySessionId((current) => ({ ...current, [activeSession.id]: scratch }));
+      return;
+    }
+    setCommandHistoryCursorBySessionId((current) => ({ ...current, [activeSession.id]: nextCursor }));
+    setCommandDraftBySessionId((current) => ({ ...current, [activeSession.id]: history[nextCursor] ?? "" }));
+  }, [activeSession, commandHistoryBySessionId, commandHistoryCursorBySessionId, commandHistoryScratchBySessionId]);
+
+  const useSuggestedCommand = useCallback(() => {
+    if (!activeAction) return;
+    setComposerValue(activeAction.command);
+  }, [activeAction, setComposerValue]);
 
   const actions = useOperatorActions({
     selectedHost,
@@ -215,6 +273,22 @@ function App() {
       setIsConnectingNewHost(false);
     }
   }
+
+  const handleSubmitCommand = useCallback(async () => {
+    if (!activeSession) return;
+    const command = composerValue.trim();
+    if (!command) return;
+    const accepted = await actions.submitCommand(command);
+    if (!accepted) return;
+    setCommandHistoryBySessionId((current) => {
+      const history = current[activeSession.id] ?? [];
+      const nextHistory = history[history.length - 1] === command ? history : [...history, command];
+      return { ...current, [activeSession.id]: nextHistory };
+    });
+    setCommandDraftBySessionId((current) => ({ ...current, [activeSession.id]: "" }));
+    setCommandHistoryCursorBySessionId((current) => ({ ...current, [activeSession.id]: null }));
+    setCommandHistoryScratchBySessionId((current) => ({ ...current, [activeSession.id]: "" }));
+  }, [activeSession, actions, composerValue]);
 
   const handleSaveManagedHost = useCallback(async () => {
     await actions.updateSelectedHost();
@@ -346,6 +420,7 @@ function App() {
           isSubmittingCommand={actions.isSubmittingCommand}
           composerValue={composerValue}
           activeAction={activeAction}
+          commandHistorySize={activeSession ? (commandHistoryBySessionId[activeSession.id] ?? []).length : 0}
           actionSummary={actionNotice?.kind === "success" ? actionNotice.message : null}
           agentSettings={agentSettings}
           latestContextPacket={latestContextPacket}
@@ -355,7 +430,11 @@ function App() {
           repeatedSignalCounts={repeatedSignalCounts}
           onSetActiveTab={setActiveTab}
           onSetComposerValue={setComposerValue}
-          onSubmitCommand={() => void actions.submitCommand(composerValue)}
+          onClearComposerValue={clearComposerValue}
+          onSubmitCommand={() => void handleSubmitCommand()}
+          onUseSuggestedCommand={useSuggestedCommand}
+          onRecallPreviousCommand={recallPreviousCommand}
+          onRecallNextCommand={recallNextCommand}
           onToggleSignalFilter={(signal) => setActiveSignalFilter((current) => (current === signal ? null : signal))}
           onClearSignalFilter={() => setActiveSignalFilter(null)}
           onRerunDiagnosis={() => void actions.rerunDiagnosis()}

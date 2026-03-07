@@ -1285,6 +1285,43 @@ button {
   margin-top: auto;
 }
 
+.terminal-composer-inline {
+  gap: 10px;
+}
+
+.composer-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #7f8aa3;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.composer-shortcut {
+  display: inline-flex;
+  align-items: center;
+}
+
+.composer-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.terminal-composer .composer-field {
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.terminal-composer .composer-field:focus {
+  outline: none;
+  border-color: rgba(122, 139, 255, 0.4);
+  box-shadow: 0 0 0 1px rgba(122, 139, 255, 0.2);
+}
+
+
 @media (max-width: 1280px) {
   .host-rail {
     position: static;
