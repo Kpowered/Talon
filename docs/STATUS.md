@@ -64,6 +64,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Reduced panic-style runtime failure paths in `session_registry` by adding recoverable lock helpers for the registry and SSH stdin handles, and by removing `expect(...)` from command completion / connected-session lookup paths.
 - Split the Rust backend session registry into internal `session_registry/` modules (`state`, `registry_ops`, `trust`, `transport`, `projection`, `types`) while keeping the existing Tauri command surface unchanged.
 - Split desktop-only frontend concerns out of `App.tsx` by extracting shared app types, formatter helpers, and dedicated timeline / diagnosis / artifacts view components while preserving the existing Tauri-driven behavior.
+- Continued shrinking App.tsx by extracting the remaining top bar, host rail, and shell workspace UI into focused React components, and tightened the desktop layout to keep the terminal-first surface denser with less vertical waste.
 - Restored and expanded Rust regression coverage for context shaping, stream-tail truncation, command marker parsing, non-zero failure capture, and connection-issue classification; `cargo test` now passes again.
 ## In Progress
 - Continuing to reduce the remaining size of `App.tsx` and to harden diagnosis/trust UX now that backend internals and core test coverage are stable.
@@ -84,6 +85,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 
 
 

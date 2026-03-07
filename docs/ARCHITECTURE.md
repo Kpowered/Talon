@@ -42,6 +42,7 @@ As of 2026-03-06:
 - `apps/desktop/src-tauri/src/session_manager.rs` is the backend boundary that exposes registry-backed session and terminal commands to the UI.
 - `apps/desktop/src-tauri/src/session_manager.rs` now acts as a thin Tauri-safe boundary: read-only getters still return direct DTOs, while mutating commands return `Result<..., String>` so backend/runtime failures surface to the UI instead of panicking the app.
 - `apps/desktop/src/App.tsx` now delegates the read-only workspace tabs to extracted React components under `src/components/views/`, and shared frontend DTOs / formatting helpers live under `src/types/` and `src/lib/` instead of staying embedded in the root app component.
+- The root app component now also delegates top-level operator shell chrome to src/components/TopBar.tsx, src/components/HostRail.tsx, and src/components/ShellWorkspace.tsx, leaving App.tsx primarily responsible for state orchestration and Tauri command handlers.
 - Registry and SSH-stdin lock access now goes through local recovery helpers instead of `expect(...)` so a poisoned lock degrades more safely during long-lived desktop sessions.
 - Real session connection management is now handled by backend-spawned `ssh.exe` child processes with piped stdin/stdout/stderr and reader threads owned by the registry layer.
 
@@ -198,6 +199,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+
 
 
 

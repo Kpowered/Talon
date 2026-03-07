@@ -1232,3 +1232,66 @@ button {
     width: 100%;
   }
 }
+
+.topbar.compact-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  backdrop-filter: blur(14px);
+  background: linear-gradient(180deg, rgba(13, 18, 29, 0.94), rgba(13, 18, 29, 0.84));
+}
+
+.workspace-grid.connected {
+  align-items: start;
+}
+
+.topbar-host-switch {
+  flex: 0 1 220px;
+}
+
+.host-rail {
+  position: sticky;
+  top: 92px;
+  max-height: calc(100vh - 112px);
+  overflow: auto;
+}
+
+.host-rail .compact-host-list {
+  max-height: 220px;
+}
+
+.shell-workspace {
+  min-height: calc(100vh - 112px);
+}
+
+.shell-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  flex: 1;
+}
+
+.shell-banner {
+  margin-bottom: 0;
+}
+
+.terminal-window.compact-terminal-window {
+  min-height: 0;
+  flex: 1;
+}
+
+.terminal-composer {
+  margin-top: auto;
+}
+
+@media (max-width: 1280px) {
+  .host-rail {
+    position: static;
+    max-height: none;
+  }
+
+  .shell-workspace {
+    min-height: 0;
+  }
+}
