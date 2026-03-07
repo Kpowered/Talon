@@ -441,27 +441,51 @@ pub fn timeline_for_session(
         .collect();
 
     if let Some(failure) = failure {
+        let failure_title = if failure.exit_code == 130 {
+            "Interrupt context captured"
+        } else {
+            "Failure context captured"
+        };
+        let failure_detail = if failure.exit_code == 130 {
+            format!(
+                "Captured interrupt context for command {} with exit {}{}{}",
+                failure.command_id,
+                failure.exit_code,
+                failure
+                    .stderr_class
+                    .as_ref()
+                    .map(|class| format!(" and stderr class {}", class))
+                    .unwrap_or_default(),
+                failure
+                    .stderr_evidence
+                    .as_ref()
+                    .map(|evidence| format!(" and evidence {}", evidence))
+                    .unwrap_or_default()
+            )
+        } else {
+            format!(
+                "Captured stdout/stderr tails for command {} with exit {}{}{}",
+                failure.command_id,
+                failure.exit_code,
+                failure
+                    .stderr_class
+                    .as_ref()
+                    .map(|class| format!(" and stderr class {}", class))
+                    .unwrap_or_default(),
+                failure
+                    .stderr_evidence
+                    .as_ref()
+                    .map(|evidence| format!(" and evidence {}", evidence))
+                    .unwrap_or_default()
+            )
+        };
         timeline.insert(
             0,
             TimelineEvent {
                 id: format!("timeline-{}", failure.id),
                 kind: "diagnosis".into(),
-                title: "Failure context captured".into(),
-                detail: format!(
-                    "Captured stdout/stderr tails for command {} with exit {}{}{}",
-                    failure.command_id,
-                    failure.exit_code,
-                    failure
-                        .stderr_class
-                        .as_ref()
-                        .map(|class| format!(" and stderr class {}", class))
-                        .unwrap_or_default(),
-                    failure
-                        .stderr_evidence
-                        .as_ref()
-                        .map(|evidence| format!(" and evidence {}", evidence))
-                        .unwrap_or_default()
-                ),
+                title: failure_title.into(),
+                detail: failure_detail,
                 stderr_class: failure.stderr_class.clone(),
                 stderr_evidence: failure.stderr_evidence.clone(),
                 occurred_at: failure.captured_at.clone(),
@@ -604,4 +628,5 @@ mod tests {
         );
     }
 }
+
 

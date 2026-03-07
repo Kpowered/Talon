@@ -91,13 +91,17 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Removed the eager post-connect shell metadata probe from the SSH stdin path so Talon no longer writes bootstrap commands into a just-opened interactive shell before the operator starts typing.
 - Frontend runtime selection now prefers the session registry active-session pointer over transient workspace projection fallbacks, reducing cases where the UI appears to drop a just-connected live session.
 - Kept the lower-level raw stdin write path internal-only for now rather than exposing it as a first-class operator mode before PTY-grade behavior exists.
-- Simplified the connected-session Host Rail into a compact live-session summary so terminal work stays primary and detailed host configuration remains in dialogs instead of the permanent sidebar.`r`n## In Progress
-- Hardening the managed terminal surface around prompt fidelity, polling cadence, and any remaining edge cases in long-running interactive commands.
+- Simplified the connected-session Host Rail into a compact live-session summary so terminal work stays primary and detailed host configuration remains in dialogs instead of the permanent sidebar.
+- Restored a delayed one-shot post-connect metadata probe so live sessions refresh `cwd` and `shell` after the SSH transport is up, without reintroducing the earlier transcript-clearing bootstrap noise.
+- Distinguished operator-interrupt capture from ordinary command failure capture in the timeline builder so interrupt packets and timeline rows no longer read like generic failures.
+- Locked the terminal-first workspace to a stable grid structure across window resize; the app now prefers horizontal overflow and local wrapping instead of collapsing the main layout into different panel arrangements.
+## In Progress
+- Hardening managed-command transcript capture for interrupted and long-running commands so stdout/stderr tails remain useful even when the operator aborts execution.
 
 ## Next Steps
-1. Add deeper Rust-side coverage around stdin passthrough helpers, active-command state, diagnosis cache invalidation, and trust-confirmation state transitions.
-2. Refine failure and interrupt context packaging so diagnosis and artifacts stay useful for both real errors and operator-aborted commands.
-3. Continue UI cleanup only where it improves operation of the provider, host management, trust, credential, command, and failure-context flows.
+1. Add deeper Rust-side coverage around live transcript tail capture, active-command state, diagnosis cache invalidation, and trust-confirmation state transitions.
+2. Refine failure and interrupt context packaging so diagnosis and artifacts keep richer stdout/stderr evidence for both real errors and operator-aborted commands.
+3. Continue UI cleanup only where it improves terminal operation, host management, trust, credential, command, and failure-context flows without reintroducing layout churn.
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
 - Strict host key checking remains enabled; Talon now has an explicit operator-confirmed trust flow, but fingerprint refresh and repeat-trust UX still need more hardening.
@@ -110,5 +114,6 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 
 

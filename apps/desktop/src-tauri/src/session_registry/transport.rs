@@ -97,6 +97,21 @@ fn should_suppress_managed_shell_echo(state: &SessionRegistry, session_id: &str,
         })
         .unwrap_or(false)
 }
+
+fn schedule_session_metadata_probe(stdin: Arc<Mutex<ChildStdin>>) {
+    thread::spawn(move || {
+        thread::sleep(std::time::Duration::from_millis(180));
+        let probe = format!(
+            "printf '{shell_prefix}%s\\n' \"${{SHELL:-sh}}\"\npwd | sed 's#^#{cwd_prefix}#'\n",
+            shell_prefix = META_SHELL_PREFIX,
+            cwd_prefix = META_CWD_PREFIX,
+        );
+        if let Ok(mut guard) = stdin.lock() {
+            let _ = guard.write_all(probe.as_bytes());
+            let _ = guard.flush();
+        }
+    });
+}
 fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
     thread::spawn(move || {
         let mut reader = BufReader::new(stdout);
@@ -422,6 +437,7 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
 
     match launch_runtime(record.id.clone(), host.clone(), host_config, password) {
         Ok(runtime) => {
+            let stdin = runtime.stdin.clone();
             let mut registry = lock_registry();
             registry.runtimes.insert(record.id.clone(), runtime);
             push_event(
@@ -435,6 +451,8 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
                 &record.id,
                 "SSH transport connected. Waiting for remote shell output...".into(),
             );
+            drop(registry);
+            schedule_session_metadata_probe(stdin);
         }
         Err(error) => {
             let mut registry = lock_registry();
@@ -738,10 +756,11 @@ mod transport_tests {
 
     #[test]
     fn parses_command_end_markers() {
-        let parsed = parse_command_end("__TALON_CMD_END__cmd-7__127__/srv/app").expect("marker should parse");
+        let parsed = parse_command_end("__TALON_CMD_END__cmd-7__127__/srv/app__/bin/bash").expect("marker should parse");
         assert_eq!(parsed.0, "cmd-7");
         assert_eq!(parsed.1, 127);
         assert_eq!(parsed.2, "/srv/app");
+        assert_eq!(parsed.3.as_deref(), Some("/bin/bash"));
     }
     #[test]
     fn builds_interrupt_safe_wrapped_command() {
@@ -774,6 +793,9 @@ mod transport_tests {
         assert_eq!(registry.command_history[0].command, "false");
     }
 }
+
+
+
 
 
 
