@@ -196,14 +196,6 @@ fn launch_runtime(
     start_stdout_reader(session_id.clone(), stdout);
     start_stderr_reader(session_id.clone(), host.clone(), stderr);
 
-    {
-        let mut guard = lock_stdin(&stdin);
-        guard
-            .write_all(b"printf '__TALON_META_SHELL__%s\\n' \"${SHELL:-sh}\"\npwd | sed 's#^#__TALON_META_CWD__#'\n")
-            .map_err(|error| error.to_string())?;
-        guard.flush().map_err(|error| error.to_string())?;
-    }
-
     let waited_pid = pid;
     let waited_askpass_path = askpass_path.clone();
     thread::spawn(move || match child.wait() {
@@ -324,11 +316,17 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
         Ok(runtime) => {
             let mut registry = lock_registry();
             registry.runtimes.insert(record.id.clone(), runtime);
+            update_session_state(&mut registry, &record.id, "connected");
             push_event(
                 &mut registry,
                 &record.id,
                 "transport-ready",
-                "ssh.exe process started. Waiting for remote shell metadata.".into(),
+                "ssh.exe process started. Waiting for remote shell output.".into(),
+            );
+            push_terminal_line(
+                &mut registry,
+                &record.id,
+                "SSH transport connected. Waiting for remote shell output...".into(),
             );
         }
         Err(error) => {
