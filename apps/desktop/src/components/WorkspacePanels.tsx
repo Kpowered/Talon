@@ -1,5 +1,5 @@
 import type { DiagnosisContextPacket, Host, Session, SuggestedAction, TalonWorkspaceState } from "@talon/core";
-import type { ActiveCommandSummary, AgentSettings, TerminalTab } from "../types/app";
+import type { ActiveCommandSummary, AgentSettings, SessionConnectionIssue, TerminalTab } from "../types/app";
 import { ShellWorkspace } from "./ShellWorkspace";
 import { TimelineView } from "./views/TimelineView";
 import { DiagnosisView } from "./views/DiagnosisView";
@@ -15,6 +15,7 @@ type WorkspacePanelsProps = {
     errorMessage?: string | null;
     contextPacketId?: string;
   };
+  activeConnectionIssue: SessionConnectionIssue | null;
   activeConnectionIssueTitle: string | null;
   activeConnectionIssueSummary: string | null;
   activeCommand: ActiveCommandSummary | null;
@@ -57,6 +58,7 @@ export function WorkspacePanels(props: WorkspacePanelsProps) {
     selectedHost,
     failure,
     diagnosis,
+    activeConnectionIssue,
     activeConnectionIssueTitle,
     activeConnectionIssueSummary,
     activeCommand,
@@ -174,13 +176,22 @@ export function WorkspacePanels(props: WorkspacePanelsProps) {
                 agentSettings={agentSettings}
                 selectedHost={selectedHost}
                 activeSession={activeSession}
+                activeConnectionIssue={activeConnectionIssue}
                 isRunningAction={isRunningAction}
                 onRerunDiagnosis={onRerunDiagnosis}
                 onRunAction={onRunAction}
               />
             ) : null}
 
-            {activeTab === "artifacts" ? <ArtifactsView failure={failure} latestContextPacket={latestContextPacket} activeSession={activeSession} selectedHost={selectedHost} /> : null}
+            {activeTab === "artifacts" ? (
+              <ArtifactsView
+                failure={failure}
+                latestContextPacket={latestContextPacket}
+                activeSession={activeSession}
+                selectedHost={selectedHost}
+                activeConnectionIssue={activeConnectionIssue}
+              />
+            ) : null}
           </div>
         </aside>
       ) : null}

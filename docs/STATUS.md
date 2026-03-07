@@ -127,12 +127,16 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added session mode awareness across the shared model, backend responses, and desktop shell: sessions now expose `managed` vs `raw`, the terminal footer can toggle modes, and raw mode sends direct passthrough input for interactive programs while managed mode preserves structured command capture.
 - Added first-pass disconnect-cause capture and degraded-session packaging: transport stream failures, input write failures, and command dispatch failures now mark the session degraded and surface reconnect-oriented issue context instead of silently collapsing into a generic disconnect.
 - Made the diagnosis and artifacts drawers more practical for human operators by surfacing session mode, outcome type, compact handoff facts, and copyable structured packet / summary output.
+- Closed the remaining managed/raw command boundary on the backend: structured command submit now rejects missing sessions, raw-mode sessions, and busy sessions consistently in both registry state and Tauri response messaging.
+- Hardened raw terminal passthrough for interactive tools by mapping additional control and navigation keys such as Escape, Delete, Home/End, PageUp/PageDown, and generic Ctrl+letter control bytes.
+- Added lightweight managed-mode hints for obviously interactive commands so operators are nudged toward raw mode without Talon auto-switching modes or hiding structured capture behavior.
+- Repacked diagnosis and artifacts again into a denser operator packet: disconnect-cause-aware primary findings, transport-action guidance, compact at-a-glance evidence, copyable handoff text, and a folded full-packet JSON section.
 ## In Progress
-- Tightening the new terminal-first shell after the layout rewrite, including spacing density, copy hierarchy, and any regressions around host-management entry points.
+- Tightening the terminal-first shell after the layout rewrite, with the core SSH, mode, and operator-packet paths now largely real and the remaining work focused on polish, targeted bug fixes, and deeper verification.
 
 ## Next Steps
-1. Add deeper Rust-side coverage around live transcript tail capture, active-command state, diagnosis cache invalidation, and trust-confirmation state transitions.
-2. Refine failure and interrupt context packaging so diagnosis and artifacts keep richer stdout/stderr evidence for both real errors and operator-aborted commands.
+1. Add deeper Rust-side coverage around transcript preservation, command completion markers, interrupt fallback, and reconnect/degraded state transitions.
+2. Keep tightening failure and interrupt context packaging so long-running, low-output, and transport-drop cases retain the most useful operator evidence.
 3. Continue UI cleanup only where it improves terminal operation, host management, trust, credential, command, and failure-context flows without reintroducing layout churn.
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.

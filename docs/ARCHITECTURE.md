@@ -222,6 +222,9 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 - the live SSH lifecycle now distinguishes `connecting`, `reconnecting`, `connected`, `disconnecting`, `disconnected`, and `degraded`; Host Rail connection attempts select connect vs reconnect based on whether the target host already has a session record, while backend disconnect marks the session as `disconnecting` before transport teardown
 - the React shell now performs a small optimistic workspace projection after connect or reconnect so the active session and lifecycle label update immediately, and the terminal footer exposes explicit `Disconnect` / `Disconnecting` control instead of hiding teardown behind refresh timing
 - the session model now carries a runtime mode flag: `managed` preserves Talon command wrapping, exit detection, cwd tracking, and failure packaging, while `raw` bypasses wrapping and forwards terminal input directly for interactive full-screen programs
+- managed-command submission is now enforced server-side as a managed-only path: raw sessions reject structured submit calls, busy managed sessions reject concurrent wrapped commands, and missing sessions surface an explicit command-rejected result instead of silently failing
+- raw passthrough now forwards a broader PTY-oriented key set, including Ctrl-letter control bytes and common navigation keys, so full-screen and pager-style remote programs behave more like a native terminal
+- the diagnosis/artifact drawer now treats connection issues and disconnect cause as first-class packet evidence: operators see a compact handoff summary and at-a-glance packet first, while the full JSON remains available under a folded details section
 - transport failures are beginning to distinguish degraded sessions from intentional disconnects via issue metadata rather than only a flat disconnected state, so reconnect UX and diagnosis can be driven by disconnect cause
 - diagnosis/artifact rendering is now operator-oriented: alongside the raw packet JSON, the desktop shows a compact handoff summary, visible outcome type, and session-mode context so failures can be reviewed or shared without reading the full packet first
 - A lower-level stdin passthrough helper exists in the backend but is intentionally not surfaced as a normal operator mode until fuller PTY/TUI behavior is implemented
@@ -244,6 +247,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+
 
 
 

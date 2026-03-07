@@ -503,6 +503,7 @@ function App() {
             selectedHost={selectedHost}
             failure={failure}
             diagnosis={diagnosis}
+            activeConnectionIssue={activeConnectionIssue}
             activeConnectionIssueTitle={activeConnectionIssue?.title ?? null}
             activeConnectionIssueSummary={activeConnectionIssue?.summary ?? null}
             activeCommand={activeCommand}

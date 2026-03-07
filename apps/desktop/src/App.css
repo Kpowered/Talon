@@ -3264,3 +3264,25 @@ button {
   margin-top: 2px;
 }
 
+
+.artifact-card pre {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+}
+
+.artifact-details summary {
+  cursor: pointer;
+  color: #eef2ff;
+  font-family: 'Sora', 'Segoe UI', sans-serif;
+  font-size: 0.82rem;
+  list-style: none;
+}
+
+.artifact-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.artifact-details[open] summary {
+  margin-bottom: 8px;
+}
+

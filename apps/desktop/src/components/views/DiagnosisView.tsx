@@ -1,5 +1,5 @@
 import type { Host, Session, SuggestedAction, TalonWorkspaceState } from "@talon/core";
-import type { AgentSettings } from "../../types/app";
+import type { AgentSettings, SessionConnectionIssue } from "../../types/app";
 
 type DiagnosisViewProps = {
   actionSummary: string | null;
@@ -12,6 +12,7 @@ type DiagnosisViewProps = {
   agentSettings: AgentSettings | null;
   selectedHost: Host;
   activeSession: Session;
+  activeConnectionIssue: SessionConnectionIssue | null;
   isRunningAction: string | null;
   onRerunDiagnosis: () => void;
   onRunAction: (action: SuggestedAction) => void;
@@ -30,6 +31,50 @@ function sourceLabel(source: string) {
   return source === "agent" ? "Model" : "System";
 }
 
+function primaryFinding(
+  actionSummary: string | null,
+  diagnosisSummary: string,
+  activeConnectionIssue: SessionConnectionIssue | null,
+  activeSession: Session,
+  failure: TalonWorkspaceState["latestFailure"],
+) {
+  if (activeConnectionIssue) {
+    return {
+      title: activeConnectionIssue.title,
+      summary: activeConnectionIssue.summary,
+      badge: activeConnectionIssue.disconnectCause ?? activeConnectionIssue.kind,
+    };
+  }
+  if (failure.outcomeType === "operator-interrupted") {
+    return {
+      title: "Operator interrupt recorded",
+      summary: "The remote command was interrupted by the operator. No remediation is required unless the command needs to be re-run.",
+      badge: "operator-interrupted",
+    };
+  }
+  if (activeSession.state === "degraded") {
+    return {
+      title: "SSH transport degraded",
+      summary: "The session lost reliable transport or stream state. Reconnect before trusting any partial command result.",
+      badge: "transport-drop",
+    };
+  }
+  if (activeSession.state === "disconnected") {
+    return {
+      title: "Remote shell exited",
+      summary: "The SSH session is no longer attached to a live shell. Reconnect if you need a fresh terminal.",
+      badge: "remote-exit",
+    };
+  }
+  return {
+    title: (actionSummary ?? diagnosisSummary).trim() || "Session details",
+    summary: activeSession.mode === "raw"
+      ? "Raw mode is active, so structured command boundaries are reduced until you switch back to managed mode."
+      : "Managed mode is active for structured capture, exit detection, and failure packaging.",
+    badge: activeSession.mode,
+  };
+}
+
 export function DiagnosisView({
   actionSummary,
   diagnosis,
@@ -37,24 +82,26 @@ export function DiagnosisView({
   agentSettings,
   selectedHost,
   activeSession,
+  activeConnectionIssue,
   isRunningAction,
   onRerunDiagnosis,
   onRunAction,
 }: DiagnosisViewProps) {
   const hasMessages = diagnosis.messages.length > 0;
   const hasActions = diagnosis.suggestedActions.length > 0;
+  const finding = primaryFinding(actionSummary, diagnosis.summary, activeConnectionIssue, activeSession, failure);
 
   return (
     <div className="workspace-stack diagnosis-view">
       <article className="incident-hero compact-hero">
         <div>
           <p className="incident-label">Primary finding</p>
-          <h3>{actionSummary ?? diagnosis.summary}</h3>
-          <p>{activeSession.mode === "raw" ? "Raw mode limits structured capture. Use managed mode for exit detection and packaged failures." : "Managed mode is active for structured capture and diagnosis."}</p>
+          <h3>{finding.title}</h3>
+          <p>{finding.summary}</p>
         </div>
         <div className="hero-badges">
+          <span className="confidence-badge">{finding.badge}</span>
           <span className="confidence-badge">{activeSession.mode}</span>
-          <span className="confidence-badge">{failure.outcomeType}</span>
           <span className="confidence-badge">{diagnosis.provider}</span>
         </div>
       </article>
@@ -71,7 +118,7 @@ export function DiagnosisView({
           <p>{activeSession.shell} in {activeSession.cwd}</p>
         </article>
         <article className="insight-card">
-          <span>Outcome</span>
+          <span>Capture</span>
           <strong>{outcomeLabel(failure.outcomeType)}</strong>
           <p>Exit {failure.exitCode} ¡¤ {stderrClassLabel(failure.stderrClass)}</p>
         </article>
@@ -83,6 +130,20 @@ export function DiagnosisView({
       </div>
 
       <div className="diagnosis-feed compact-diagnosis-feed">
+        {activeConnectionIssue ? (
+          <article className="diagnosis-card tone-warning">
+            <div className="diagnosis-meta">
+              <span>System</span>
+              <strong>{activeConnectionIssue.operatorAction}</strong>
+            </div>
+            <p>
+              {activeConnectionIssue.suggestedCommand
+                ? `Suggested next check: ${activeConnectionIssue.suggestedCommand}`
+                : "No in-band command was suggested for this transport issue."}
+            </p>
+          </article>
+        ) : null}
+
         {hasMessages ? diagnosis.messages.map((message) => (
           <article key={message.id} className={`diagnosis-card tone-${message.tone}`}>
             <div className="diagnosis-meta">
@@ -97,7 +158,7 @@ export function DiagnosisView({
               <span>Talon</span>
               <strong>No diagnosis narrative available yet</strong>
             </div>
-            <p>Run another diagnosis pass after a fresh command failure or connection issue so Talon can rebuild operator-facing incident notes.</p>
+            <p>Run another diagnosis pass after a fresh command failure or transport issue so Talon can rebuild operator-facing incident notes.</p>
           </article>
         )}
       </div>
