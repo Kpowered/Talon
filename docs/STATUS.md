@@ -134,11 +134,14 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added Rust unit coverage for managed/raw submit boundaries, operator interrupt completion, remote-exit vs operator-disconnect classification, and session-mode mutation notices.
 - Fixed a real backend self-lock in `submit_command`: early rejection paths no longer try to build a terminal snapshot by re-locking the session registry while the registry mutex is already held.
 - Tightened the terminal-first desktop shell again by shrinking the host rail, inspect drawer, status line, and host-editor default footprint without changing the underlying workflows.
+- Added a second hardening pass across the Rust backend tests so `cargo test` now passes without forcing `--test-threads=1`, using a test-only registry isolation helper for the global session registry.
+- Expanded backend regression coverage to include reconnect request priming, stream-failure degradation, and host-trust confirmation persistence, and fixed the host-trust fingerprint writeback so it updates the real host config instead of deriving a host id from the session id prefix.
+- Performed another small operator-density trim in the desktop shell by narrowing the inspect drawer and shrinking the host-editor default bounds and action chrome without changing workflows.
 ## In Progress
 - Tightening the terminal-first shell after the layout rewrite, with the core SSH, mode, and operator-packet paths now largely real and the remaining work focused on polish, targeted bug fixes, and deeper verification.
 
 ## Next Steps
-1. Add a second Rust-side coverage pass for reconnect requests, transport stream read failures, and any remaining trust-confirmation edge cases.
+1. Add one more backend coverage pass for local connection-launch failures and any remaining diagnosis cache invalidation edge cases.
 2. Keep tightening failure and interrupt context packaging so long-running, low-output, and transport-drop cases retain the most useful operator evidence.
 3. Continue UI cleanup only where it improves terminal operation, host management, trust, credential, command, and failure-context flows without reintroducing layout churn.
 ## Risks And Open Questions

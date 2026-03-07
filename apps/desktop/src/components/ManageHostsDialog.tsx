@@ -25,10 +25,10 @@ type WindowBounds = {
 
 function getDefaultBounds(authMethod: ConnectionAuthMethod): WindowBounds {
   return {
-    left: 204,
-    top: 20,
-    width: 344,
-    height: authMethod === "agent" ? 272 : 320,
+    left: 198,
+    top: 18,
+    width: 336,
+    height: authMethod === "agent" ? 264 : 308,
   };
 }
 

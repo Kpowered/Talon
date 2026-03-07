@@ -3449,3 +3449,41 @@ button {
 .insight-card {
   padding: 8px 10px;
 }
+/* Post-regression density trim */
+.workspace-main.inspect-open {
+  grid-template-columns: minmax(0, 1fr) 228px;
+}
+
+.inspect-drawer {
+  padding: 5px;
+}
+
+.inspect-drawer-header.compact {
+  gap: 4px;
+  margin-bottom: 3px;
+}
+
+.inspect-drawer-copy.compact {
+  margin-bottom: 4px;
+}
+
+.terminal-status-actions {
+  gap: 3px;
+}
+
+.terminal-footer-button {
+  min-height: 21px;
+  padding: 2px 5px;
+}
+
+.manage-hosts-editor-popover.compact {
+  padding: 2px 5px 3px;
+}
+
+.manage-hosts-editor-stack {
+  gap: 0;
+}
+
+.manage-host-actions.compact {
+  gap: 3px;
+}
