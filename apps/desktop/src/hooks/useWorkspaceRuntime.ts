@@ -26,10 +26,13 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
 
   const applyWorkspace = useCallback((state: TalonWorkspaceState) => {
     setWorkspace(state);
-    setSelectedHostId((current) => current ?? state.sessions[0]?.hostId ?? state.hosts[0]?.id ?? null);
-    if (state.terminal.lines.length > 0) {
-      setTerminalTail(state.terminal.lines);
-    }
+    setSelectedHostId((current) => {
+      if (current && state.hosts.some((host) => host.id === current)) {
+        return current;
+      }
+      return state.sessions[0]?.hostId ?? state.hosts[0]?.id ?? null;
+    });
+    setTerminalTail(state.terminal.lines);
     return state;
   }, []);
 
@@ -138,7 +141,10 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
       .then((response) => {
         setLatestContextPacket(response.packet);
       })
-      .catch(reportError);
+      .catch((error) => {
+        setLatestContextPacket(null);
+        reportError(error);
+      });
   }, [reportError, workspace?.activeSessionId, workspace?.latestDiagnosis?.contextPacketId]);
 
   return {
@@ -163,4 +169,6 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     loadTerminalSnapshot,
   };
 }
+
+
 
