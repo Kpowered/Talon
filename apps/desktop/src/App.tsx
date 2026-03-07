@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Host, Session, SuggestedAction } from "@talon/core";
-import type { HostConnectionConfig, TerminalTab } from "./types/app";
+import type { AppCommandError, HostConnectionConfig, NewHostDraft, TerminalTab } from "./types/app";
 import { TopBar } from "./components/TopBar";
 import { HostRail } from "./components/HostRail";
 import { ActionNoticeBar } from "./components/ActionNoticeBar";
 import { AppEmptyState } from "./components/AppEmptyState";
 import { WorkspacePanels } from "./components/WorkspacePanels";
+import { NewHostDialog } from "./components/NewHostDialog";
 import { useWorkspaceRuntime } from "./hooks/useWorkspaceRuntime";
 import { useOperatorActions } from "./hooks/useOperatorActions";
 import { useActionNotice } from "./hooks/useActionNotice";
@@ -13,10 +14,25 @@ import { useTimelineSignals } from "./hooks/useTimelineSignals";
 import { useHostRailState } from "./hooks/useHostRailState";
 import "./App.css";
 
+const EMPTY_NEW_HOST_DRAFT: NewHostDraft = {
+  label: "",
+  address: "",
+  port: "22",
+  username: "root",
+  authMethod: "password",
+  password: "",
+  region: "custom",
+  tags: "",
+};
+
 function App() {
   const [activeTab, setActiveTab] = useState<TerminalTab>("shell");
   const { notice: actionNotice, setNotice: setActionNotice, clearNotice } = useActionNotice();
   const [composerValue, setComposerValue] = useState("");
+  const [isNewHostDialogOpen, setIsNewHostDialogOpen] = useState(false);
+  const [newHostDraft, setNewHostDraft] = useState<NewHostDraft>(EMPTY_NEW_HOST_DRAFT);
+  const [isSavingNewHost, setIsSavingNewHost] = useState(false);
+  const [isConnectingNewHost, setIsConnectingNewHost] = useState(false);
 
   const runtime = useWorkspaceRuntime({ onError: setActionNotice });
   const {
@@ -127,6 +143,57 @@ function App() {
     hostRail.setAgentForm((current) => ({ ...current, apiKey: "" }));
   }, [agentSettings?.hasApiKey, hostRail.agentForm.apiKey, hostRail.setAgentForm]);
 
+  async function handleCreateHost(connectAfterCreate: boolean) {
+    const draft = {
+      ...newHostDraft,
+      label: newHostDraft.label.trim(),
+      address: newHostDraft.address.trim(),
+      username: newHostDraft.username.trim(),
+      password: newHostDraft.password,
+    };
+
+    if (!draft.address) {
+      setActionNotice({ kind: "error", message: "Enter a host address before saving or connecting." });
+      return;
+    }
+
+    if (draft.authMethod === "password" && !draft.password.trim()) {
+      setActionNotice({ kind: "error", message: "Enter a password before connecting with password auth." });
+      return;
+    }
+
+    if (connectAfterCreate) {
+      setIsConnectingNewHost(true);
+    } else {
+      setIsSavingNewHost(true);
+    }
+
+    try {
+      await actions.createHostFromDraft(draft, connectAfterCreate);
+      setIsNewHostDialogOpen(false);
+      setNewHostDraft(EMPTY_NEW_HOST_DRAFT);
+      hostRail.setIsSavedConfigExpanded(true);
+      hostRail.setIsSessionOverrideExpanded(true);
+    } catch (error) {
+      const commandError = error as AppCommandError;
+      setActionNotice({ kind: "error", message: commandError.message ?? "Failed to create host." });
+    } finally {
+      setIsSavingNewHost(false);
+      setIsConnectingNewHost(false);
+    }
+  }
+
+  function openNewHostDialog() {
+    setNewHostDraft(EMPTY_NEW_HOST_DRAFT);
+    setIsNewHostDialogOpen(true);
+  }
+
+  function closeNewHostDialog() {
+    if (isSavingNewHost || isConnectingNewHost) return;
+    setIsNewHostDialogOpen(false);
+    setNewHostDraft(EMPTY_NEW_HOST_DRAFT);
+  }
+
   if (!workspace || !diagnosis || !failure || !activeSession || !selectedHost) {
     return <AppEmptyState isLoading={isLoadingState} />;
   }
@@ -136,18 +203,30 @@ function App() {
       <TopBar
         hosts={hosts}
         selectedHostId={selectedHost.id}
-        isSavingHostConfig={actions.isSavingHostConfig}
+        isSavingHostConfig={actions.isSavingHostConfig || isSavingNewHost}
         isReconnectingSession={actions.isReconnectingSession}
         isDisconnectingSession={actions.isDisconnectingSession}
-        isConnectingSession={actions.isConnectingSession}
+        isConnectingSession={actions.isConnectingSession || isConnectingNewHost}
         onSelectHost={setSelectedHostId}
-        onCreateHost={() => void actions.createHost()}
+        onCreateHost={openNewHostDialog}
         onReconnect={() => void actions.reconnectActiveSession()}
         onDisconnect={() => void actions.disconnectActiveSession()}
         onConnect={() => void actions.connectSelectedHost()}
       />
 
       {actionNotice ? <ActionNoticeBar notice={actionNotice} onDismiss={clearNotice} /> : null}
+
+      {isNewHostDialogOpen ? (
+        <NewHostDialog
+          draft={newHostDraft}
+          isSaving={isSavingNewHost}
+          isConnecting={isConnectingNewHost}
+          onChange={(updater) => setNewHostDraft((current) => updater(current))}
+          onCancel={closeNewHostDialog}
+          onSave={() => void handleCreateHost(false)}
+          onConnect={() => void handleCreateHost(true)}
+        />
+      ) : null}
 
       <section className={`workspace-grid ${showOperationalPanels ? "connected" : "session-first"}`}>
         {showOperationalPanels ? (
@@ -219,4 +298,3 @@ function App() {
 }
 
 export default App;
-

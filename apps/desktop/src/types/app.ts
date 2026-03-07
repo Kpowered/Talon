@@ -34,6 +34,17 @@ export type HostConnectionConfig = {
 
 export type ConnectionAuthMethod = "agent" | "private-key" | "password";
 
+export type NewHostDraft = {
+  label: string;
+  address: string;
+  port: string;
+  username: string;
+  authMethod: ConnectionAuthMethod;
+  password: string;
+  region: string;
+  tags: string;
+};
+
 export type ConnectSessionResponse = {
   session: {
     sessionId: string;

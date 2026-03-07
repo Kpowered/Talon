@@ -50,6 +50,8 @@ As of 2026-03-06:
 - Frontend command-error normalization is now source-aware: the same backend failure can surface different operator hints depending on whether it happened during connect, command submission, host trust, host config mutation, agent configuration, or live-state refresh.
 - Host-rail form orchestration now lives in `src/hooks/useHostRailState.ts`, which owns saved-host defaults, session-only override input, agent settings input, expansion state, and selected-host synchronization instead of leaving those responsibilities in the root app component.
 - `src/components/HostRail.tsx` now consumes grouped form models rather than dozens of flat scalar props, which makes the operator-editable host model boundaries clearer between persisted defaults, session-only overrides, and agent configuration.
+- New host creation now enters through `src/components/NewHostDialog.tsx` instead of mutating backend host state immediately from the top bar; operators provide SSH details first, then explicitly save or save-and-connect.
+- `useOperatorActions` now exposes a dedicated create-host-from-draft path that persists the host record, persists its default SSH config, and can immediately open a live SSH session from the same draft payload.
 - `useWorkspaceRuntime` now clears the cached diagnosis context packet when the active SSH session disappears so artifact rendering tracks the current runtime session boundary more faithfully.
 - The same runtime hook now also clears cached packet state on packet-load failure, always mirrors the backend terminal snapshot even when it becomes empty, and re-validates `selectedHostId` against the current backend host inventory during refresh.
 - Registry and SSH-stdin lock access now goes through local recovery helpers instead of `expect(...)` so a poisoned lock degrades more safely during long-lived desktop sessions.
@@ -208,6 +210,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+
 
 
 

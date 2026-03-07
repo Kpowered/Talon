@@ -1340,3 +1340,48 @@ button {
 }
 
 
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(3, 8, 15, 0.7);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.dialog-card {
+  width: min(560px, 100%);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 13, 24, 0.96);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(18px);
+  padding: 18px;
+}
+
+.dialog-header,
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dialog-header {
+  margin-bottom: 14px;
+}
+
+.dialog-form {
+  margin-top: 6px;
+}
+
+.dialog-note {
+  margin: 12px 0 0;
+}
+
+.dialog-actions {
+  margin-top: 16px;
+  justify-content: flex-end;
+}

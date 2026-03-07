@@ -75,6 +75,8 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Cleared stale diagnosis context packets when no active session exists so the artifacts view no longer carries over old SSH session evidence after disconnect.
 - Hardened live workspace refresh so the selected host falls back to a valid current host when inventory changes and terminal tail state now clears correctly when the active SSH session no longer has buffered output.
 - Cleared cached context packets on packet-fetch failure as well, avoiding stale artifact rendering when a diagnosis packet disappears between real SSH session transitions.
+- Replaced the old silent `New host` behavior with an explicit create-host dialog that lets operators enter SSH connection details up front and choose `Save`, `Connect`, or `Cancel` before any host record is created.
+- Added a direct create-and-connect flow for new hosts so Talon can persist a host/config pair and immediately open a real SSH session from the same modal input without forcing a second pass through HostRail.
 - Restored and expanded Rust regression coverage for context shaping, stream-tail truncation, command marker parsing, non-zero failure capture, and connection-issue classification; `cargo test` now passes again.
 ## In Progress
 - Continuing to reduce the remaining size of `App.tsx` and to harden diagnosis/trust UX now that backend internals and core test coverage are stable.
@@ -95,6 +97,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 
 
 

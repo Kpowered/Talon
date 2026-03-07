@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import type { SuggestedAction, TalonWorkspaceState } from "@talon/core";
-import type { ActionNotice, AgentSettings, AppCommandError, ConnectionAuthMethod, HostConnectionConfig, SessionConnectionIssue } from "../types/app";
+import type { ActionNotice, AgentSettings, AppCommandError, ConnectionAuthMethod, HostConnectionConfig, NewHostDraft, SessionConnectionIssue } from "../types/app";
 import {
   clearAgentApiKey,
   clearHostPassword,
@@ -335,6 +335,53 @@ export function useOperatorActions(options: OperatorActionsOptions) {
     }
   }, [hostAuthMethodInput, hostFingerprintHintInput, hostPortInput, hostPrivateKeyPathInput, hostUsernameInput, refreshRegistry, reportError, setHostConfigs]);
 
+  const createHostFromDraft = useCallback(async (draft: NewHostDraft, connectAfterCreate: boolean) => {
+    const hostId = `host-${crypto.randomUUID().slice(0, 8)}`;
+    const username = draft.username.trim() || "root";
+    const address = draft.address.trim();
+    const label = draft.label.trim() || address || "new-host";
+
+    await upsertHost({
+      id: hostId,
+      label,
+      address,
+      region: draft.region.trim() || "custom",
+      tags: parseTags(draft.tags),
+    });
+
+    const configResult = await upsertHostConfig({
+      hostId,
+      port: Number(draft.port) || 22,
+      username,
+      authMethod: draft.authMethod,
+      fingerprintHint: "Pending trust",
+      privateKeyPath: null,
+    });
+
+    setHostConfigs(configResult.hostConfigs);
+    setSelectedHostId(hostId);
+
+    if (!connectAfterCreate) {
+      await refreshWorkspace();
+      await refreshRegistry();
+      setActionNotice({ kind: "success", message: `Created host config for ${label}.` });
+      return { hostId, connected: false as const };
+    }
+
+    const result = await connectSession({
+      hostId,
+      address,
+      port: Number(draft.port) || 22,
+      username,
+      authMethod: draft.authMethod,
+      password: draft.authMethod === "password" ? draft.password : undefined,
+    });
+
+    setActionNotice({ kind: "success", message: `Managed session ready for ${label} in ${result.session.cwd}.` });
+    await refreshAll();
+    await loadTerminalSnapshot(result.session.sessionId);
+    return { hostId, connected: true as const, sessionId: result.session.sessionId };
+  }, [loadTerminalSnapshot, parseTags, refreshAll, refreshRegistry, refreshWorkspace, setActionNotice, setHostConfigs, setSelectedHostId]);
   const createHost = useCallback(async () => {
     const hostId = `host-${crypto.randomUUID().slice(0, 8)}`;
     const label = hostLabelInput.trim() || "new-host";
@@ -416,7 +463,11 @@ export function useOperatorActions(options: OperatorActionsOptions) {
     parseTags,
     saveHostConfig,
     createHost,
+    createHostFromDraft,
     updateSelectedHost,
     deleteSelectedHost,
   };
 }
+
+
+
