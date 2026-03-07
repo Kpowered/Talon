@@ -22,14 +22,12 @@ function shouldApplyTerminalSnapshot(
   if (nextSessionId !== currentSessionId) {
     return true;
   }
-  if (nextLines.length === 0) {
-    return currentLines.length === 0;
+  if (currentLines.length === 0) {
+    return true;
   }
-  if (nextLines.length < currentLines.length) {
-    return false;
-  }
-  return true;
+  return nextLines.length > currentLines.length;
 }
+
 
 
 export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
