@@ -216,7 +216,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 - The transport now forces PTY allocation instead of `ssh -T`, because Talon is acting as a persistent shell session rather than a one-shot non-interactive command pipe
 - the managed terminal view is append-oriented, exposes active-command metadata to the frontend, and preserves transcript state across polling refreshes instead of replaying or clearing the screen
 - when structured command/failure signals are absent, the workspace timeline degrades gracefully to recent lifecycle events from the session registry so connection progress is still visible to the operator
-- host creation remains card-based, but saved-host management is now rendered as a draggable, proportionally resizable floating editor beside the left rail so the rail itself remains the single host list while edit/delete actions stay available without obscuring the terminal; the editor itself is arranged as a dense grouped desktop form rather than a tall stacked dialog, with auth-driven detail panels so only the active credential mode occupies space, and with very low vertical rhythm to keep the editor compact inside the fixed desktop frame, and without boxed subcards for tags/fingerprint or auth detail sections
+- host creation remains card-based, but saved-host management is now rendered as a draggable, proportionally resizable floating editor beside the left rail so the rail itself remains the single host list while edit/delete actions stay available without obscuring the terminal; the editor itself is arranged as a dense grouped desktop form rather than a tall stacked dialog, with auth-driven detail panels so only the active credential mode occupies space, and with very low vertical rhythm to keep the editor compact inside the fixed desktop frame, and without boxed subcards for tags/fingerprint or auth detail sections, and with rows pinned to the top of the editor grid instead of distributing spare height between fields
 - the desktop shell is currently locked to a non-resizable `1024x768` window while density and alignment are being tuned against a terminal-first layout
 - A lower-level stdin passthrough helper exists in the backend but is intentionally not surfaced as a normal operator mode until fuller PTY/TUI behavior is implemented
 
@@ -238,6 +238,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+
 
 
 
