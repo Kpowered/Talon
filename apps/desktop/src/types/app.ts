@@ -1,4 +1,4 @@
-import type { DiagnosisContextPacket, Host, TerminalSnapshot } from "@talon/core";
+import type { DiagnosisContextPacket, Host, SessionState, TerminalSnapshot } from "@talon/core";
 
 export type TerminalTab = "shell" | "timeline" | "diagnosis" | "artifacts";
 
@@ -50,7 +50,7 @@ export type ConnectSessionResponse = {
   session: {
     sessionId: string;
     hostId: string;
-    state: string;
+    state: SessionState;
     shell: string;
     cwd: string;
     autoCaptureEnabled: boolean;
@@ -157,3 +157,4 @@ export type SessionOverrideFormState = {
   authMethod: ConnectionAuthMethod;
   password: string;
 };
+

@@ -52,7 +52,7 @@ export function ShellWorkspace({
 }: ShellWorkspaceProps) {
   const [runtimeNow, setRuntimeNow] = useState(() => Date.now());
   const inspectOpen = activeTab !== "shell";
-  const managedBusy = activeSession.state === "connecting" || Boolean(activeCommand);
+  const managedBusy = ["connecting", "reconnecting", "disconnecting"].includes(activeSession.state) || Boolean(activeCommand);
   const runningDurationLabel = useMemo(() => {
     if (!activeCommand?.startedAt) {
       return null;
@@ -127,3 +127,4 @@ export function ShellWorkspace({
     </section>
   );
 }
+

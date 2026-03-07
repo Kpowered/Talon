@@ -388,6 +388,38 @@ fn launch_runtime(
 }
 
 pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password: Option<&str>) -> ManagedSessionRecord {
+    connect_host_with_state(
+        host,
+        config,
+        password,
+        "connecting",
+        "Opening SSH transport to",
+        "connecting",
+        format!("Launching ssh.exe for {}", host.config.address),
+    )
+}
+
+pub fn reconnect_host(host: &Host, config: Option<&HostConnectionConfig>, password: Option<&str>) -> ManagedSessionRecord {
+    connect_host_with_state(
+        host,
+        config,
+        password,
+        "reconnecting",
+        "Reopening SSH transport to",
+        "reconnecting",
+        format!("Re-launching ssh.exe for {}", host.config.address),
+    )
+}
+
+fn connect_host_with_state(
+    host: &Host,
+    config: Option<&HostConnectionConfig>,
+    password: Option<&str>,
+    initial_state: &str,
+    opening_line: &str,
+    event_kind: &str,
+    event_detail: String,
+) -> ManagedSessionRecord {
     let host_config = config.cloned().unwrap_or(HostConnectionConfig {
         host_id: host.id.clone(),
         port: 22,
@@ -403,7 +435,7 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
     let record = ManagedSessionRecord {
         id: session_id.clone(),
         host_id: host.id.clone(),
-        state: "connecting".into(),
+        state: initial_state.into(),
         shell: "sh".into(),
         cwd: "~".into(),
         connected_at: now.clone(),
@@ -420,7 +452,7 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
         registry.terminal_buffers.insert(
             record.id.clone(),
             vec![
-                format!("Opening SSH transport to {}", host.config.address),
+                format!("{} {}", opening_line, host.config.address),
                 format!(
                     "Auth: {} on port {} with strict host key checking",
                     host_config.auth_method, host_config.port
@@ -430,8 +462,8 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
         push_event(
             &mut registry,
             &record.id,
-            "connecting",
-            format!("Launching ssh.exe for {}", host.config.address),
+            event_kind,
+            event_detail,
         );
     }
 
@@ -449,7 +481,11 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
             push_terminal_line(
                 &mut registry,
                 &record.id,
-                "SSH transport connected. Waiting for remote shell output...".into(),
+                if record.state == "reconnecting" {
+                    "SSH transport reconnected. Waiting for remote shell output...".into()
+                } else {
+                    "SSH transport connected. Waiting for remote shell output...".into()
+                },
             );
             drop(registry);
             schedule_session_metadata_probe(stdin);
@@ -548,6 +584,7 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
         if let Err(error) = write_result {
             let mut registry = lock_registry();
             registry.active_commands.remove(session_id);
+        update_session_state(&mut registry, session_id, "disconnecting");
             push_terminal_line(
                 &mut registry,
                 session_id,
@@ -649,6 +686,7 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
     let pid = {
         let mut registry = lock_registry();
         registry.active_commands.remove(session_id);
+        update_session_state(&mut registry, session_id, "disconnecting");
         let pid = registry.runtimes.get(session_id).map(|runtime| runtime.pid);
         update_host_observed_for_session(&mut registry, session_id, Some("warning"), true);
         push_event(
@@ -793,6 +831,11 @@ mod transport_tests {
         assert_eq!(registry.command_history[0].command, "false");
     }
 }
+
+
+
+
+
 
 
 

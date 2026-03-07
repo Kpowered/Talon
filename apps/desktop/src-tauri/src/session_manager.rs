@@ -454,7 +454,80 @@ pub fn write_session_input(payload: WriteSessionInputRequest) -> Result<(), Stri
 }
 
 pub fn reconnect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionResponse, String> {
-    connect_session(payload)
+    let host = session_registry::host_for(&payload.host_id)
+        .or_else(session_registry::first_host)
+        .ok_or_else(|| "Workspace state must include at least one host.".to_string())?;
+    let mut effective_host = host.clone();
+    if let Some(address) = payload
+        .address
+        .as_ref()
+        .filter(|value| !value.trim().is_empty())
+    {
+        effective_host.config.address = address.trim().into();
+    }
+    if let Some(username) = payload
+        .username
+        .as_ref()
+        .filter(|value| !value.trim().is_empty())
+    {
+        let target = effective_host
+            .config
+            .address
+            .split_once('@')
+            .map(|(_, hostname)| hostname.to_string())
+            .unwrap_or_else(|| effective_host.config.address.clone());
+        effective_host.config.address = format!("{}@{}", username.trim(), target);
+    }
+
+    let mut host_config =
+        session_registry::host_config_for(&host.id).unwrap_or(HostConnectionConfig {
+            host_id: host.id.clone(),
+            port: 22,
+            username: "root".into(),
+            auth_method: "agent".into(),
+            fingerprint_hint: "unknown".into(),
+            private_key_path: None,
+            has_saved_password: secrets::has_saved_host_password(&host.id),
+        });
+    if let Some(port) = payload.port {
+        host_config.port = port;
+    }
+    if let Some(username) = payload
+        .username
+        .as_ref()
+        .filter(|value| !value.trim().is_empty())
+    {
+        host_config.username = username.trim().into();
+    }
+    if let Some(auth_method) = payload
+        .auth_method
+        .as_ref()
+        .filter(|value| !value.trim().is_empty())
+    {
+        host_config.auth_method = auth_method.trim().into();
+    }
+
+    let password = payload
+        .password
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| value.to_string())
+        .or_else(|| secrets::load_host_password(&host.id).ok());
+
+    let session =
+        session_registry::reconnect_host(&effective_host, Some(&host_config), password.as_deref());
+
+    Ok(ConnectSessionResponse {
+        session: SessionSummary {
+            session_id: session.id,
+            host_id: session.host_id,
+            state: session.state,
+            shell: session.shell,
+            cwd: session.cwd,
+            auto_capture_enabled: session.auto_capture_enabled,
+        },
+        events: session_registry::recent_events(),
+    })
 }
 
 pub fn upsert_host_config(
@@ -530,6 +603,8 @@ pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionRes
     }
     crate::session_store::run_suggested_action(payload)
 }
+
+
 
 
 
