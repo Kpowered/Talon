@@ -1,21 +1,17 @@
 import type { Session, SuggestedAction, TalonWorkspaceState } from "@talon/core";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ActiveCommandSummary, TerminalTab } from "../types/app";
-import { statusLabel } from "../lib/formatters";
 import { XtermShell } from "./XtermShell";
 
 type ShellWorkspaceProps = {
   activeTab: TerminalTab;
   activeSession: Session;
-  activeSessionBusy: boolean;
   selectedHost: TalonWorkspaceState["hosts"][number];
   failure: TalonWorkspaceState["latestFailure"];
   activeConnectionIssueTitle: string | null;
   activeConnectionIssueSummary: string | null;
   activeCommand: ActiveCommandSummary | null;
-  showOperationalPanels: boolean;
   terminalTail: string[];
-  isSubmittingCommand: boolean;
   composerValue: string;
   commandHistorySize: number;
   activeAction: SuggestedAction | null;
@@ -34,15 +30,12 @@ type ShellWorkspaceProps = {
 export function ShellWorkspace({
   activeTab,
   activeSession,
-  activeSessionBusy,
   selectedHost,
   failure,
   activeConnectionIssueTitle,
   activeConnectionIssueSummary,
   activeCommand,
-  showOperationalPanels,
   terminalTail,
-  isSubmittingCommand,
   composerValue,
   commandHistorySize,
   activeAction,
@@ -57,112 +50,88 @@ export function ShellWorkspace({
   onOpenInspect,
   onCloseInspect,
 }: ShellWorkspaceProps) {
-  const managedBusy = isSubmittingCommand || activeSessionBusy;
-  const inspectOpen = activeTab !== "shell";
   const [runtimeNow, setRuntimeNow] = useState(() => Date.now());
+  const inspectOpen = activeTab !== "shell";
+  const managedBusy = activeSession.state === "connecting" || Boolean(activeCommand);
+  const runningDurationLabel = useMemo(() => {
+    if (!activeCommand?.startedAt) {
+      return null;
+    }
+    const elapsedSeconds = Math.max(0, Math.floor((runtimeNow - Date.parse(activeCommand.startedAt)) / 1000));
+    const minutes = Math.floor(elapsedSeconds / 60).toString().padStart(2, "0");
+    const seconds = (elapsedSeconds % 60).toString().padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  }, [activeCommand?.startedAt, runtimeNow]);
 
   useEffect(() => {
-    if (!managedBusy || !activeCommand?.startedAt) {
-      return;
+    if (!managedBusy) {
+      return undefined;
     }
-    const interval = window.setInterval(() => {
-      setRuntimeNow(Date.now());
-    }, 1000);
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [activeCommand?.startedAt, managedBusy]);
-
-  const runningDurationLabel = activeCommand?.startedAt
-    ? (() => {
-        const elapsedSeconds = Math.max(0, Math.floor((runtimeNow - Date.parse(activeCommand.startedAt)) / 1000));
-        const minutes = Math.floor(elapsedSeconds / 60).toString().padStart(2, "0");
-        const seconds = (elapsedSeconds % 60).toString().padStart(2, "0");
-        return `${minutes}:${seconds}`;
-      })()
-    : null;
+    const intervalId = window.setInterval(() => setRuntimeNow(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, [managedBusy]);
 
   return (
-    <section className="panel panel-terminal compact-panel main-workspace shell-workspace">
-      <div className="panel-header compact-panel-header terminal-header-row">
-        <div>
-          <p className="panel-kicker">Workspace</p>
-          <div className="title-row compact">
-            <h2>{selectedHost.config.label}</h2>
-            <span className={`live-dot status-${failure.severity}`}>{statusLabel(failure.severity)}</span>
-          </div>
+    <section className="terminal-stage panel compact-panel">
+      <div className="terminal-stage-header">
+        <div className="terminal-stage-copy">
+          <p className="panel-kicker">Live terminal</p>
+          <h2>{selectedHost.config.label}</h2>
+          <span>{selectedHost.config.address}</span>
         </div>
-        <div className="shell-header-actions">
+        <div className="terminal-stage-actions">
           {inspectNotice ? <span className="inspect-summary-pill">{inspectNotice}</span> : null}
           <button className={`ghost-button small inspect-toggle ${inspectNotice ? "has-signal" : ""}`} onClick={inspectOpen ? onCloseInspect : onOpenInspect}>
-            {inspectOpen ? "Hide inspect" : "Inspect"}
+            {inspectOpen ? "Hide Inspect" : "Inspect"}
           </button>
         </div>
       </div>
 
-      {!showOperationalPanels || activeConnectionIssueTitle ? (
-        <div className="connection-banner shell-banner">
-          <strong>{activeConnectionIssueTitle ?? "Terminal-first workspace"}</strong>
-          <p>
-            {activeConnectionIssueSummary
-              ?? "Pick a host, adjust the next-connect override only if needed, then connect. Talon will expand the rest of the operator UI after the session is live."}
-          </p>
+      {activeConnectionIssueTitle ? (
+        <div className="terminal-stage-banner tone-warning">
+          <strong>{activeConnectionIssueTitle}</strong>
+          <p>{activeConnectionIssueSummary}</p>
         </div>
       ) : null}
 
       {inspectNotice && !inspectOpen ? (
         <div className="inspect-hint-banner">
-          <strong>Inspect is available.</strong>
-          <p>Timeline, diagnosis, and captured artifacts are ready when you want the surrounding context.</p>
+          <strong>Inspect ready</strong>
+          <p>Timeline, diagnosis, and artifacts stay available on demand without taking over the terminal.</p>
           <button className="ghost-button small" onClick={onOpenInspect}>
             Open inspect
           </button>
         </div>
       ) : null}
 
-      <div className="terminal-toolbar compact-terminal-toolbar">
-        <span className="terminal-path">{activeSession.cwd}</span>
-        <span className="terminal-meta-chip">{selectedHost.config.address}</span>
+      <div className="terminal-stage-toolbar">
+        <span className="terminal-meta-chip strong">{activeSession.cwd}</span>
+        <span className="terminal-meta-chip">{activeSession.shell}</span>
         <span className="terminal-meta-chip">{activeSession.state}</span>
-        <span className="terminal-meta-chip">{failure.exitCode !== 0 ? `exit ${failure.exitCode}` : "clean"}</span>
-        <span className="terminal-mode">
-          {activeSession.state === "connecting"
-            ? "Connecting"
-            : managedBusy
-              ? "Command in flight"
-              : activeSession.autoCaptureEnabled
-                ? "Auto-capture ON"
-                : "Auto-capture OFF"}
-        </span>
-        {managedBusy && activeCommand ? <span className="terminal-meta-chip">{activeCommand.command}</span> : null}
-        {managedBusy && runningDurationLabel ? <span className="terminal-meta-chip">running {runningDurationLabel}</span> : null}
-        {managedBusy ? (
-          <button className="ghost-button small" onClick={onInterrupt}>
-            Interrupt
+        {failure.exitCode !== 0 ? <span className="terminal-meta-chip tone-warn">exit {failure.exitCode}</span> : null}
+        {managedBusy ? <span className="terminal-meta-chip tone-busy">command in flight</span> : null}
+        {runningDurationLabel ? <span className="terminal-meta-chip">running {runningDurationLabel}</span> : null}
+        {activeCommand?.command ? <span className="terminal-meta-chip truncate">{activeCommand.command}</span> : null}
+        <div className="terminal-stage-toolbar-actions">
+          <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={!activeAction || managedBusy}>
+            Use suggested
           </button>
-        ) : null}
+          {managedBusy ? (
+            <button className="ghost-button small" onClick={onInterrupt}>
+              Interrupt
+            </button>
+          ) : null}
+        </div>
       </div>
 
-      <div className="shell-pane shell-pane-xterm">
-        <div className="terminal-command-bar single-mode">
-          <div className="composer-meta-row terminal-hints-row">
-            <span className="composer-shortcut">Direct terminal input</span>
-            <span className="composer-shortcut">Enter submits</span>
-            <span className="composer-shortcut">Up/Down history {commandHistorySize > 0 ? `(${commandHistorySize})` : ""}</span>
-            <span className="composer-shortcut">Esc clears</span>
-          </div>
-          <div className="composer-actions terminal-inline-actions">
-            <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={!activeAction || managedBusy}>
-              Use suggested
-            </button>
-            {managedBusy ? (
-              <span className="terminal-inline-status">
-                {runningDurationLabel ? `Running for ${runningDurationLabel}` : "Waiting for command completion"}
-              </span>
-            ) : null}
-          </div>
-        </div>
+      <div className="terminal-stage-hints">
+        <span>Direct terminal input</span>
+        <span>Enter submits</span>
+        <span>Up/Down history {commandHistorySize > 0 ? `(${commandHistorySize})` : ""}</span>
+        <span>Esc clears</span>
+      </div>
 
+      <div className="terminal-stage-body">
         <XtermShell
           sessionId={activeSession.id}
           terminalTail={terminalTail}

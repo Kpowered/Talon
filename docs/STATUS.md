@@ -96,8 +96,10 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Distinguished operator-interrupt capture from ordinary command failure capture in the timeline builder so interrupt packets and timeline rows no longer read like generic failures.
 - Locked the terminal-first workspace to a stable grid structure across window resize; the app now prefers horizontal overflow and local wrapping instead of collapsing the main layout into different panel arrangements.
 - Fixed the desktop window to a single operator baseline of `1024x768` and disabled resize so Talon now opens with a predictable layout footprint instead of drifting across ad hoc window sizes.
+- Rebuilt the desktop shell into a fixed Termius-style frame: a narrow always-on left host sidebar, a single terminal-first main workspace, and an on-demand Inspect drawer for timeline, diagnosis, and artifacts.
+- Removed the old always-visible multi-panel host/config layout from the main surface so host creation, editing, and deeper configuration now live in dialogs while the live terminal stays primary.
 ## In Progress
-- Hardening managed-command transcript capture for interrupted and long-running commands so stdout/stderr tails remain useful even when the operator aborts execution.
+- Tightening the new terminal-first shell after the layout rewrite, including spacing density, copy hierarchy, and any regressions around host-management entry points.
 
 ## Next Steps
 1. Add deeper Rust-side coverage around live transcript tail capture, active-command state, diagnosis cache invalidation, and trust-confirmation state transitions.
@@ -115,6 +117,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 
 
 

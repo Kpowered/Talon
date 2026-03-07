@@ -7,9 +7,7 @@ import { ArtifactsView } from "./views/ArtifactsView";
 
 type WorkspacePanelsProps = {
   activeTab: TerminalTab;
-  activeSession: Session;
-  activeSessionBusy: boolean;
-  selectedHost: Host;
+  activeSession: Session;  selectedHost: Host;
   failure: TalonWorkspaceState["latestFailure"];
   diagnosis: TalonWorkspaceState["latestDiagnosis"] & {
     provider?: string;
@@ -19,10 +17,8 @@ type WorkspacePanelsProps = {
   activeConnectionIssueTitle: string | null;
   activeConnectionIssueSummary: string | null;
   activeCommand: ActiveCommandSummary | null;
-  showOperationalPanels: boolean;
   terminalTail: string[];
   isRunningAction: string | null;
-  isSubmittingCommand: boolean;
   composerValue: string;
   commandHistorySize: number;
   activeAction: SuggestedAction | null;
@@ -52,18 +48,14 @@ type WorkspacePanelsProps = {
 
 export function WorkspacePanels({
   activeTab,
-  activeSession,
-  activeSessionBusy,
-  selectedHost,
+  activeSession,  selectedHost,
   failure,
   diagnosis,
   activeConnectionIssueTitle,
   activeConnectionIssueSummary,
   activeCommand,
-  showOperationalPanels,
   terminalTail,
   isRunningAction,
-  isSubmittingCommand,
   composerValue,
   commandHistorySize,
   activeAction,
@@ -91,30 +83,30 @@ export function WorkspacePanels({
   inspectNotice,
 }: WorkspacePanelsProps) {
   const inspectOpen = activeTab !== "shell";
-  const inspectTitle = activeConnectionIssueTitle ?? (failure.exitCode === 130 ? "Operator interrupt" : failure.exitCode !== 0 ? "Captured failure context" : "Session details");
+  const inspectTitle = activeConnectionIssueTitle ?? (failure.exitCode === 130 ? "Operator interrupt" : failure.exitCode !== 0 ? "Failure context" : "Session details");
   const inspectSummary = activeConnectionIssueSummary
-    ?? (failure.exitCode !== 0
-      ? (failure.exitCode === 130 ? "The operator interrupted the managed command. Review partial output and session state before rerunning anything." : failure.summary)
-      : "Timeline, diagnosis, and captured artifacts stay here so the shell remains the primary workspace.");
+    ?? (failure.exitCode === 130
+      ? "The operator interrupted the managed command. Review the partial output before deciding whether to rerun it."
+      : failure.exitCode !== 0
+        ? failure.summary
+        : "Timeline, diagnosis, and artifacts stay here so the terminal remains the primary workspace.");
 
   return (
-    <section className={`workspace-panels ${inspectOpen ? "inspect-open" : "inspect-collapsed"}`}>
+    <section className={`workspace-main ${inspectOpen ? "inspect-open" : "inspect-closed"}`}>
       <ShellWorkspace
         activeTab={activeTab}
         activeSession={activeSession}
-        activeSessionBusy={activeSessionBusy}
         selectedHost={selectedHost}
         failure={failure}
         activeConnectionIssueTitle={activeConnectionIssueTitle}
         activeConnectionIssueSummary={activeConnectionIssueSummary}
         activeCommand={activeCommand}
-        showOperationalPanels={showOperationalPanels}
         terminalTail={terminalTail}
-        isSubmittingCommand={isSubmittingCommand}
         composerValue={composerValue}
         commandHistorySize={commandHistorySize}
         activeAction={activeAction}
-        inspectNotice={inspectNotice}        onSetComposerValue={onSetComposerValue}
+        inspectNotice={inspectNotice}
+        onSetComposerValue={onSetComposerValue}
         onClearComposerValue={onClearComposerValue}
         onSubmitCommand={onSubmitCommand}
         onUseSuggestedCommand={onUseSuggestedCommand}
@@ -126,7 +118,7 @@ export function WorkspacePanels({
       />
 
       {inspectOpen ? (
-        <aside className="panel compact-panel inspect-drawer">
+        <aside className="inspect-drawer panel compact-panel">
           <div className="inspect-drawer-header">
             <div>
               <p className="panel-kicker">Inspect</p>
@@ -183,4 +175,6 @@ export function WorkspacePanels({
     </section>
   );
 }
+
+
 

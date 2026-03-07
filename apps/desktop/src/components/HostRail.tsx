@@ -1,44 +1,17 @@
 import type { Host } from "@talon/core";
+import type { HostConnectionConfig, SessionConnectionIssue } from "../types/app";
 import { formatTime, statusLabel } from "../lib/formatters";
-import type {
-  AgentFormState,
-  AgentSettings,
-  HostConnectionConfig,
-  SavedHostFormState,
-  SessionConnectionIssue,
-  SessionOverrideFormState,
-} from "../types/app";
 
 type HostRailProps = {
   hosts: Host[];
   selectedHost: Host;
   selectedHostConfig: HostConnectionConfig | null;
-  agentSettings: AgentSettings | null;
-  agentForm: AgentFormState;
-  savedHostForm: SavedHostFormState;
-  sessionOverride: SessionOverrideFormState;
   activeConnectionIssue: SessionConnectionIssue | null;
-  isSavedConfigExpanded: boolean;
-  isSessionOverrideExpanded: boolean;
-  isSavingHostConfig: boolean;
   isDeletingHostConfig: boolean;
   onSelectHost: (hostId: string) => void;
-  onSetAgentForm: (updater: (current: AgentFormState) => AgentFormState) => void;
-  onSaveAgentConfiguration: () => void;
-  onSaveAgentApiKey: () => void;
-  onClearAgentApiKey: () => void;
-  onToggleSavedConfig: () => void;
-  onSetSavedHostForm: (updater: (current: SavedHostFormState) => SavedHostFormState) => void;
-  onSaveSavedHostPassword: () => void;
-  onClearSavedHostPassword: () => void;
-  onUpdateSelectedHost: () => void;
-  onDeleteSelectedHost: () => void;
-  onToggleSessionOverride: () => void;
-  onSetSessionOverride: (updater: (current: SessionOverrideFormState) => SessionOverrideFormState) => void;
-  onResetConnectionOverride: () => void;
-  onPrepareHostTrustFlow: () => void;
-  onConfirmHostTrustFlow: () => void;
+  onCreateHost: () => void;
   onManageHosts: () => void;
+  onDeleteSelectedHost: () => void;
 };
 
 export function HostRail({
@@ -48,83 +21,79 @@ export function HostRail({
   activeConnectionIssue,
   isDeletingHostConfig,
   onSelectHost,
-  onDeleteSelectedHost,
-  onPrepareHostTrustFlow,
-  onConfirmHostTrustFlow,
+  onCreateHost,
   onManageHosts,
+  onDeleteSelectedHost,
 }: HostRailProps) {
   return (
-    <aside className="panel panel-hosts compact-panel host-rail host-rail-minimal">
-      <div className="panel-header compact-panel-header host-rail-header">
+    <aside className="sidebar-shell">
+      <div className="sidebar-brand">
+        <div className="sidebar-brand-mark">T</div>
         <div>
-          <p className="panel-kicker">Hosts</p>
-          <h2>Live session</h2>
+          <strong>Talon</strong>
+          <span>SSH workspace</span>
         </div>
-        <button className="ghost-button small" onClick={onManageHosts}>
-          Manage
+      </div>
+
+      <div className="sidebar-section sidebar-actions">
+        <button className="sidebar-primary-action" onClick={onCreateHost}>
+          New Host
+        </button>
+        <button className="sidebar-ghost-action" onClick={onManageHosts}>
+          Manage Hosts
         </button>
       </div>
 
-      <div className="host-list compact-host-list host-list-minimal">
-        {hosts.map((host) => (
-          <button key={host.id} className={`host-card compact-host-card ${host.id === selectedHost.id ? "selected" : ""}`} onClick={() => onSelectHost(host.id)}>
-            <div className="host-card-top">
-              <div>
-                <strong>{host.config.label}</strong>
-                <p>{host.config.address}</p>
-              </div>
-              <span className={`status-badge status-${host.observed.status}`}>{statusLabel(host.observed.status)}</span>
-            </div>
-            <div className="host-details">
-              <span>{selectedHost.id === host.id ? "active" : host.config.region}</span>
-              <span>{host.observed.latencyMs}ms</span>
-            </div>
-          </button>
-        ))}
+      <div className="sidebar-section sidebar-list-section">
+        <div className="sidebar-section-header">
+          <span>Hosts</span>
+          <span>{hosts.length}</span>
+        </div>
+        <div className="sidebar-host-list">
+          {hosts.map((host) => {
+            const selected = host.id === selectedHost.id;
+            return (
+              <button key={host.id} className={`sidebar-host-item ${selected ? "selected" : ""}`} onClick={() => onSelectHost(host.id)}>
+                <div className="sidebar-host-item-main">
+                  <span className={`sidebar-host-dot tone-${host.observed.status}`} />
+                  <div className="sidebar-host-copy">
+                    <strong>{host.config.label}</strong>
+                    <span>{host.config.address}</span>
+                  </div>
+                </div>
+                <span className="sidebar-host-meta">{selected ? "active" : statusLabel(host.observed.status)}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="section-block compact-summary-block rail-summary-block">
-        <div className="section-title-row compact-section-title">
-          <div>
-            <p className="panel-kicker">Selected host</p>
-            <h2>{selectedHost.config.label}</h2>
-          </div>
-          <span className={`status-badge status-${selectedHost.observed.status}`}>{statusLabel(selectedHost.observed.status)}</span>
+      <div className="sidebar-section sidebar-selected-host">
+        <div className="sidebar-section-header">
+          <span>Selected</span>
+          <span>{statusLabel(selectedHost.observed.status)}</span>
         </div>
-        <div className="session-facts compact-facts rail-facts">
+        <div className="sidebar-selected-copy">
+          <strong>{selectedHost.config.label}</strong>
           <span>{selectedHost.config.address}</span>
-          <span>{selectedHostConfig?.username ?? "unknown user"}</span>
-          <span>port {selectedHostConfig?.port ?? 22}</span>
-          <span>{selectedHostConfig?.authMethod ?? "agent"}</span>
-          <span>last {formatTime(selectedHost.observed.lastSeenAt)}</span>
+          <span>{selectedHostConfig?.username ?? "root"} ¡¤ port {selectedHostConfig?.port ?? 22}</span>
+          <span>{selectedHost.observed.lastSeenAt ? `last ${formatTime(selectedHost.observed.lastSeenAt)}` : "never seen"}</span>
         </div>
       </div>
 
       {activeConnectionIssue ? (
-        <div className={`connection-issue issue-${activeConnectionIssue.kind}`}>
+        <div className="sidebar-section sidebar-issue-card">
           <strong>{activeConnectionIssue.title}</strong>
           <p>{activeConnectionIssue.summary}</p>
-          <span>{activeConnectionIssue.operatorAction}</span>
-          <code>{activeConnectionIssue.suggestedCommand}</code>
-          {activeConnectionIssue.kind === "host-trust" ? (
-            <div className="host-config-actions">
-              <button className="ghost-button small" onClick={onPrepareHostTrustFlow}>
-                Scan fingerprint
-              </button>
-              <button className="primary-button small" onClick={onConfirmHostTrustFlow} disabled={!activeConnectionIssue.fingerprint}>
-                Trust host
-              </button>
-            </div>
-          ) : null}
         </div>
       ) : null}
 
-      <div className="rail-actions">
-        <button className="ghost-button small" onClick={onManageHosts}>
-          Edit host details
+      <div className="sidebar-section sidebar-footer-actions">
+        <button className="sidebar-ghost-action" onClick={onManageHosts}>
+          Settings
         </button>
-        <button className="ghost-button small destructive" onClick={onDeleteSelectedHost} disabled={isDeletingHostConfig}>
-          {isDeletingHostConfig ? "Deleting..." : "Delete host"}
+        <button className="sidebar-ghost-action destructive" onClick={onDeleteSelectedHost} disabled={isDeletingHostConfig}>
+          {isDeletingHostConfig ? "Deleting..." : "Delete Host"}
         </button>
       </div>
     </aside>

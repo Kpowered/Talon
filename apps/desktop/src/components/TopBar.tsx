@@ -1,73 +1,78 @@
-import type { Host } from "@talon/core";
+import type { Session } from "@talon/core";
 
 type TopBarProps = {
-  hosts: Host[];
-  selectedHostId: string;
-  isSavingHostConfig: boolean;
-  isReconnectingSession: boolean;
-  isDisconnectingSession: boolean;
+  selectedHostLabel: string;
+  selectedHostAddress: string;
+  sessionState: Session["state"];
+  currentPath: string;
+  isConnected: boolean;
   isConnectingSession: boolean;
-  onSelectHost: (hostId: string) => void;
-  onCreateHost: () => void;
-  onManageHosts: () => void;
-  onReconnect: () => void;
-  onDisconnect: () => void;
+  isDisconnectingSession: boolean;
+  isReconnectingSession: boolean;
+  isBusy: boolean;
+  activeCommandLabel: string | null;
   onConnect: () => void;
+  onDisconnect: () => void;
+  onReconnect: () => void;
+  onManageHosts: () => void;
 };
 
 export function TopBar({
-  hosts,
-  selectedHostId,
-  isSavingHostConfig,
-  isReconnectingSession,
-  isDisconnectingSession,
+  selectedHostLabel,
+  selectedHostAddress,
+  sessionState,
+  currentPath,
+  isConnected,
   isConnectingSession,
-  onSelectHost,
-  onCreateHost,
-  onManageHosts,
-  onReconnect,
-  onDisconnect,
+  isDisconnectingSession,
+  isReconnectingSession,
+  isBusy,
+  activeCommandLabel,
   onConnect,
+  onDisconnect,
+  onReconnect,
+  onManageHosts,
 }: TopBarProps) {
+  const connectionLabel = isConnectingSession
+    ? "connecting"
+    : isDisconnectingSession
+      ? "disconnecting"
+      : sessionState;
+
   return (
-    <header className="topbar compact-topbar">
-      <div className="brand-block compact-brand">
-        <div className="brand-mark">T</div>
-        <div>
-          <p className="eyebrow">AI-native SSH troubleshooting</p>
-          <div className="title-row compact">
-            <h1>Talon</h1>
-            <span className="release-badge">SSH live</span>
-            <span className="backend-badge">session registry</span>
-          </div>
+    <header className="workspace-topbar">
+      <div className="workspace-topbar-primary">
+        <div className="workspace-topbar-copy">
+          <p className="workspace-topbar-kicker">Terminal</p>
+          <h1>{selectedHostLabel}</h1>
+          <span className="workspace-topbar-address">{selectedHostAddress}</span>
+        </div>
+        <div className="workspace-topbar-statusline">
+          <span className={`workspace-status-pill tone-${sessionState}`}>{connectionLabel}</span>
+          <span className="workspace-status-pill">{currentPath}</span>
+          {isBusy ? <span className="workspace-status-pill tone-busy">command in flight</span> : null}
+          {activeCommandLabel ? <span className="workspace-status-pill truncate">{activeCommandLabel}</span> : null}
         </div>
       </div>
-      <div className="topbar-host-switch">
-        <select value={selectedHostId} onChange={(event) => onSelectHost(event.target.value)} aria-label="Selected host">
-          {hosts.map((host) => (
-            <option key={host.id} value={host.id}>
-              {host.config.label}
-            </option>
-          ))}
-        </select>
-      </div>
 
-      <div className="topbar-actions compact-actions">
-        <button className="ghost-button small" onClick={onCreateHost} disabled={isSavingHostConfig}>
-          {isSavingHostConfig ? "Saving..." : "New host"}
-        </button>
+      <div className="workspace-topbar-actions">
         <button className="ghost-button small" onClick={onManageHosts}>
-          Manage hosts
+          Hosts
         </button>
-        <button className="ghost-button small" onClick={onReconnect} disabled={isReconnectingSession}>
-          {isReconnectingSession ? "Reconnecting..." : "Reconnect"}
-        </button>
-        <button className="ghost-button small" onClick={onDisconnect} disabled={isDisconnectingSession}>
-          {isDisconnectingSession ? "Disconnecting..." : "Disconnect"}
-        </button>
-        <button className="primary-button small" onClick={onConnect} disabled={isConnectingSession}>
-          {isConnectingSession ? "Connecting..." : "Connect"}
-        </button>
+        {isConnected ? (
+          <>
+            <button className="ghost-button small" onClick={onReconnect} disabled={isReconnectingSession || isConnectingSession || isDisconnectingSession}>
+              {isReconnectingSession ? "Reconnecting..." : "Reconnect"}
+            </button>
+            <button className="ghost-button small" onClick={onDisconnect} disabled={isDisconnectingSession}>
+              {isDisconnectingSession ? "Disconnecting..." : "Disconnect"}
+            </button>
+          </>
+        ) : (
+          <button className="primary-button small" onClick={onConnect} disabled={isConnectingSession}>
+            {isConnectingSession ? "Connecting..." : "Connect"}
+          </button>
+        )}
       </div>
     </header>
   );

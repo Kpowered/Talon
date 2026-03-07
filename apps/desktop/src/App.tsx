@@ -88,7 +88,6 @@ function App() {
   const activeAction = diagnosis?.suggestedActions.find((action: SuggestedAction) => action.status === "ready") ?? null;
   const composerValue = activeSession ? commandDraftBySessionId[activeSession.id] ?? "" : "";
   const activeSessionBusy = activeSession ? busySessionIds.includes(activeSession.id) : false;
-  const showOperationalPanels = activeSession?.state !== "disconnected";
   const inspectNotice = activeConnectionIssue?.title ?? (failure?.exitCode != null && failure.exitCode !== 0 ? `Exit ${failure.exitCode}` : null);
   const {
     activeSignalFilter,
@@ -283,8 +282,6 @@ function App() {
       await actions.createHostFromDraft(draft, connectAfterCreate);
       setIsNewHostDialogOpen(false);
       setNewHostDraft(EMPTY_NEW_HOST_DRAFT);
-      hostRail.setIsSavedConfigExpanded(true);
-      hostRail.setIsSessionOverrideExpanded(true);
     } catch (error) {
       const commandError = error as AppCommandError;
       setNewHostDialogError(commandError.message ?? "Failed to create host.");
@@ -334,28 +331,12 @@ function App() {
     setNewHostDraft(EMPTY_NEW_HOST_DRAFT);
     setNewHostDialogError(null);
   }
-
   if (!workspace || !diagnosis || !failure || !activeSession || !selectedHost) {
     return <AppEmptyState isLoading={isLoadingState} />;
   }
 
   return (
-    <main className="app-shell">
-      <TopBar
-        hosts={hosts}
-        selectedHostId={selectedHost.id}
-        isSavingHostConfig={actions.isSavingHostConfig || isSavingNewHost}
-        isReconnectingSession={actions.isReconnectingSession}
-        isDisconnectingSession={actions.isDisconnectingSession}
-        isConnectingSession={actions.isConnectingSession || isConnectingNewHost || activeSession.state === "connecting"}
-        onSelectHost={setSelectedHostId}
-        onCreateHost={openNewHostDialog}
-        onManageHosts={() => setIsManageHostsDialogOpen(true)}
-        onReconnect={() => void actions.reconnectActiveSession()}
-        onDisconnect={() => void actions.disconnectActiveSession()}
-        onConnect={() => void actions.connectSelectedHost()}
-      />
-
+    <main className="app-shell app-shell-terminal-first">
       {actionNotice ? <ActionNoticeBar notice={actionNotice} onDismiss={clearNotice} /> : null}
 
       {isManageHostsDialogOpen ? (
@@ -391,85 +372,82 @@ function App() {
         />
       ) : null}
 
-      <section className={`workspace-grid ${showOperationalPanels ? "connected" : "session-first"}`}>
-        {showOperationalPanels ? (
-          <HostRail
-            hosts={hosts}
-            selectedHost={selectedHost}
-            selectedHostConfig={selectedHostConfig}
-            agentSettings={agentSettings}
-            agentForm={hostRail.agentForm}
-            savedHostForm={hostRail.savedHostForm}
-            sessionOverride={hostRail.sessionOverride}
-            activeConnectionIssue={activeConnectionIssue}
-            isSavedConfigExpanded={hostRail.isSavedConfigExpanded}
-            isSessionOverrideExpanded={hostRail.isSessionOverrideExpanded}
-            isSavingHostConfig={actions.isSavingHostConfig}
-            isDeletingHostConfig={actions.isDeletingHostConfig}
-            onSelectHost={setSelectedHostId}
-            onSetAgentForm={hostRail.setAgentForm}
-            onSaveAgentConfiguration={() => void actions.saveAgentConfiguration()}
-            onSaveAgentApiKey={() => void actions.saveAgentApiKey()}
-            onClearAgentApiKey={() => void actions.clearAgentApiKey()}
-            onToggleSavedConfig={() => hostRail.setIsSavedConfigExpanded((current) => !current)}
-            onSetSavedHostForm={hostRail.setSavedHostForm}
-            onSaveSavedHostPassword={() => void actions.saveSavedHostPassword()}
-            onClearSavedHostPassword={() => void actions.clearSavedHostPassword()}
-            onUpdateSelectedHost={() => void actions.updateSelectedHost()}
-            onDeleteSelectedHost={() => void actions.deleteSelectedHost()}
-            onToggleSessionOverride={() => hostRail.setIsSessionOverrideExpanded((current) => !current)}
-            onSetSessionOverride={hostRail.setSessionOverride}
-            onResetConnectionOverride={actions.resetConnectionOverride}
-            onPrepareHostTrustFlow={() => void actions.prepareHostTrustFlow()}
-            onConfirmHostTrustFlow={() => void actions.confirmHostTrustFlow()}
-            onManageHosts={() => setIsManageHostsDialogOpen(true)}
-          />
-        ) : null}
-
-        <WorkspacePanels
-          activeTab={activeTab}
-          activeSession={activeSession}
-          activeSessionBusy={activeSessionBusy}
+      <section className="app-layout">
+        <HostRail
+          hosts={hosts}
           selectedHost={selectedHost}
-          failure={failure}
-          diagnosis={diagnosis}
-          activeConnectionIssueTitle={activeConnectionIssue?.title ?? null}
-          activeConnectionIssueSummary={activeConnectionIssue?.summary ?? null}
-          activeCommand={activeCommand}
-          showOperationalPanels={showOperationalPanels}
-          terminalTail={terminalTail}
-          isRunningAction={actions.isRunningAction}
-          isSubmittingCommand={actions.isSubmittingCommand}
-          composerValue={composerValue}
-          activeAction={activeAction}
-          commandHistorySize={activeSession ? (commandHistoryBySessionId[activeSession.id] ?? []).length : 0}
-          actionSummary={actionNotice?.kind === "success" ? actionNotice.message : null}
-          agentSettings={agentSettings}
-          latestContextPacket={latestContextPacket}
-          timelineSignalSummary={timelineSignalSummary}
-          activeTimelineSignalFilter={activeSignalFilter}
-          visibleTimeline={visibleTimeline}
-          repeatedSignalCounts={repeatedSignalCounts}
-          onSetActiveTab={setActiveTab}
-          onSetComposerValue={setComposerValue}
-          onClearComposerValue={clearComposerValue}
-          onSubmitCommand={() => void handleSubmitCommand()}
-          onUseSuggestedCommand={useSuggestedCommand}
-          onRecallPreviousCommand={recallPreviousCommand}
-          onRecallNextCommand={recallNextCommand}
-          onInterrupt={() => void actions.interruptActiveSession()}
-          onToggleSignalFilter={(signal) => setActiveSignalFilter((current) => (current === signal ? null : signal))}
-          onClearSignalFilter={() => setActiveSignalFilter(null)}
-          onRerunDiagnosis={() => void actions.rerunDiagnosis()}
-          onRunAction={(action) => void actions.runAction(action)}
-          onOpenInspect={openInspectPanel}
-          onCloseInspect={closeInspectPanel}
-          inspectNotice={inspectNotice}
+          selectedHostConfig={selectedHostConfig}
+          activeConnectionIssue={activeConnectionIssue}
+          isDeletingHostConfig={actions.isDeletingHostConfig}
+          onSelectHost={setSelectedHostId}
+          onCreateHost={openNewHostDialog}
+          onManageHosts={() => setIsManageHostsDialogOpen(true)}
+          onDeleteSelectedHost={() => void actions.deleteSelectedHost()}
         />
+
+        <section className="workspace-shell">
+          <TopBar
+            selectedHostLabel={selectedHost.config.label}
+            selectedHostAddress={selectedHost.config.address}
+            sessionState={activeSession.state}
+            currentPath={activeSession.cwd}
+            isConnected={activeSession.state === "connected"}
+            isConnectingSession={actions.isConnectingSession || isConnectingNewHost || activeSession.state === "connecting"}
+            isDisconnectingSession={actions.isDisconnectingSession}
+            isReconnectingSession={actions.isReconnectingSession}
+            isBusy={activeSessionBusy}
+            activeCommandLabel={activeCommand?.command ?? null}
+            onManageHosts={() => setIsManageHostsDialogOpen(true)}
+            onReconnect={() => void actions.reconnectActiveSession()}
+            onDisconnect={() => void actions.disconnectActiveSession()}
+            onConnect={() => void actions.connectSelectedHost()}
+          />
+
+          <WorkspacePanels
+            activeTab={activeTab}
+            activeSession={activeSession}
+            selectedHost={selectedHost}
+            failure={failure}
+            diagnosis={diagnosis}
+            activeConnectionIssueTitle={activeConnectionIssue?.title ?? null}
+            activeConnectionIssueSummary={activeConnectionIssue?.summary ?? null}
+            activeCommand={activeCommand}
+            terminalTail={terminalTail}
+            isRunningAction={actions.isRunningAction}
+            composerValue={composerValue}
+            activeAction={activeAction}
+            commandHistorySize={activeSession ? (commandHistoryBySessionId[activeSession.id] ?? []).length : 0}
+            actionSummary={actionNotice?.kind === "success" ? actionNotice.message : null}
+            agentSettings={agentSettings}
+            latestContextPacket={latestContextPacket}
+            timelineSignalSummary={timelineSignalSummary}
+            activeTimelineSignalFilter={activeSignalFilter}
+            visibleTimeline={visibleTimeline}
+            repeatedSignalCounts={repeatedSignalCounts}
+            onSetActiveTab={setActiveTab}
+            onSetComposerValue={setComposerValue}
+            onClearComposerValue={clearComposerValue}
+            onSubmitCommand={() => void handleSubmitCommand()}
+            onUseSuggestedCommand={useSuggestedCommand}
+            onRecallPreviousCommand={recallPreviousCommand}
+            onRecallNextCommand={recallNextCommand}
+            onInterrupt={() => void actions.interruptActiveSession()}
+            onToggleSignalFilter={(signal) => setActiveSignalFilter((current) => (current === signal ? null : signal))}
+            onClearSignalFilter={() => setActiveSignalFilter(null)}
+            onRerunDiagnosis={() => void actions.rerunDiagnosis()}
+            onRunAction={(action) => void actions.runAction(action)}
+            onOpenInspect={openInspectPanel}
+            onCloseInspect={closeInspectPanel}
+            inspectNotice={inspectNotice}
+          />
+        </section>
       </section>
     </main>
   );
 }
 
 export default App;
+
+
+
 
