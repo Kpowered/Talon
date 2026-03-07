@@ -204,7 +204,11 @@ pub fn build_failure_context(
         severity: severity.into(),
         stderr_class: command.stderr_class.clone(),
         stderr_evidence: command.stderr_evidence.clone(),
-        outcome_type: if interrupted { "operator-interrupted".into() } else { "non-zero-exit".into() },
+        outcome_type: if interrupted {
+            "operator-interrupted".into()
+        } else {
+            "non-zero-exit".into()
+        },
         cwd,
         shell,
         exit_code: command.exit_code,
@@ -629,5 +633,3 @@ mod tests {
         );
     }
 }
-
-

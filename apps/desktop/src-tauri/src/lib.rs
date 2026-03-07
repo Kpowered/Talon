@@ -17,9 +17,9 @@ use session_manager::{
     HostConfigMutationResponse, HostMutationResponse, HostPasswordResponse, HostSecretRequest,
     SaveAgentApiKeyRequest, SaveAgentSettingsRequest, SaveHostPasswordRequest,
     SessionEventListResponse, SessionModeMutationResponse, SessionRegistryResponse,
-    SessionScopedRequest, SubmitCommandRequest, SubmitCommandResponse,
-    SwitchSessionModeRequest, TrustConfirmationResponse, TrustPreparationResponse,
-    UpsertHostConfigRequest, UpsertHostRequest, WriteSessionInputRequest,
+    SessionScopedRequest, SubmitCommandRequest, SubmitCommandResponse, SwitchSessionModeRequest,
+    TrustConfirmationResponse, TrustPreparationResponse, UpsertHostConfigRequest,
+    UpsertHostRequest, WriteSessionInputRequest,
 };
 use session_store::{
     RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot,
@@ -132,7 +132,9 @@ fn write_session_input(payload: WriteSessionInputRequest) -> Result<(), String> 
 }
 
 #[tauri::command]
-fn switch_session_mode(payload: SwitchSessionModeRequest) -> Result<SessionModeMutationResponse, String> {
+fn switch_session_mode(
+    payload: SwitchSessionModeRequest,
+) -> Result<SessionModeMutationResponse, String> {
     session_manager::switch_session_mode(payload)
 }
 

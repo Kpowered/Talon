@@ -189,7 +189,6 @@ pub struct DisconnectSessionResponse {
     pub events: Vec<SessionLifecycleEvent>,
 }
 
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionModeMutationResponse {
@@ -436,22 +435,22 @@ pub fn connect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionR
 }
 
 pub fn submit_session_command(payload: SubmitCommandRequest) -> SubmitCommandResponse {
-    let before = session_registry::busy_session_ids();
-    let accepted = !before
+    let session_mode = session_registry::session_mode_for(&payload.session_id);
+    let busy = session_registry::busy_session_ids()
         .iter()
         .any(|session_id| session_id == &payload.session_id);
+    let accepted = matches!(session_mode.as_deref(), Some("managed")) && !busy;
+    let message = match session_mode.as_deref() {
+        None => format!("Rejected command for {} because the session no longer exists", payload.session_id),
+        Some("raw") => format!("Rejected command for {} because raw mode is active; type directly into the terminal or switch back to managed mode", payload.session_id),
+        Some(_) if busy => format!("Rejected command for {} because another command is still in flight", payload.session_id),
+        Some(_) => format!("Queued command for {}", payload.session_id),
+    };
     SubmitCommandResponse {
         terminal: session_registry::submit_command(&payload.session_id, &payload.command),
         events: session_registry::recent_events(),
         accepted,
-        message: if accepted {
-            format!("Queued command for {}", payload.session_id)
-        } else {
-            format!(
-                "Rejected command for {} because another command is still in flight",
-                payload.session_id
-            )
-        },
+        message,
     }
 }
 
@@ -463,7 +462,8 @@ pub fn disconnect_session(payload: DisconnectSessionRequest) -> DisconnectSessio
 }
 
 pub fn write_session_input(payload: WriteSessionInputRequest) -> Result<(), String> {
-    let mode = session_registry::session_mode_for(&payload.session_id).unwrap_or_else(|| "managed".into());
+    let mode =
+        session_registry::session_mode_for(&payload.session_id).unwrap_or_else(|| "managed".into());
     session_registry::write_input(&payload.session_id, &payload.data)?;
     if mode == "managed" && payload.data.contains("") {
         session_registry::schedule_interrupt_fallback(&payload.session_id);
@@ -471,7 +471,9 @@ pub fn write_session_input(payload: WriteSessionInputRequest) -> Result<(), Stri
     Ok(())
 }
 
-pub fn switch_session_mode(payload: SwitchSessionModeRequest) -> Result<SessionModeMutationResponse, String> {
+pub fn switch_session_mode(
+    payload: SwitchSessionModeRequest,
+) -> Result<SessionModeMutationResponse, String> {
     let session = session_registry::switch_session_mode(&payload.session_id, &payload.mode)
         .ok_or_else(|| format!("Session {} not found.", payload.session_id))?;
     Ok(SessionModeMutationResponse {
@@ -632,9 +634,3 @@ pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionRes
     }
     crate::session_store::run_suggested_action(payload)
 }
-
-
-
-
-
-

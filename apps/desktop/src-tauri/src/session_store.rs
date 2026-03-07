@@ -283,6 +283,3 @@ pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionRes
         appended_terminal_lines: lines,
     }
 }
-
-
-

@@ -109,6 +109,63 @@ fn mark_session_degraded(
     push_event(state, session_id, event_type, event_detail);
     push_terminal_line(state, session_id, terminal_line);
 }
+
+fn mark_remote_exit(state: &mut SessionRegistry, session_id: &str, status: String) {
+    update_session_state(state, session_id, "disconnected");
+    update_host_observed_for_session(state, session_id, Some("warning"), true);
+    state.active_commands.remove(session_id);
+    state.runtimes.remove(session_id);
+    state.connection_issues.insert(
+        session_id.into(),
+        SessionConnectionIssue {
+            session_id: session_id.into(),
+            kind: "transport".into(),
+            title: "Remote shell exited".into(),
+            summary: format!("The remote shell exited and the SSH transport closed with status {}.", status),
+            operator_action: "Reconnect when you want to reopen the shell. Review the terminal tail first if the exit was unexpected.".into(),
+            suggested_command: "Reconnect".into(),
+            observed_at: now_iso(),
+            fingerprint: None,
+            expected_fingerprint_hint: None,
+            host: None,
+            port: None,
+            can_trust_in_app: false,
+            in_app_action_kind: None,
+            in_app_action_label: Some("Reconnect".into()),
+            disconnect_cause: Some("remote-exit".into()),
+        },
+    );
+    push_event(
+        state,
+        session_id,
+        "disconnected",
+        format!("Remote shell exited with status {}", status),
+    );
+    push_terminal_line(
+        state,
+        session_id,
+        format!("Remote shell exited with status {}", status),
+    );
+}
+
+fn mark_operator_disconnect(state: &mut SessionRegistry, session_id: &str, status: String) {
+    update_session_state(state, session_id, "disconnected");
+    update_host_observed_for_session(state, session_id, Some("warning"), true);
+    state.active_commands.remove(session_id);
+    state.runtimes.remove(session_id);
+    clear_connection_issue(state, session_id);
+    push_event(
+        state,
+        session_id,
+        "disconnected",
+        format!("Operator disconnect completed with ssh status {}", status),
+    );
+    push_terminal_line(
+        state,
+        session_id,
+        format!("SSH session closed after operator disconnect ({})", status),
+    );
+}
 fn should_suppress_managed_shell_echo(state: &SessionRegistry, session_id: &str, line: &str) -> bool {
     let trimmed = line.trim();
     if trimmed.is_empty() {
@@ -375,20 +432,27 @@ fn launch_runtime(
                 .map(|runtime| runtime.pid == waited_pid)
                 .unwrap_or(false);
             if is_current_runtime {
-                update_session_state(&mut state, &session_id, "disconnected");
-                update_host_observed_for_session(&mut state, &session_id, Some("warning"), true);
-                state.runtimes.remove(&session_id);
-                push_event(
-                    &mut state,
-                    &session_id,
-                    "disconnected",
-                    format!("ssh process exited with status {}", status),
-                );
-                push_terminal_line(
-                    &mut state,
-                    &session_id,
-                    format!("SSH session closed with status {}", status),
-                );
+                let operator_requested = state
+                    .recent_events
+                    .iter()
+                    .any(|event| event.session_id == session_id && event.event_type == "disconnecting");
+                let status_text = status.to_string();
+                if operator_requested {
+                    mark_operator_disconnect(&mut state, &session_id, status_text);
+                } else if status.success() {
+                    mark_remote_exit(&mut state, &session_id, status_text);
+                } else {
+                    mark_session_degraded(
+                        &mut state,
+                        &session_id,
+                        "transport-drop",
+                        "SSH transport dropped",
+                        format!("The SSH transport exited unexpectedly with status {}.", status),
+                        "transport-drop",
+                        format!("ssh process exited unexpectedly with status {}", status),
+                        format!("SSH transport dropped with status {}", status),
+                    );
+                }
             }
             drop(state);
             if let Some(path) = waited_askpass_path {
@@ -403,17 +467,14 @@ fn launch_runtime(
                 .map(|runtime| runtime.pid == waited_pid)
                 .unwrap_or(false);
             if is_current_runtime {
-                update_session_state(&mut state, &session_id, "degraded");
-                state.runtimes.remove(&session_id);
-                push_event(
+                mark_session_degraded(
                     &mut state,
                     &session_id,
-                    "disconnected",
+                    "transport-drop",
+                    "SSH transport wait failed",
+                    format!("Waiting for the SSH transport failed: {}", error),
+                    "transport-drop",
                     format!("ssh process wait failed: {}", error),
-                );
-                push_terminal_line(
-                    &mut state,
-                    &session_id,
                     format!("SSH session wait failed: {}", error),
                 );
             }
@@ -574,6 +635,41 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
 
     {
         let mut registry = lock_registry();
+        let Some(session) = registry
+            .managed_sessions
+            .iter()
+            .find(|session| session.id == session_id)
+            .cloned()
+        else {
+            push_terminal_line(
+                &mut registry,
+                session_id,
+                "Command rejected: session not found.".into(),
+            );
+            push_event(
+                &mut registry,
+                session_id,
+                "command-rejected",
+                "Command rejected because the session no longer exists.".into(),
+            );
+            return terminal_snapshot(session_id);
+        };
+
+        if session.mode == "raw" {
+            push_terminal_line(
+                &mut registry,
+                session_id,
+                "Command rejected: managed command submission is disabled while raw mode is active.".into(),
+            );
+            push_event(
+                &mut registry,
+                session_id,
+                "command-rejected",
+                "Command rejected because the session is in raw mode.".into(),
+            );
+            return terminal_snapshot(session_id);
+        }
+
         if registry.active_commands.contains_key(session_id) {
             push_terminal_line(
                 &mut registry,
@@ -720,9 +816,21 @@ pub fn write_input(session_id: &str, data: &str) -> Result<(), String> {
     };
 
     let mut guard = lock_stdin(&stdin);
-    guard.write_all(data.as_bytes()).and_then(|_| guard.flush()).map_err(|error| {
-        format!("Failed to write raw input to remote shell: {}", error)
-    })
+    if let Err(error) = guard.write_all(data.as_bytes()).and_then(|_| guard.flush()) {
+        let mut registry = lock_registry();
+        mark_session_degraded(
+            &mut registry,
+            session_id,
+            "transport-drop",
+            "SSH input write failed",
+            format!("Writing input into the live SSH transport failed: {}", error),
+            "input-error",
+            format!("Failed to write raw input to remote shell: {}", error),
+            format!("SSH input write failed: {}", error),
+        );
+        return Err(format!("Failed to write raw input to remote shell: {}", error));
+    }
+    Ok(())
 }
 
 pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
