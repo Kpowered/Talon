@@ -2788,3 +2788,166 @@ button {
   margin-top: auto;
   padding-top: 8px;
 }
+
+.manage-hosts-popover-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: transparent;
+}
+
+.manage-hosts-popover {
+  position: fixed;
+  top: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(14, 18, 26, 0.985);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+}
+
+.manage-hosts-list-popover {
+  left: 214px;
+  width: 196px;
+  max-height: 372px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 6px;
+  padding: 8px;
+}
+
+.manage-hosts-popover-header.compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.manage-hosts-popover-header.compact h2,
+.manage-hosts-editor-title strong {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.manage-hosts-editor-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.manage-hosts-editor-title span {
+  color: #8f9bb4;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.manage-hosts-search.compact {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.manage-hosts-search.compact input {
+  width: 100%;
+  min-height: 32px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.035);
+  color: #dbe3f6;
+}
+
+.manage-hosts-list-popover-body.compact {
+  min-height: 0;
+  overflow: auto;
+  gap: 6px;
+}
+
+.manage-host-item.compact {
+  gap: 3px;
+  padding: 8px 9px;
+  border-radius: 8px;
+}
+
+.manage-host-item.compact strong {
+  font-size: 0.79rem;
+  font-weight: 600;
+}
+
+.manage-host-item.compact span {
+  font-size: 0.71rem;
+  line-height: 1.25;
+  color: #8f9bb4;
+}
+
+.manage-hosts-popover-footer.compact {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0;
+}
+
+.manage-hosts-editor-popover.compact {
+  left: 420px;
+  width: 292px;
+  max-height: 470px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  overflow: hidden;
+  padding: 8px;
+}
+
+.manage-hosts-editor-grid {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding-right: 2px;
+}
+
+.manage-hosts-editor-grid .span-2 {
+  grid-column: span 2;
+}
+
+.connection-field.compact-field {
+  gap: 4px;
+}
+
+.connection-field.compact-field span {
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+}
+
+.connection-field.compact-field input,
+.connection-field.compact-field select {
+  min-height: 32px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+}
+
+.password-field-row.compact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+}
+
+.password-field-row.compact .ghost-button.small,
+.manage-hosts-popover .ghost-button.small {
+  min-height: 32px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  font-size: 0.74rem;
+}
+
+.manage-host-actions.compact {
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 0;
+}

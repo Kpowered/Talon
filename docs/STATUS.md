@@ -4,7 +4,7 @@
 Build Talon into an AI-native SSH troubleshooting desktop app that captures failed commands, packages incident context, and keeps remediation operator-confirmed.
 
 ## Current Stage
-As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed SSH desktop app with a real transport path and direct terminal typing inside a managed terminal surface. The current stabilization pass is focused on live connect-state projection, terminal transcript preservation, lifecycle visibility, managed-command operator control, and failure-context quality during interactive SSH sessions.
+As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed SSH desktop app with a real transport path and direct terminal typing inside a managed terminal surface. The current stabilization pass is focused on live connect-state projection, terminal transcript preservation, lifecycle visibility, managed-command operator control, failure-context quality during interactive SSH sessions, and shrinking the desktop shell toward a denser terminal-first layout.
 
 ## Completed
 - Connected the local workspace to `origin/main` and synced the repository.
@@ -29,6 +29,8 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added in-flight command guardrails so each session now serializes wrapped command execution and rejects concurrent submissions until completion.
 - Added desktop-side busy-session awareness so the composer reflects when a managed shell already has an active command in progress.
 - Replaced the unstable xterm display layer with a managed terminal transcript view so live SSH output no longer clears unexpectedly.
+- Reshaped host management into compact floating popovers anchored near the saved-host rail so list, edit, connect, and delete flows no longer take over the main terminal workspace.
+- Fixed the desktop window to a non-resizable `1024x768` frame to keep the terminal-first layout stable while UI density is still being refined.
 - Added managed-command interrupt support through Ctrl+C and a shared raw-input path back to the SSH transport. Interrupt completion markers now carry shell and cwd metadata, and delayed fallback cleanup preserves a stable busy-state transition when the remote shell does not close the wrapper cleanly. The wrapped command path now emits a completion marker even when the operator interrupts a running command, so busy state can clear cleanly.
 - Added operator-visible connection issue handling for host trust, authentication, timeout, and network-path failures, including suggested operator actions and recommended commands in the UI.
 - Added a verification log in `docs/VERIFICATION.md` and captured the current environment's local SSH probe transcripts.
@@ -125,6 +127,8 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
+
 
 
 
