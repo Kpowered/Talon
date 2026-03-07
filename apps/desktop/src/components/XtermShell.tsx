@@ -17,7 +17,7 @@ type XtermShellProps = {
 
 type RenderState = {
   sessionId: string | null;
-  renderedTailCount: number;
+  renderedLines: string[];
   promptText: string;
   promptCursor: number;
   promptVisible: boolean;
@@ -60,6 +60,13 @@ function appendTailLines(terminal: Terminal, lines: string[]) {
   }
 }
 
+function startsWithRenderedLines(nextLines: string[], renderedLines: string[]) {
+  if (renderedLines.length > nextLines.length) {
+    return false;
+  }
+  return renderedLines.every((line, index) => nextLines[index] === line);
+}
+
 export function XtermShell({
   sessionId,
   terminalTail,
@@ -76,7 +83,7 @@ export function XtermShell({
   const fitAddonRef = useRef<FitAddon | null>(null);
   const renderStateRef = useRef<RenderState>({
     sessionId: null,
-    renderedTailCount: 0,
+    renderedLines: [],
     promptText: "",
     promptCursor: 0,
     promptVisible: false,
@@ -231,32 +238,27 @@ export function XtermShell({
     if (sessionChanged) {
       terminal.reset();
       state.sessionId = sessionId;
-      state.renderedTailCount = 0;
+      state.renderedLines = [...terminalTail];
       state.promptVisible = false;
       state.promptText = "";
       state.promptCursor = 0;
       cursorRef.current = draft.length;
       appendTailLines(terminal, terminalTail);
-      state.renderedTailCount = terminalTail.length;
       drawPromptLine(terminal, state, draft, isBusy, cursorRef.current);
       fitAddonRef.current?.fit();
       terminal.focus();
       return;
     }
 
-    const tailShrank = terminalTail.length < state.renderedTailCount;
-
-    if (tailShrank) {
-      drawPromptLine(terminal, state, draft, isBusy, cursorRef.current);
-      return;
-    }
-
-    if (terminalTail.length > state.renderedTailCount) {
-      clearPromptLine(terminal, state);
-      appendTailLines(terminal, terminalTail.slice(state.renderedTailCount));
-      state.renderedTailCount = terminalTail.length;
-      drawPromptLine(terminal, state, draft, isBusy, cursorRef.current);
-      return;
+    if (terminalTail.length > 0 && startsWithRenderedLines(terminalTail, state.renderedLines)) {
+      const appendedLines = terminalTail.slice(state.renderedLines.length);
+      if (appendedLines.length > 0) {
+        clearPromptLine(terminal, state);
+        appendTailLines(terminal, appendedLines);
+        state.renderedLines = [...terminalTail];
+        drawPromptLine(terminal, state, draft, isBusy, cursorRef.current);
+        return;
+      }
     }
 
     const nextPromptText = promptTextForState(draft, isBusy);
@@ -267,5 +269,3 @@ export function XtermShell({
 
   return <div className="xterm-shell" ref={containerRef} />;
 }
-
-

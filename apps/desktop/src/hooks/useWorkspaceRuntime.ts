@@ -25,7 +25,10 @@ function shouldApplyTerminalSnapshot(
   if (currentLines.length === 0) {
     return true;
   }
-  return nextLines.length > currentLines.length;
+  if (nextLines.length <= currentLines.length) {
+    return false;
+  }
+  return currentLines.every((line, index) => nextLines[index] === line);
 }
 
 
@@ -208,6 +211,7 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     loadTerminalSnapshot,
   };
 }
+
 
 
 
