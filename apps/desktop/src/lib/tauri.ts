@@ -14,6 +14,7 @@ import type {
   DisconnectSessionResponse,
   HostConfigMutationResponse,
   HostMutationResponse,
+  HostPasswordResponse,
   SessionConnectionIssue,
   SessionRegistryResponse,
   SubmitCommandResponse,
@@ -185,6 +186,12 @@ export function clearHostPassword(hostId: string) {
   });
 }
 
+export function getHostPassword(hostId: string) {
+  return invokeCommand<HostPasswordResponse>("get_host_password", "host.password.load", {
+    payload: { hostId },
+  });
+}
+
 export function saveAgentConfiguration(payload: {
   providerType: string;
   baseUrl: string;
@@ -245,3 +252,6 @@ export function upsertHost(payload: {
 export function deleteHost(hostId: string) {
   return invokeCommand<HostMutationResponse>("delete_host", "host.delete", { payload: { hostId } });
 }
+
+
+

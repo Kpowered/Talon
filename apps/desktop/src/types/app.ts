@@ -80,6 +80,10 @@ export type HostConfigMutationResponse = {
   hostConfigs: HostConnectionConfig[];
 };
 
+export type HostPasswordResponse = {
+  password: string | null;
+};
+
 export type HostMutationResponse = {
   hosts: Host[];
 };
@@ -145,3 +149,4 @@ export type SessionOverrideFormState = {
   authMethod: ConnectionAuthMethod;
   password: string;
 };
+

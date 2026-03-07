@@ -78,6 +78,8 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Replaced the old silent `New host` behavior with an explicit create-host dialog that lets operators enter SSH connection details up front and choose `Save`, `Connect`, or `Cancel` before any host record is created.
 - Added a direct create-and-connect flow for new hosts so Talon can persist a host/config pair and immediately open a real SSH session from the same modal input without forcing a second pass through HostRail.
 - Added a `Manage hosts` dialog from the top bar so operators can edit or delete saved hosts while disconnected; the dialog presents a left-side host list and a right-side saved-config editor with password management.
+- The manage-hosts password field now loads the stored host password from the local credential store, supports show/hide and copy actions, and treats an empty password field on `Save host` as an explicit password removal.
+- Saving a host from the manage-hosts dialog now persists both host metadata and password changes in one action and auto-closes the dialog on success.
 - Restored and expanded Rust regression coverage for context shaping, stream-tail truncation, command marker parsing, non-zero failure capture, and connection-issue classification; `cargo test` now passes again.
 ## In Progress
 - Continuing to reduce the remaining size of `App.tsx` and to harden diagnosis/trust UX now that backend internals and core test coverage are stable.
@@ -98,6 +100,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 
 
 

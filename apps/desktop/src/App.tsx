@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Host, Session, SuggestedAction } from "@talon/core";
 import type { AppCommandError, HostConnectionConfig, NewHostDraft, TerminalTab } from "./types/app";
 import { TopBar } from "./components/TopBar";
@@ -13,6 +13,7 @@ import { useOperatorActions } from "./hooks/useOperatorActions";
 import { useActionNotice } from "./hooks/useActionNotice";
 import { useTimelineSignals } from "./hooks/useTimelineSignals";
 import { useHostRailState } from "./hooks/useHostRailState";
+import { getHostPassword } from "./lib/tauri";
 import "./App.css";
 
 const EMPTY_NEW_HOST_DRAFT: NewHostDraft = {
@@ -36,6 +37,7 @@ function App() {
   const [isSavingNewHost, setIsSavingNewHost] = useState(false);
   const [isConnectingNewHost, setIsConnectingNewHost] = useState(false);
   const [newHostDialogError, setNewHostDialogError] = useState<string | null>(null);
+  const [isLoadingManageHostPassword, setIsLoadingManageHostPassword] = useState(false);
 
   const runtime = useWorkspaceRuntime({ onError: setActionNotice });
   const {
@@ -146,6 +148,32 @@ function App() {
     hostRail.setAgentForm((current) => ({ ...current, apiKey: "" }));
   }, [agentSettings?.hasApiKey, hostRail.agentForm.apiKey, hostRail.setAgentForm]);
 
+  useEffect(() => {
+    if (!isManageHostsDialogOpen || !selectedHost) return;
+
+    let cancelled = false;
+    setIsLoadingManageHostPassword(true);
+
+    void getHostPassword(selectedHost.id)
+      .then((response) => {
+        if (cancelled) return;
+        hostRail.setSavedHostForm((current) => ({ ...current, savedPassword: response.password ?? "" }));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        hostRail.setSavedHostForm((current) => ({ ...current, savedPassword: "" }));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingManageHostPassword(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hostRail.setSavedHostForm, isManageHostsDialogOpen, selectedHost]);
+
   async function handleCreateHost(connectAfterCreate: boolean) {
     const draft = {
       ...newHostDraft,
@@ -187,6 +215,18 @@ function App() {
       setIsConnectingNewHost(false);
     }
   }
+
+  const handleSaveManagedHost = useCallback(async () => {
+    await actions.updateSelectedHost();
+
+    if (hostRail.savedHostForm.savedPassword.trim()) {
+      await actions.saveSavedHostPassword();
+    } else if (selectedHostConfig?.hasSavedPassword) {
+      await actions.clearSavedHostPassword();
+    }
+
+    setIsManageHostsDialogOpen(false);
+  }, [actions, hostRail.savedHostForm.savedPassword, selectedHostConfig?.hasSavedPassword]);
 
   function openNewHostDialog() {
     setNewHostDraft(EMPTY_NEW_HOST_DRAFT);
@@ -232,11 +272,10 @@ function App() {
           savedHostForm={hostRail.savedHostForm}
           isSavingHostConfig={actions.isSavingHostConfig}
           isDeletingHostConfig={actions.isDeletingHostConfig}
+          isLoadingPassword={isLoadingManageHostPassword}
           onSelectHost={setSelectedHostId}
           onSetSavedHostForm={hostRail.setSavedHostForm}
-          onSaveSavedHostPassword={() => void actions.saveSavedHostPassword()}
-          onClearSavedHostPassword={() => void actions.clearSavedHostPassword()}
-          onUpdateSelectedHost={() => void actions.updateSelectedHost()}
+          onSaveHost={handleSaveManagedHost}
           onDeleteSelectedHost={() => void actions.deleteSelectedHost()}
           onClose={() => setIsManageHostsDialogOpen(false)}
         />

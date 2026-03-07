@@ -1457,3 +1457,14 @@ button {
 .manage-host-actions {
   margin-top: 10px;
 }
+
+.password-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.manage-password-note {
+  margin-top: 8px;
+}

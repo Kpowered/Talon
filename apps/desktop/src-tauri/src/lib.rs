@@ -1,7 +1,7 @@
 use session_manager::{
     clear_agent_api_key as clear_saved_agent_api_key, clear_host_password as clear_saved_host_password,
     confirm_host_trust as apply_host_trust, connect_session as open_preview_session,
-    get_agent_settings as load_agent_settings, get_latest_context_packet as load_latest_context_packet,
+    get_agent_settings as load_agent_settings, get_host_password as load_host_password, get_latest_context_packet as load_latest_context_packet,
     get_session_events as load_session_events, get_session_registry as load_session_registry,
     get_terminal_snapshot as load_terminal_snapshot, get_workspace_state as load_workspace_state,
     prepare_host_trust as begin_host_trust, reconnect_session as reopen_session,
@@ -10,7 +10,7 @@ use session_manager::{
     save_host_password as persist_host_password, submit_session_command as dispatch_session_command,
     disconnect_session as close_session, AgentSettingsResponse, ConfirmHostTrustRequest, ConnectSessionRequest,
     ConnectSessionResponse, ContextPacketResponse, DeleteHostConfigRequest, DeleteHostRequest,
-    DisconnectSessionRequest, DisconnectSessionResponse, HostConfigMutationResponse, HostMutationResponse,
+    DisconnectSessionRequest, DisconnectSessionResponse, HostConfigMutationResponse, HostMutationResponse, HostPasswordResponse,
     HostSecretRequest, SaveAgentApiKeyRequest, SaveAgentSettingsRequest, SaveHostPasswordRequest,
     SessionEventListResponse, SessionRegistryResponse, SessionScopedRequest, SubmitCommandRequest,
     SubmitCommandResponse, TrustConfirmationResponse, TrustPreparationResponse, UpsertHostConfigRequest,
@@ -73,6 +73,11 @@ fn save_host_password(payload: SaveHostPasswordRequest) -> Result<HostConfigMuta
 #[tauri::command]
 fn clear_host_password(payload: HostSecretRequest) -> Result<HostConfigMutationResponse, String> {
     clear_saved_host_password(payload)
+}
+
+#[tauri::command]
+fn get_host_password(payload: HostSecretRequest) -> HostPasswordResponse {
+    load_host_password(payload)
 }
 
 #[tauri::command]
@@ -155,6 +160,7 @@ pub fn run() {
             clear_agent_api_key,
             save_host_password,
             clear_host_password,
+            get_host_password,
             prepare_host_trust,
             confirm_host_trust,
             retry_diagnosis,
@@ -172,4 +178,6 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+
 

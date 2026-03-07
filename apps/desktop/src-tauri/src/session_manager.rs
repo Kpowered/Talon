@@ -79,6 +79,12 @@ pub struct HostSecretRequest {
     pub host_id: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostPasswordResponse {
+    pub password: Option<String>,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveAgentApiKeyRequest {
@@ -265,6 +271,13 @@ pub fn clear_host_password(payload: HostSecretRequest) -> Result<HostConfigMutat
     })
 }
 
+pub fn get_host_password(payload: HostSecretRequest) -> HostPasswordResponse {
+    HostPasswordResponse {
+        password: secrets::load_host_password(&payload.host_id)
+            .ok()
+            .filter(|value| !value.trim().is_empty()),
+    }
+}
 pub fn get_latest_context_packet(payload: SessionScopedRequest) -> ContextPacketResponse {
     ContextPacketResponse {
         packet: session_registry::cached_context_packet_for(&payload.session_id),
@@ -439,4 +452,9 @@ pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionRes
     }
     crate::session_store::run_suggested_action(payload)
 }
+
+
+
+
+
 

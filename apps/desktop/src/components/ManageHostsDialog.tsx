@@ -1,5 +1,6 @@
 import type { Host } from "@talon/core";
 import type { ConnectionAuthMethod, HostConnectionConfig, SavedHostFormState } from "../types/app";
+import { useState } from "react";
 
 type ManageHostsDialogProps = {
   hosts: Host[];
@@ -8,11 +9,10 @@ type ManageHostsDialogProps = {
   savedHostForm: SavedHostFormState;
   isSavingHostConfig: boolean;
   isDeletingHostConfig: boolean;
+  isLoadingPassword: boolean;
   onSelectHost: (hostId: string) => void;
   onSetSavedHostForm: (updater: (current: SavedHostFormState) => SavedHostFormState) => void;
-  onSaveSavedHostPassword: () => void;
-  onClearSavedHostPassword: () => void;
-  onUpdateSelectedHost: () => void;
+  onSaveHost: () => void;
   onDeleteSelectedHost: () => void;
   onClose: () => void;
 };
@@ -24,14 +24,20 @@ export function ManageHostsDialog({
   savedHostForm,
   isSavingHostConfig,
   isDeletingHostConfig,
+  isLoadingPassword,
   onSelectHost,
   onSetSavedHostForm,
-  onSaveSavedHostPassword,
-  onClearSavedHostPassword,
-  onUpdateSelectedHost,
+  onSaveHost,
   onDeleteSelectedHost,
   onClose,
 }: ManageHostsDialogProps) {
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+  async function copyPassword() {
+    if (!savedHostForm.savedPassword) return;
+    await navigator.clipboard.writeText(savedHostForm.savedPassword);
+  }
+
   return (
     <div className="dialog-backdrop" role="presentation">
       <section className="dialog-card manage-hosts-dialog" role="dialog" aria-modal="true" aria-labelledby="manage-hosts-title">
@@ -125,24 +131,29 @@ export function ManageHostsDialog({
                     />
                   </label>
                   <label className="connection-field">
-                    <span>Saved password</span>
-                    <input
-                      type="password"
-                      value={savedHostForm.savedPassword}
-                      onChange={(event) => onSetSavedHostForm((current) => ({ ...current, savedPassword: event.target.value }))}
-                      placeholder={selectedHostConfig?.hasSavedPassword ? "Password saved in system keychain" : "Store password in system keychain"}
-                    />
+                    <span>Password</span>
+                    <div className="password-field-row">
+                      <input
+                        type={isPasswordVisible ? "text" : "password"}
+                        value={savedHostForm.savedPassword}
+                        onChange={(event) => onSetSavedHostForm((current) => ({ ...current, savedPassword: event.target.value }))}
+                        placeholder={isLoadingPassword ? "Loading saved password..." : selectedHostConfig?.hasSavedPassword ? "Saved password loaded" : "Leave blank to remove password"}
+                      />
+                      <button className="ghost-button small" onClick={() => setIsPasswordVisible((current) => !current)} type="button">
+                        {isPasswordVisible ? "Hide" : "Show"}
+                      </button>
+                      <button className="ghost-button small" onClick={() => void copyPassword()} type="button" disabled={!savedHostForm.savedPassword}>
+                        Copy
+                      </button>
+                    </div>
+                    <p className="section-note manage-password-note">
+                      Clear the password field and save the host if you want to remove the stored password from the system keychain.
+                    </p>
                   </label>
                 </div>
 
                 <div className="dialog-actions manage-host-actions">
-                  <button className="ghost-button small" onClick={onSaveSavedHostPassword} disabled={!savedHostForm.savedPassword.trim()}>
-                    Save password
-                  </button>
-                  <button className="ghost-button small" onClick={onClearSavedHostPassword} disabled={!selectedHostConfig?.hasSavedPassword}>
-                    Clear password
-                  </button>
-                  <button className="ghost-button small" onClick={onUpdateSelectedHost} disabled={isSavingHostConfig}>
+                  <button className="ghost-button small" onClick={onSaveHost} disabled={isSavingHostConfig || isLoadingPassword}>
                     {isSavingHostConfig ? "Saving..." : "Save host"}
                   </button>
                   <button className="ghost-button small destructive" onClick={onDeleteSelectedHost} disabled={isDeletingHostConfig}>
