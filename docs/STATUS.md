@@ -29,7 +29,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added in-flight command guardrails so each session now serializes wrapped command execution and rejects concurrent submissions until completion.
 - Added desktop-side busy-session awareness so the composer reflects when a managed shell already has an active command in progress.
 - Replaced the unstable xterm display layer with a managed terminal transcript view so live SSH output no longer clears unexpectedly.
-- Added managed-command interrupt support through Ctrl+C and a shared raw-input path back to the SSH transport. The wrapped command path now emits a completion marker even when the operator interrupts a running command, so busy state can clear cleanly.
+- Added managed-command interrupt support through Ctrl+C and a shared raw-input path back to the SSH transport. Interrupt completion markers now carry shell and cwd metadata, and delayed fallback cleanup preserves a stable busy-state transition when the remote shell does not close the wrapper cleanly. The wrapped command path now emits a completion marker even when the operator interrupts a running command, so busy state can clear cleanly.
 - Added operator-visible connection issue handling for host trust, authentication, timeout, and network-path failures, including suggested operator actions and recommended commands in the UI.
 - Added a verification log in `docs/VERIFICATION.md` and captured the current environment's local SSH probe transcripts.
 - Validated an operator-provided external password-auth SSH target outside the product flow, confirming reachable handshake, shell bootstrap, and a controlled non-zero remote exit.
@@ -91,7 +91,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Removed the eager post-connect shell metadata probe from the SSH stdin path so Talon no longer writes bootstrap commands into a just-opened interactive shell before the operator starts typing.
 - Frontend runtime selection now prefers the session registry active-session pointer over transient workspace projection fallbacks, reducing cases where the UI appears to drop a just-connected live session.
 - Kept the lower-level raw stdin write path internal-only for now rather than exposing it as a first-class operator mode before PTY-grade behavior exists.
-## In Progress
+- Simplified the connected-session Host Rail into a compact live-session summary so terminal work stays primary and detailed host configuration remains in dialogs instead of the permanent sidebar.`r`n## In Progress
 - Hardening the managed terminal surface around prompt fidelity, polling cadence, and any remaining edge cases in long-running interactive commands.
 
 ## Next Steps
@@ -110,4 +110,5 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 

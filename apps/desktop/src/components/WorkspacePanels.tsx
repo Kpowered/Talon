@@ -91,10 +91,10 @@ export function WorkspacePanels({
   inspectNotice,
 }: WorkspacePanelsProps) {
   const inspectOpen = activeTab !== "shell";
-  const inspectTitle = activeConnectionIssueTitle ?? (failure.exitCode !== 0 ? "Captured failure context" : "Session details");
+  const inspectTitle = activeConnectionIssueTitle ?? (failure.exitCode === 130 ? "Operator interrupt" : failure.exitCode !== 0 ? "Captured failure context" : "Session details");
   const inspectSummary = activeConnectionIssueSummary
     ?? (failure.exitCode !== 0
-      ? failure.summary
+      ? (failure.exitCode === 130 ? "The operator interrupted the managed command. Review partial output and session state before rerunning anything." : failure.summary)
       : "Timeline, diagnosis, and captured artifacts stay here so the shell remains the primary workspace.");
 
   return (
@@ -183,3 +183,4 @@ export function WorkspacePanels({
     </section>
   );
 }
+

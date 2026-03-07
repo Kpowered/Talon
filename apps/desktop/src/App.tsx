@@ -422,6 +422,7 @@ function App() {
             onResetConnectionOverride={actions.resetConnectionOverride}
             onPrepareHostTrustFlow={() => void actions.prepareHostTrustFlow()}
             onConfirmHostTrustFlow={() => void actions.confirmHostTrustFlow()}
+            onManageHosts={() => setIsManageHostsDialogOpen(true)}
           />
         ) : null}
 
@@ -471,3 +472,4 @@ function App() {
 }
 
 export default App;
+

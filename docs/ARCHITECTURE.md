@@ -142,6 +142,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the selected timeline signal filter is intentionally sticky across polling refreshes and auto-clears only when that signal no longer exists in the current timeline window; the active pill remains rendered even if its count drops below the repeated threshold
   - the desktop shell now has two primary presentation states: disconnected sessions render a terminal-first layout with a compact host picker and a single main terminal surface, while connected sessions expand only a narrow host rail alongside that same main workspace
   - diagnosis, timeline, and artifacts now live in an on-demand Inspect drawer so the terminal remains the default primary workspace and analysis opens only when requested or when the operator notices a signal
+  - the connected-session Host Rail is intentionally minimal and defers detailed host editing, password management, and provider settings to dedicated dialogs
   - the shell surface is now a managed terminal transcript view; frontend keyboard input is captured directly inside the terminal pane and rendered by React rather than `xterm.js`
 - session state is now explicitly lifecycle-based: `connecting` at spawn time, `connected` only after live shell output, `disconnected` on transport exit, and `degraded` on stream/wait failures
 - terminal projection is intentionally sanitized before rendering into the managed transcript view so ANSI control sequences that clear the screen or rewrite window metadata do not erase Talon-managed transcript state
@@ -151,9 +152,10 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - passwords can be persisted in the local credential store and are injected into `ssh.exe` through `SSH_ASKPASS` when password auth is selected
 - Command framing:
   - submitted commands are wrapped with Talon control markers before being written to the remote shell
-  - stdout parsing detects command start and command end markers
+  - stdout parsing detects command start and command end markers, and the end marker now includes exit code, cwd, and shell metadata
   - command completion records now store exit code, updated cwd, and bounded stdout/stderr tails
   - a session can have only one wrapped command in flight; additional submissions are rejected until completion markers are observed, and Ctrl+C / the Interrupt button forward a raw `\u0003` into the live transport
+  - if the remote shell does not emit the interrupt completion marker quickly enough, Talon now performs delayed backend interrupt completion so busy state still clears deterministically
   - the wrapped command scaffold now installs an `INT` trap so operator interrupts still emit a Talon command-end marker with exit `130`, allowing the backend to clear busy state and package interruption context deterministically
 - Failure packaging:
   - non-zero command completions are converted into structured `FailureContext` records
@@ -223,4 +225,5 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+
 

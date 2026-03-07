@@ -1689,3 +1689,29 @@ button {
     justify-content: flex-start;
   }
 }
+
+.host-rail-minimal {
+  gap: 12px;
+}
+
+.host-rail-header {
+  align-items: center;
+}
+
+.host-list-minimal {
+  max-height: 260px;
+}
+
+.rail-summary-block {
+  gap: 10px;
+}
+
+.rail-facts {
+  gap: 8px;
+}
+
+.rail-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+}
