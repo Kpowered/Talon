@@ -51,16 +51,8 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
       }
       return state.sessions[0]?.hostId ?? state.hosts[0]?.id ?? null;
     });
-    setTerminalTail((current) => {
-      const nextSessionId = state.terminal.sessionId || state.activeSessionId || terminalSessionId || "";
-      if (shouldApplyTerminalSnapshot(nextSessionId, state.terminal.lines, terminalSessionId, current)) {
-        setTerminalSessionId(nextSessionId || null);
-        return state.terminal.lines;
-      }
-      return current;
-    });
     return state;
-  }, [terminalSessionId]);
+  }, []);
 
   const applyRegistry = useCallback((registry: { hostConfigs: HostConnectionConfig[]; activeSessionId: string; busySessionIds: string[]; activeConnectionIssue: SessionConnectionIssue | null }) => {
     setHostConfigs(registry.hostConfigs);
@@ -136,6 +128,13 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
         applyWorkspace(state);
         applyRegistry(registry);
         setAgentSettings(settingsResponse.settings);
+        const liveSessionId = registry.activeSessionId || state.activeSessionId;
+        if (liveSessionId) {
+          void loadTerminalSnapshot(liveSessionId);
+        } else {
+          setTerminalSessionId(null);
+          setTerminalTail([]);
+        }
       } catch (error) {
         if (!cancelled) {
           reportError(error);
@@ -153,8 +152,13 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
 
   useEffect(() => {
     const liveSessionId = registryActiveSessionId || workspace?.activeSessionId;
-    if (!liveSessionId) return;
+    if (!liveSessionId) {
+      setTerminalSessionId(null);
+      setTerminalTail([]);
+      return;
+    }
 
+    void loadTerminalSnapshot(liveSessionId);
     const interval = window.setInterval(() => {
       void refreshWorkspace();
       void refreshRegistry();
@@ -204,6 +208,7 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     loadTerminalSnapshot,
   };
 }
+
 
 
 
