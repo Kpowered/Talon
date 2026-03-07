@@ -46,14 +46,17 @@ export function HostRail({
     };
 
     window.addEventListener("click", closeMenu);
-    window.addEventListener("contextmenu", closeMenu);
     window.addEventListener("keydown", handleEscape);
     return () => {
       window.removeEventListener("click", closeMenu);
-      window.removeEventListener("contextmenu", closeMenu);
       window.removeEventListener("keydown", handleEscape);
     };
   }, [contextMenu]);
+
+  const runContextAction = (action: () => void) => {
+    action();
+    setContextMenu(null);
+  };
 
   return (
     <aside className="sidebar-shell sidebar-shell-nav sidebar-shell-ultralight">
@@ -87,6 +90,7 @@ export function HostRail({
                 onDoubleClick={() => onConnectHost(host.id)}
                 onContextMenu={(event) => {
                   event.preventDefault();
+                  event.stopPropagation();
                   onSelectHost(host.id);
                   setContextMenu({ hostId: host.id, x: event.clientX, y: event.clientY });
                 }}
@@ -105,10 +109,10 @@ export function HostRail({
       {activeConnectionIssue ? <div className="sidebar-inline-issue">{activeConnectionIssue.title}</div> : null}
 
       {contextMenu ? (
-        <div className="host-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
-          <button onClick={() => onConnectHost(contextMenu.hostId)}>Connect</button>
-          <button onClick={() => onEditHost(contextMenu.hostId)}>Edit</button>
-          <button className="destructive" onClick={() => onDeleteHost(contextMenu.hostId)}>Delete</button>
+        <div className="host-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
+          <button onClick={() => runContextAction(() => onConnectHost(contextMenu.hostId))}>Connect</button>
+          <button onClick={() => runContextAction(() => onEditHost(contextMenu.hostId))}>Edit</button>
+          <button className="destructive" onClick={() => runContextAction(() => onDeleteHost(contextMenu.hostId))}>Delete</button>
         </div>
       ) : null}
     </aside>
