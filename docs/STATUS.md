@@ -4,7 +4,7 @@
 Build Talon into an AI-native SSH troubleshooting desktop app that captures failed commands, packages incident context, and keeps remediation operator-confirmed.
 
 ## Current Stage
-As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed SSH desktop app with a real transport path and direct terminal typing through xterm on a single Talon-managed input path.
+As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed SSH desktop app with a real transport path and direct terminal typing through xterm on a single Talon-managed input path. The current stabilization pass is focused on live connect-state projection, terminal transcript preservation, and lifecycle visibility during interactive SSH sessions.
 
 ## Completed
 - Connected the local workspace to `origin/main` and synced the repository.
@@ -108,6 +108,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 
 
 

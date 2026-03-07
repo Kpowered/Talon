@@ -1,3 +1,76 @@
+fn strip_terminal_control_sequences(line: &str) -> String {
+    let mut sanitized = String::with_capacity(line.len());
+    let mut chars = line.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch != '\x1b' {
+            sanitized.push(ch);
+            continue;
+        }
+
+        match chars.peek().copied() {
+            Some('[') => {
+                chars.next();
+                while let Some(next) = chars.next() {
+                    if ('@'..='~').contains(&next) {
+                        break;
+                    }
+                }
+            }
+            Some(']') => {
+                chars.next();
+                while let Some(next) = chars.next() {
+                    if next == '\u{0007}' {
+                        break;
+                    }
+                    if next == '\x1b' && matches!(chars.peek().copied(), Some('\\')) {
+                        chars.next();
+                        break;
+                    }
+                }
+            }
+            Some(_) => {
+                chars.next();
+            }
+            None => break,
+        }
+    }
+
+    sanitized
+}
+
+fn promote_session_connected(state: &mut SessionRegistry, session_id: &str) {
+    let already_connected = state
+        .managed_sessions
+        .iter()
+        .find(|session| session.id == session_id)
+        .map(|session| session.state == "connected")
+        .unwrap_or(false);
+    if already_connected {
+        return;
+    }
+
+    let latency_ms = capture_connect_latency_ms(state, session_id);
+    update_session_state(state, session_id, "connected");
+    update_host_observed_for_session(state, session_id, Some("healthy"), true);
+    clear_connection_issue(state, session_id);
+    push_event(
+        state,
+        session_id,
+        "shell-ready",
+        "Remote shell produced live output. Session promoted to connected.".into(),
+    );
+    push_terminal_line(
+        state,
+        session_id,
+        format!(
+            "Connected. Remote shell is live{}",
+            latency_ms
+                .map(|value| format!(" ({} ms)", value))
+                .unwrap_or_default()
+        ),
+    );
+}
 fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
     thread::spawn(move || {
         let mut reader = BufReader::new(stdout);
@@ -6,10 +79,13 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
             match reader.read_line(&mut line) {
                 Ok(0) => break,
                 Ok(_) => {
-                    let line = line.trim_end_matches(['\r', '\n']).to_string();
-                    if line.is_empty() {
-                        let mut state = lock_registry();
-                        push_terminal_line(&mut state, &session_id, String::new());
+                    let raw_line = line.trim_end_matches(['\r', '\n']).to_string();
+                    let line = strip_terminal_control_sequences(&raw_line);
+                    if line.trim().is_empty() {
+                        if raw_line.is_empty() {
+                            let mut state = lock_registry();
+                            push_terminal_line(&mut state, &session_id, String::new());
+                        }
                         continue;
                     }
 
@@ -21,28 +97,18 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
 
                     if let Some(cwd) = line.strip_prefix(META_CWD_PREFIX) {
                         let cwd = cwd.trim();
-                        let latency_ms = capture_connect_latency_ms(&state, &session_id);
                         update_session_metadata(&mut state, &session_id, None, Some(cwd));
-                        update_session_state(&mut state, &session_id, "connected");
-                        let host_id = state
-                            .managed_sessions
-                            .iter()
-                            .find(|session| session.id == session_id)
-                            .map(|session| session.host_id.clone());
-                        if let Some(host_id) = host_id {
-                            update_host_observed(&mut state, &host_id, Some("healthy"), Some(&now_iso()), latency_ms);
-                        }
-                        clear_connection_issue(&mut state, &session_id);
+                        promote_session_connected(&mut state, &session_id);
                         push_event(
                             &mut state,
                             &session_id,
-                            "shell-ready",
-                            format!("Remote shell is ready in {}", cwd),
+                            "shell-cwd",
+                            format!("Remote shell reported cwd {}", cwd),
                         );
                         push_terminal_line(
                             &mut state,
                             &session_id,
-                            format!("Connected. Remote shell ready in {}", cwd),
+                            format!("Remote shell ready in {}", cwd),
                         );
                         continue;
                     }
@@ -62,6 +128,7 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
                         continue;
                     }
 
+                    promote_session_connected(&mut state, &session_id);
                     push_terminal_line(&mut state, &session_id, line.clone());
                     capture_stream_line(&mut state, &session_id, "stdout", &line);
                     capture_command_stream_line(&mut state, &session_id, "stdout", &line);
@@ -91,7 +158,15 @@ fn start_stderr_reader(session_id: String, host: Host, stderr: ChildStderr) {
             match reader.read_line(&mut line) {
                 Ok(0) => break,
                 Ok(_) => {
-                    let line = line.trim_end_matches(['\r', '\n']).to_string();
+                    let raw_line = line.trim_end_matches(['\r', '\n']).to_string();
+                    let line = strip_terminal_control_sequences(&raw_line);
+                    if line.trim().is_empty() {
+                        if raw_line.is_empty() {
+                            let mut state = lock_registry();
+                            push_terminal_line(&mut state, &session_id, String::new());
+                        }
+                        continue;
+                    }
                     let mut state = lock_registry();
                     push_terminal_line(&mut state, &session_id, format!("stderr: {}", line));
                     capture_stream_line(&mut state, &session_id, "stderr", &line);
@@ -280,7 +355,7 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
     let record = ManagedSessionRecord {
         id: session_id.clone(),
         host_id: host.id.clone(),
-        state: "degraded".into(),
+        state: "connecting".into(),
         shell: "sh".into(),
         cwd: "~".into(),
         connected_at: now.clone(),
@@ -316,7 +391,6 @@ pub fn connect_host(host: &Host, config: Option<&HostConnectionConfig>, password
         Ok(runtime) => {
             let mut registry = lock_registry();
             registry.runtimes.insert(record.id.clone(), runtime);
-            update_session_state(&mut registry, &record.id, "connected");
             push_event(
                 &mut registry,
                 &record.id,
@@ -615,4 +689,6 @@ mod transport_tests {
         assert_eq!(registry.command_history[0].command, "false");
     }
 }
+
+
 

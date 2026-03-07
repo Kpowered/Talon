@@ -143,6 +143,8 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the desktop shell now has two primary presentation states: disconnected sessions render a terminal-first layout with a compact host picker and a single main terminal surface, while connected sessions expand only a narrow host rail alongside that same main workspace
   - diagnosis, timeline, and artifacts now share the main workspace tabs instead of rendering as separate always-visible panels, keeping the connected layout focused on one primary work surface
   - the shell surface is now `xterm.js`, not a static tail-only div; frontend keyboard input is captured directly inside the terminal pane
+- session state is now explicitly lifecycle-based: `connecting` at spawn time, `connected` only after live shell output, `disconnected` on transport exit, and `degraded` on stream/wait failures
+- terminal projection is intentionally sanitized before rendering into xterm so ANSI control sequences that clear the screen or rewrite window metadata do not erase Talon-managed transcript state
   - the operator-facing terminal now uses one Talon-managed direct-input mode: typing happens inside xterm, but `Enter` still submits through Talon command wrapping so command completion and exit-code capture remain intact
   - a lower-level stdin passthrough helper still exists in the backend as scaffolding, but it is no longer exposed as a primary UI mode until a fuller PTY model exists
   - saved config persists address, port, username, auth method, and fingerprint hint
@@ -199,6 +201,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 - The current shell path is single-mode and Talon-managed: backend output is appended into xterm while the current input line is rendered locally inside the terminal surface
 - The transport now forces PTY allocation instead of `ssh -T`, because Talon is acting as a persistent shell session rather than a one-shot non-interactive command pipe
 - xterm rendering now prefers incremental append over full reset/replay to reduce visible flashing during polling refreshes
+- when structured command/failure signals are absent, the workspace timeline degrades gracefully to recent lifecycle events from the session registry so connection progress is still visible to the operator
 - A lower-level stdin passthrough helper exists in the backend but is intentionally not surfaced as a normal operator mode until fuller PTY/TUI behavior is implemented
 
 ### SSH layer
@@ -219,6 +222,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+
 
 
 

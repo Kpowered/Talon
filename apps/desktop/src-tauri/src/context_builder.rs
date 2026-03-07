@@ -1,4 +1,4 @@
-use crate::session_registry::{CommandHistoryEntry, ManagedSessionRecord, SessionConnectionIssue};
+use crate::session_registry::{CommandHistoryEntry, ManagedSessionRecord, SessionConnectionIssue, SessionLifecycleEvent};
 use crate::session_store::{
     DiagnosisMessage, DiagnosisResponse, FailureContext, SuggestedAction, TimelineEvent,
 };
@@ -322,6 +322,7 @@ pub fn timeline_for_session(
     session_id: &str,
     failure: Option<&FailureContext>,
     connection_issue: Option<&SessionConnectionIssue>,
+    recent_events: &[SessionLifecycleEvent],
 ) -> Vec<TimelineEvent> {
     let mut timeline: Vec<TimelineEvent> = command_history
         .iter()
@@ -402,6 +403,25 @@ pub fn timeline_for_session(
         );
     }
 
+    if timeline.is_empty() {
+        timeline.extend(
+            recent_events
+                .iter()
+                .filter(|event| event.session_id == session_id)
+                .take(8)
+                .map(|event| TimelineEvent {
+                    id: format!("timeline-event-{}", event.id),
+                    kind: "action".into(),
+                    title: event.event_type.replace('-', " "),
+                    detail: event.detail.clone(),
+                    stderr_class: None,
+                    stderr_evidence: None,
+                    occurred_at: event.occurred_at.clone(),
+                    exit_code: None,
+                }),
+        );
+    }
+
     timeline
 }
 
@@ -462,7 +482,7 @@ mod tests {
         }];
 
         let failure = sample_failure(Some("filesystem"));
-        let timeline = timeline_for_session(&history, "session-1", Some(&failure), None);
+        let timeline = timeline_for_session(&history, "session-1", Some(&failure), None, &[]);
 
         assert!(timeline[0].detail.contains("stderr class filesystem"));
         assert!(timeline[0].detail.contains("evidence matched: filesystem"));
@@ -488,9 +508,13 @@ mod tests {
             in_app_action_label: None,
         };
 
-        let timeline = timeline_for_session(&[], "session-1", None, Some(&issue));
+        let timeline = timeline_for_session(&[], "session-1", None, Some(&issue), &[]);
         assert_eq!(timeline[0].stderr_class.as_deref(), Some("network"));
         assert_eq!(timeline[0].stderr_evidence.as_deref(), Some("connection refused"));
     }
 }
+
+
+
+
 

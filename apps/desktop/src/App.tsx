@@ -330,7 +330,7 @@ function App() {
         isSavingHostConfig={actions.isSavingHostConfig || isSavingNewHost}
         isReconnectingSession={actions.isReconnectingSession}
         isDisconnectingSession={actions.isDisconnectingSession}
-        isConnectingSession={actions.isConnectingSession || isConnectingNewHost}
+        isConnectingSession={actions.isConnectingSession || isConnectingNewHost || activeSession.state === "connecting"}
         onSelectHost={setSelectedHostId}
         onCreateHost={openNewHostDialog}
         onManageHosts={() => setIsManageHostsDialogOpen(true)}
@@ -449,4 +449,5 @@ function App() {
 }
 
 export default App;
+
 

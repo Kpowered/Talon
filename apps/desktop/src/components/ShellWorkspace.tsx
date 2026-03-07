@@ -93,7 +93,7 @@ export function ShellWorkspace({
         <span className="terminal-meta-chip">{selectedHost.config.address}</span>
         <span className="terminal-meta-chip">{activeSession.state}</span>
         <span className="terminal-meta-chip">{failure.exitCode !== 0 ? `exit ${failure.exitCode}` : "clean"}</span>
-        <span className="terminal-mode">{managedBusy ? "Command in flight" : activeSession.autoCaptureEnabled ? "Auto-capture ON" : "Auto-capture OFF"}</span>
+        <span className="terminal-mode">{activeSession.state === "connecting" ? "Connecting" : managedBusy ? "Command in flight" : activeSession.autoCaptureEnabled ? "Auto-capture ON" : "Auto-capture OFF"}</span>
       </div>
 
       {activeTab === "shell" ? (
@@ -133,3 +133,4 @@ export function ShellWorkspace({
     </section>
   );
 }
+

@@ -1,6 +1,6 @@
 export type HealthStatus = "healthy" | "warning" | "critical";
 
-export type SessionState = "connected" | "degraded" | "disconnected";
+export type SessionState = "connecting" | "connected" | "degraded" | "disconnected";
 
 export type DiagnosticTone = "neutral" | "warning" | "critical" | "success";
 
@@ -150,3 +150,4 @@ export interface DiagnosisContextPacket {
   artifacts: string[];
   generatedAt: string;
 }
+

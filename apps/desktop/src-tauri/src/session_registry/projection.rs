@@ -45,6 +45,7 @@ pub fn workspace_state() -> TalonWorkspaceState {
                 &active.id,
                 registry.latest_failures.get(&active.id),
                 registry.connection_issues.get(&active.id),
+                &registry.recent_events,
             );
             state.timeline = timeline.clone();
 
@@ -205,6 +206,7 @@ mod projection_tests {
         assert_eq!(command_health_status(&healthy_registry, "session-1", &[]), "healthy");
     }
 }
+
 
 
 
