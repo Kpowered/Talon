@@ -16,6 +16,7 @@ import {
   saveAgentConfiguration,
   saveHostPassword,
   submitSessionCommand,
+  switchSessionMode,
   upsertHost,
   upsertHostConfig,
   writeSessionInput,
@@ -163,6 +164,32 @@ export function useOperatorActions(options: OperatorActionsOptions) {
       setIsSubmittingCommand(false);
     }
   }, [activeSession, refreshRegistry, reportError, setActionNotice, setTerminalTail]);
+
+  const sendRawInput = useCallback(async (data: string) => {
+    if (!activeSession) return;
+    try {
+      await writeSessionInput(activeSession.id, data);
+      await refreshRegistry();
+    } catch (error) {
+      reportError(error);
+    }
+  }, [activeSession, refreshRegistry, reportError]);
+
+  const toggleSessionMode = useCallback(async () => {
+    if (!activeSession) return;
+    try {
+      const nextMode = activeSession.mode === "raw" ? "managed" : "raw";
+      const result = await switchSessionMode(activeSession.id, nextMode);
+      setWorkspace((current) => current ? ({
+        ...current,
+        sessions: current.sessions.map((session) => session.id === result.sessionId ? { ...session, mode: result.mode } : session),
+      }) : current);
+      setActionNotice({ kind: "success", message: result.mode === "raw" ? "Raw mode enabled for the active session." : "Managed mode enabled for the active session." });
+      await refreshAll();
+    } catch (error) {
+      reportError(error);
+    }
+  }, [activeSession, refreshAll, reportError, setActionNotice, setWorkspace]);
 
   const interruptActiveSession = useCallback(async () => {
     if (!activeSession) return;
@@ -467,6 +494,8 @@ export function useOperatorActions(options: OperatorActionsOptions) {
     isSavingHostConfig,
     isDeletingHostConfig,
     connectSelectedHost,
+    sendRawInput,
+    toggleSessionMode,
     interruptActiveSession,
     submitCommand,
     disconnectActiveSession,

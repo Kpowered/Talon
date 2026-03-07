@@ -215,6 +215,7 @@ fn set_connection_issue(
             suggested_command,
             observed_at: now_iso(),
             fingerprint: None,
+            disconnect_cause: None,
             expected_fingerprint_hint: None,
             host: None,
             port: None,
@@ -601,6 +602,7 @@ fn session_value(session: &ManagedSessionRecord) -> serde_json::Value {
     serde_json::json!({
         "id": session.id,
         "state": session.state,
+        "mode": session.mode,
         "shell": session.shell,
         "cwd": session.cwd,
         "connectedAt": session.connected_at,
@@ -609,6 +611,39 @@ fn session_value(session: &ManagedSessionRecord) -> serde_json::Value {
     })
 }
 
+pub fn session_mode_for(session_id: &str) -> Option<String> {
+    lock_registry()
+        .managed_sessions
+        .iter()
+        .find(|session| session.id == session_id)
+        .map(|session| session.mode.clone())
+}
+
+pub fn switch_session_mode(session_id: &str, mode: &str) -> Option<ManagedSessionRecord> {
+    let mut registry = lock_registry();
+    let session = registry
+        .managed_sessions
+        .iter_mut()
+        .find(|session| session.id == session_id)?;
+    session.mode = if mode == "raw" { "raw".into() } else { "managed".into() };
+    let updated = session.clone();
+    push_event(
+        &mut registry,
+        session_id,
+        "session-mode",
+        format!("Session mode switched to {}", updated.mode),
+    );
+    push_terminal_line(
+        &mut registry,
+        session_id,
+        if updated.mode == "raw" {
+            "Raw mode enabled. Interactive input now passes through directly and structured command capture is suspended.".into()
+        } else {
+            "Managed mode enabled. Structured command capture, exit detection, and diagnosis packaging are active again.".into()
+        },
+    );
+    Some(updated)
+}
 
 #[cfg(test)]
 mod registry_ops_tests {

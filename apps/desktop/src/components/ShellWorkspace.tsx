@@ -1,11 +1,11 @@
-import type { Session, SuggestedAction, TalonWorkspaceState } from "@talon/core";
 import { useEffect, useMemo, useState } from "react";
+import type { SuggestedAction, TalonWorkspaceState } from "@talon/core";
 import type { ActiveCommandSummary, TerminalTab } from "../types/app";
 import { XtermShell } from "./XtermShell";
 
 type ShellWorkspaceProps = {
   activeTab: TerminalTab;
-  activeSession: Session;
+  activeSession: TalonWorkspaceState["sessions"][number];
   selectedHost: TalonWorkspaceState["hosts"][number];
   failure: TalonWorkspaceState["latestFailure"];
   activeConnectionIssueTitle: string | null;
@@ -24,6 +24,8 @@ type ShellWorkspaceProps = {
   onRecallNextCommand: () => void;
   onInterrupt: () => void;
   onDisconnect: () => void;
+  onToggleSessionMode: () => void;
+  onSendRawInput: (data: string) => void;
   onOpenInspect: () => void;
   onCloseInspect: () => void;
 };
@@ -49,12 +51,15 @@ export function ShellWorkspace({
   onRecallNextCommand,
   onInterrupt,
   onDisconnect,
+  onToggleSessionMode,
+  onSendRawInput,
   onOpenInspect,
   onCloseInspect,
 }: ShellWorkspaceProps) {
   const [runtimeNow, setRuntimeNow] = useState(() => Date.now());
   const inspectOpen = activeTab !== "shell";
-  const managedBusy = ["connecting", "reconnecting", "disconnecting"].includes(activeSession.state) || Boolean(activeCommand);
+  const managedBusy = activeSession.mode === "managed" && (["connecting", "reconnecting", "disconnecting"].includes(activeSession.state) || Boolean(activeCommand));
+  const isTransitioning = ["connecting", "reconnecting", "disconnecting"].includes(activeSession.state);
   const runningDurationLabel = useMemo(() => {
     if (!activeCommand?.startedAt) {
       return null;
@@ -85,6 +90,7 @@ export function ShellWorkspace({
       <div className="terminal-stage-body">
         <XtermShell
           sessionId={activeSession.id}
+          sessionMode={activeSession.mode}
           terminalTail={terminalTail}
           draft={composerValue}
           isBusy={managedBusy}
@@ -94,6 +100,7 @@ export function ShellWorkspace({
           onRecallNextCommand={onRecallNextCommand}
           onClearDraft={onClearComposerValue}
           onInterrupt={onInterrupt}
+          onSendRawInput={onSendRawInput}
         />
       </div>
 
@@ -101,6 +108,7 @@ export function ShellWorkspace({
         <div className="terminal-status-meta terminal-status-meta-clean">
           <span className={`terminal-status-dot tone-${activeSession.state}`} />
           <span>{activeSession.state}</span>
+          <span>{activeSession.mode}</span>
           <span>{selectedHost.config.label}</span>
           <span>{selectedHost.config.address}</span>
           <span>{activeSession.cwd}</span>
@@ -111,12 +119,15 @@ export function ShellWorkspace({
         </div>
 
         <div className="terminal-status-actions">
-          {activeAction ? (
+          <button className="ghost-button small terminal-footer-button" onClick={onToggleSessionMode} disabled={isTransitioning}>
+            {activeSession.mode === "raw" ? "Use Managed" : "Use Raw"}
+          </button>
+          {activeAction && activeSession.mode === "managed" ? (
             <button className="ghost-button small terminal-footer-button" onClick={onUseSuggestedCommand} disabled={managedBusy}>
               Use suggested
             </button>
           ) : null}
-          {managedBusy ? (
+          {(managedBusy || activeSession.mode === "raw") ? (
             <button className="ghost-button small terminal-footer-button" onClick={onInterrupt}>
               Interrupt
             </button>

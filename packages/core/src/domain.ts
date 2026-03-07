@@ -2,6 +2,12 @@ export type HealthStatus = "healthy" | "warning" | "critical";
 
 export type SessionState = "connecting" | "reconnecting" | "connected" | "degraded" | "disconnecting" | "disconnected";
 
+export type SessionMode = "managed" | "raw";
+
+export type DisconnectCause = "operator-disconnect" | "remote-exit" | "transport-drop" | "command-dispatch-failure" | "stream-failure";
+
+export type CommandOutcomeType = "success" | "non-zero-exit" | "operator-interrupted" | "connection-issue";
+
 export type DiagnosticTone = "neutral" | "warning" | "critical" | "success";
 
 export type TimelineKind = "command" | "diagnosis" | "action";
@@ -33,6 +39,7 @@ export interface Session {
   id: string;
   hostId: string;
   state: SessionState;
+  mode: SessionMode;
   shell: string;
   cwd: string;
   connectedAt: string;
@@ -60,6 +67,7 @@ export interface FailureContext {
   severity: HealthStatus;
   stderrClass?: string | null;
   stderrEvidence?: string | null;
+  outcomeType: CommandOutcomeType;
   cwd: string;
   shell: string;
   exitCode: number;
@@ -150,5 +158,6 @@ export interface DiagnosisContextPacket {
   artifacts: string[];
   generatedAt: string;
 }
+
 
 

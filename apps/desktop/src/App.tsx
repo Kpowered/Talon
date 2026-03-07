@@ -363,6 +363,7 @@ function App() {
             ? {
                 ...session,
                 state: result.session.state,
+                mode: result.session.mode,
                 cwd: result.session.cwd,
                 shell: result.session.shell,
               }
@@ -373,6 +374,7 @@ function App() {
                 id: result.session.sessionId,
                 hostId: result.session.hostId,
                 state: result.session.state,
+                mode: result.session.mode,
                 shell: result.session.shell,
                 cwd: result.session.cwd,
                 connectedAt: new Date().toISOString(),
@@ -525,6 +527,8 @@ function App() {
             onRecallNextCommand={recallNextCommand}
             onInterrupt={() => void actions.interruptActiveSession()}
             onDisconnect={() => void actions.disconnectActiveSession()}
+            onToggleSessionMode={() => void actions.toggleSessionMode()}
+            onSendRawInput={(data) => void actions.sendRawInput(data)}
             onToggleSignalFilter={(signal) => setActiveSignalFilter((current) => (current === signal ? null : signal))}
             onClearSignalFilter={() => setActiveSignalFilter(null)}
             onRerunDiagnosis={() => void actions.rerunDiagnosis()}

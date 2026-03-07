@@ -40,6 +40,8 @@ type WorkspacePanelsProps = {
   onToggleSignalFilter: (signal: string) => void;
   onInterrupt: () => void;
   onDisconnect: () => void;
+  onToggleSessionMode: () => void;
+  onSendRawInput: (data: string) => void;
   onClearSignalFilter: () => void;
   onRerunDiagnosis: () => void;
   onRunAction: (action: SuggestedAction) => void;
@@ -48,44 +50,48 @@ type WorkspacePanelsProps = {
   inspectNotice: string | null;
 };
 
-export function WorkspacePanels({
-  activeTab,
-  activeSession,
-  selectedHost,
-  failure,
-  diagnosis,
-  activeConnectionIssueTitle,
-  activeConnectionIssueSummary,
-  activeCommand,
-  terminalTail,
-  isRunningAction,
-  composerValue,
-  commandHistorySize,
-  activeAction,
-  actionSummary,
-  agentSettings,
-  latestContextPacket,
-  timelineSignalSummary,
-  activeTimelineSignalFilter,
-  visibleTimeline,
-  repeatedSignalCounts,
-  onSetActiveTab,
-  onSetComposerValue,
-  onClearComposerValue,
-  onSubmitCommand,
-  onUseSuggestedCommand,
-  onRecallPreviousCommand,
-  onRecallNextCommand,
-  onToggleSignalFilter,
-  onInterrupt,
-  onDisconnect,
-  onClearSignalFilter,
-  onRerunDiagnosis,
-  onRunAction,
-  onOpenInspect,
-  onCloseInspect,
-  inspectNotice,
-}: WorkspacePanelsProps) {
+export function WorkspacePanels(props: WorkspacePanelsProps) {
+  const {
+    activeTab,
+    activeSession,
+    selectedHost,
+    failure,
+    diagnosis,
+    activeConnectionIssueTitle,
+    activeConnectionIssueSummary,
+    activeCommand,
+    terminalTail,
+    isRunningAction,
+    composerValue,
+    commandHistorySize,
+    activeAction,
+    actionSummary,
+    agentSettings,
+    latestContextPacket,
+    timelineSignalSummary,
+    activeTimelineSignalFilter,
+    visibleTimeline,
+    repeatedSignalCounts,
+    onSetActiveTab,
+    onSetComposerValue,
+    onClearComposerValue,
+    onSubmitCommand,
+    onUseSuggestedCommand,
+    onRecallPreviousCommand,
+    onRecallNextCommand,
+    onToggleSignalFilter,
+    onInterrupt,
+    onDisconnect,
+    onToggleSessionMode,
+    onSendRawInput,
+    onClearSignalFilter,
+    onRerunDiagnosis,
+    onRunAction,
+    onOpenInspect,
+    onCloseInspect,
+    inspectNotice,
+  } = props;
+
   const inspectOpen = activeTab !== "shell";
   const inspectTitle = activeConnectionIssueTitle ?? (failure.exitCode === 130 ? "Operator interrupt" : failure.exitCode !== 0 ? "Failure context" : "Session details");
   const inspectSummary = activeConnectionIssueSummary
@@ -118,6 +124,8 @@ export function WorkspacePanels({
         onRecallNextCommand={onRecallNextCommand}
         onInterrupt={onInterrupt}
         onDisconnect={onDisconnect}
+        onToggleSessionMode={onToggleSessionMode}
+        onSendRawInput={onSendRawInput}
         onOpenInspect={onOpenInspect}
         onCloseInspect={onCloseInspect}
       />
@@ -165,13 +173,14 @@ export function WorkspacePanels({
                 failure={failure}
                 agentSettings={agentSettings}
                 selectedHost={selectedHost}
+                activeSession={activeSession}
                 isRunningAction={isRunningAction}
                 onRerunDiagnosis={onRerunDiagnosis}
                 onRunAction={onRunAction}
               />
             ) : null}
 
-            {activeTab === "artifacts" ? <ArtifactsView failure={failure} latestContextPacket={latestContextPacket} /> : null}
+            {activeTab === "artifacts" ? <ArtifactsView failure={failure} latestContextPacket={latestContextPacket} activeSession={activeSession} selectedHost={selectedHost} /> : null}
           </div>
         </aside>
       ) : null}

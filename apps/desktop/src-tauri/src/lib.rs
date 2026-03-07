@@ -16,8 +16,9 @@ use session_manager::{
     DeleteHostRequest, DisconnectSessionRequest, DisconnectSessionResponse,
     HostConfigMutationResponse, HostMutationResponse, HostPasswordResponse, HostSecretRequest,
     SaveAgentApiKeyRequest, SaveAgentSettingsRequest, SaveHostPasswordRequest,
-    SessionEventListResponse, SessionRegistryResponse, SessionScopedRequest, SubmitCommandRequest,
-    SubmitCommandResponse, TrustConfirmationResponse, TrustPreparationResponse,
+    SessionEventListResponse, SessionModeMutationResponse, SessionRegistryResponse,
+    SessionScopedRequest, SubmitCommandRequest, SubmitCommandResponse,
+    SwitchSessionModeRequest, TrustConfirmationResponse, TrustPreparationResponse,
     UpsertHostConfigRequest, UpsertHostRequest, WriteSessionInputRequest,
 };
 use session_store::{
@@ -131,6 +132,11 @@ fn write_session_input(payload: WriteSessionInputRequest) -> Result<(), String> 
 }
 
 #[tauri::command]
+fn switch_session_mode(payload: SwitchSessionModeRequest) -> Result<SessionModeMutationResponse, String> {
+    session_manager::switch_session_mode(payload)
+}
+
+#[tauri::command]
 fn reconnect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionResponse, String> {
     reopen_session(payload)
 }
@@ -188,6 +194,7 @@ pub fn run() {
             submit_session_command,
             disconnect_session,
             write_session_input,
+            switch_session_mode,
             reconnect_session,
             upsert_host_config,
             delete_host_config,

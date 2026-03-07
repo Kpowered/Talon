@@ -155,6 +155,7 @@ fn default_session() -> ManagedSessionRecord {
         id: "session-a91f".into(),
         host_id: "host-prod-web-1".into(),
         state: "disconnected".into(),
+        mode: "managed".into(),
         shell: "bash".into(),
         cwd: "/etc/nginx".into(),
         connected_at: "2026-03-06T13:36:02Z".into(),

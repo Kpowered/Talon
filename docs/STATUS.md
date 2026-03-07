@@ -124,6 +124,9 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Continued the terminal-first cleanup pass by removing the remaining terminal top bar, moving inspect/suggested/interrupt controls into the bottom status line, narrowing the host rail again, shrinking the inspect drawer, and reducing the host editor popover footprint so the terminal stays dominant.
 - Hardened the live SSH session state path: session states now include reconnecting and disconnecting, Host Rail connect actions reuse reconnect semantics when a host already has a live session record, and the terminal footer busy-state now tracks reconnect/disconnect transitions instead of only command flight.
 - Added a first-class Disconnect action to the terminal footer and wired optimistic frontend session projection so reconnecting/disconnecting state is visible immediately instead of waiting for the next polling cycle.
+- Added session mode awareness across the shared model, backend responses, and desktop shell: sessions now expose `managed` vs `raw`, the terminal footer can toggle modes, and raw mode sends direct passthrough input for interactive programs while managed mode preserves structured command capture.
+- Added first-pass disconnect-cause capture and degraded-session packaging: transport stream failures, input write failures, and command dispatch failures now mark the session degraded and surface reconnect-oriented issue context instead of silently collapsing into a generic disconnect.
+- Made the diagnosis and artifacts drawers more practical for human operators by surfacing session mode, outcome type, compact handoff facts, and copyable structured packet / summary output.
 ## In Progress
 - Tightening the new terminal-first shell after the layout rewrite, including spacing density, copy hierarchy, and any regressions around host-management entry points.
 

@@ -89,6 +89,7 @@ pub fn prepare_host_trust(session_id: &str) -> Result<SessionConnectionIssue, St
         can_trust_in_app: true,
         in_app_action_kind: Some("confirm-host-trust".into()),
         in_app_action_label: Some("Trust host".into()),
+        disconnect_cause: None,
     };
     registry.connection_issues.insert(session_id.into(), issue.clone());
     Ok(issue)

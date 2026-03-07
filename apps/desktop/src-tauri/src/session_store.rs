@@ -62,6 +62,7 @@ pub struct Session {
     pub id: String,
     pub host_id: String,
     pub state: String,
+    pub mode: String,
     pub shell: String,
     pub cwd: String,
     pub connected_at: String,
@@ -80,6 +81,7 @@ pub struct FailureContext {
     pub severity: String,
     pub stderr_class: Option<String>,
     pub stderr_evidence: Option<String>,
+    pub outcome_type: String,
     pub cwd: String,
     pub shell: String,
     pub exit_code: i32,
@@ -154,6 +156,7 @@ pub fn get_workspace_state() -> TalonWorkspaceState {
             id: "session-a91f".into(),
             host_id: "host-prod-web-1".into(),
             state: "disconnected".into(),
+            mode: "managed".into(),
             shell: "sh".into(),
             cwd: "~".into(),
             connected_at: "2026-03-06T13:36:02Z".into(),
@@ -170,6 +173,7 @@ pub fn get_workspace_state() -> TalonWorkspaceState {
             severity: "warning".into(),
             stderr_class: None,
             stderr_evidence: None,
+            outcome_type: "connection-issue".into(),
             cwd: "~".into(),
             shell: "sh".into(),
             exit_code: 0,
@@ -279,3 +283,6 @@ pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionRes
         appended_terminal_lines: lines,
     }
 }
+
+
+

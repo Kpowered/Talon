@@ -16,6 +16,7 @@ import type {
   HostMutationResponse,
   HostPasswordResponse,
   SessionConnectionIssue,
+  SessionModeMutationResponse,
   SessionRegistryResponse,
   SubmitCommandResponse,
 } from "../types/app";
@@ -170,6 +171,10 @@ export function disconnectSession(sessionId: string) {
 
 export function writeSessionInput(sessionId: string, data: string) {
   return invokeCommand<void>("write_session_input", "session.input.write", { payload: { sessionId, data } });
+}
+
+export function switchSessionMode(sessionId: string, mode: "managed" | "raw") {
+  return invokeCommand<SessionModeMutationResponse>("switch_session_mode", "session.mode.switch", { payload: { sessionId, mode } });
 }
 
 export function runSuggestedAction(sessionId: string, action: SuggestedAction) {

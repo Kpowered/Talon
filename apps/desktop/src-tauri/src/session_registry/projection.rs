@@ -10,6 +10,7 @@ pub fn workspace_state() -> TalonWorkspaceState {
                 id: session.id.clone(),
                 host_id: session.host_id.clone(),
                 state: session.state.clone(),
+                mode: session.mode.clone(),
                 shell: session.shell.clone(),
                 cwd: session.cwd.clone(),
                 connected_at: session.connected_at.clone(),

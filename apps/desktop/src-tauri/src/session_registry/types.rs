@@ -16,6 +16,7 @@ pub struct ManagedSessionRecord {
     pub id: String,
     pub host_id: String,
     pub state: String,
+    pub mode: String,
     pub shell: String,
     pub cwd: String,
     pub connected_at: String,
@@ -50,6 +51,7 @@ pub struct SessionConnectionIssue {
     pub can_trust_in_app: bool,
     pub in_app_action_kind: Option<String>,
     pub in_app_action_label: Option<String>,
+    pub disconnect_cause: Option<String>,
 }
 
 #[derive(Clone)]
@@ -116,3 +118,6 @@ pub struct SessionRegistry {
 static REGISTRY: OnceLock<Mutex<SessionRegistry>> = OnceLock::new();
 const HOST_CONFIGS_FILE_NAME: &str = "host-configs.json";
 const HOSTS_FILE_NAME: &str = "hosts.json";
+
+
+

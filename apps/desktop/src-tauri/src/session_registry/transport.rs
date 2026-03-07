@@ -71,6 +71,44 @@ fn promote_session_connected(state: &mut SessionRegistry, session_id: &str) {
         ),
     );
 }
+
+fn mark_session_degraded(
+    state: &mut SessionRegistry,
+    session_id: &str,
+    disconnect_cause: &str,
+    title: &str,
+    summary: String,
+    event_type: &str,
+    event_detail: String,
+    terminal_line: String,
+) {
+    update_session_state(state, session_id, "degraded");
+    update_host_observed_for_session(state, session_id, Some("critical"), true);
+    state.active_commands.remove(session_id);
+    state.runtimes.remove(session_id);
+    state.connection_issues.insert(
+        session_id.into(),
+        SessionConnectionIssue {
+            session_id: session_id.into(),
+            kind: "transport".into(),
+            title: title.into(),
+            summary,
+            operator_action: "Inspect the terminal tail, confirm the remote host is still reachable, and reconnect explicitly when ready.".into(),
+            suggested_command: "Reconnect".into(),
+            observed_at: now_iso(),
+            fingerprint: None,
+            expected_fingerprint_hint: None,
+            host: None,
+            port: None,
+            can_trust_in_app: false,
+            in_app_action_kind: None,
+            in_app_action_label: Some("Reconnect".into()),
+            disconnect_cause: Some(disconnect_cause.into()),
+        },
+    );
+    push_event(state, session_id, event_type, event_detail);
+    push_terminal_line(state, session_id, terminal_line);
+}
 fn should_suppress_managed_shell_echo(state: &SessionRegistry, session_id: &str, line: &str) -> bool {
     let trimmed = line.trim();
     if trimmed.is_empty() {
@@ -184,12 +222,15 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
                 }
                 Err(error) => {
                     let mut state = lock_registry();
-                    update_session_state(&mut state, &session_id, "degraded");
-                    push_event(
+                    mark_session_degraded(
                         &mut state,
                         &session_id,
+                        "stream-failure",
+                        "SSH stdout stream failed",
+                        format!("The stdout reader failed for the managed SSH session: {}", error),
                         "stream-error",
                         format!("stdout reader failed: {}", error),
+                        format!("SSH stdout stream failed: {}", error),
                     );
                     break;
                 }
@@ -242,11 +283,15 @@ fn start_stderr_reader(session_id: String, host: Host, stderr: ChildStderr) {
                 }
                 Err(error) => {
                     let mut state = lock_registry();
-                    push_event(
+                    mark_session_degraded(
                         &mut state,
                         &session_id,
+                        "stream-failure",
+                        "SSH stderr stream failed",
+                        format!("The stderr reader failed for the managed SSH session: {}", error),
                         "stream-error",
                         format!("stderr reader failed: {}", error),
+                        format!("SSH stderr stream failed: {}", error),
                     );
                     break;
                 }
@@ -436,6 +481,7 @@ fn connect_host_with_state(
         id: session_id.clone(),
         host_id: host.id.clone(),
         state: initial_state.into(),
+        mode: "managed".into(),
         shell: "sh".into(),
         cwd: "~".into(),
         connected_at: now.clone(),
@@ -583,18 +629,15 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
 
         if let Err(error) = write_result {
             let mut registry = lock_registry();
-            registry.active_commands.remove(session_id);
-        update_session_state(&mut registry, session_id, "disconnecting");
-            push_terminal_line(
+            mark_session_degraded(
                 &mut registry,
                 session_id,
-                format!("Command dispatch failed: {}", error),
-            );
-            push_event(
-                &mut registry,
-                session_id,
+                "command-dispatch-failure",
+                "Managed command dispatch failed",
+                format!("Talon could not write the wrapped managed command into the SSH transport: {}", error),
                 "command-error",
                 format!("Failed to write to remote shell: {}", error),
+                format!("Command dispatch failed: {}", error),
             );
         }
     } else {
@@ -686,6 +729,7 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
     let pid = {
         let mut registry = lock_registry();
         registry.active_commands.remove(session_id);
+        clear_connection_issue(&mut registry, session_id);
         update_session_state(&mut registry, session_id, "disconnecting");
         let pid = registry.runtimes.get(session_id).map(|runtime| runtime.pid);
         update_host_observed_for_session(&mut registry, session_id, Some("warning"), true);
@@ -771,6 +815,7 @@ mod transport_tests {
                 id: "session-1".into(),
                 host_id: "host-1".into(),
                 state: "connected".into(),
+                mode: "managed".into(),
                 shell: "/bin/bash".into(),
                 cwd: "/root".into(),
                 connected_at: now_iso(),

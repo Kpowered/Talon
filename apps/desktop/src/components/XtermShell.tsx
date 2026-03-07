@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef } from "react";
+import type { SessionMode } from "@talon/core";
 
 type XtermShellProps = {
   sessionId: string;
+  sessionMode: SessionMode;
   terminalTail: string[];
   draft: string;
   isBusy: boolean;
@@ -11,14 +13,37 @@ type XtermShellProps = {
   onRecallNextCommand: () => void;
   onClearDraft: () => void;
   onInterrupt: () => void;
+  onSendRawInput: (data: string) => void;
 };
 
 function isPrintableKey(event: React.KeyboardEvent<HTMLDivElement>) {
   return event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey;
 }
 
+function rawSequenceForKey(event: React.KeyboardEvent<HTMLDivElement>) {
+  switch (event.key) {
+    case "Enter":
+      return "\r";
+    case "Backspace":
+      return "\u007f";
+    case "Tab":
+      return "\t";
+    case "ArrowUp":
+      return "\u001b[A";
+    case "ArrowDown":
+      return "\u001b[B";
+    case "ArrowRight":
+      return "\u001b[C";
+    case "ArrowLeft":
+      return "\u001b[D";
+    default:
+      return null;
+  }
+}
+
 export function XtermShell({
   sessionId,
+  sessionMode,
   terminalTail,
   draft,
   isBusy,
@@ -28,6 +53,7 @@ export function XtermShell({
   onRecallNextCommand,
   onClearDraft,
   onInterrupt,
+  onSendRawInput,
 }: XtermShellProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -51,7 +77,7 @@ export function XtermShell({
       return;
     }
     node.scrollTop = node.scrollHeight;
-  }, [draft, isBusy, sessionId, terminalTail]);
+  }, [draft, isBusy, sessionId, sessionMode, terminalTail]);
 
   const promptSegments = useMemo(() => {
     const cursor = Math.min(cursorRef.current, draft.length);
@@ -70,12 +96,27 @@ export function XtermShell({
       aria-label="SSH terminal"
       onClick={() => containerRef.current?.focus()}
       onKeyDown={(event) => {
-        if (isBusy) {
-          if (event.ctrlKey && event.key.toLowerCase() === "c") {
+        if (event.ctrlKey && event.key.toLowerCase() === "c") {
+          event.preventDefault();
+          onInterrupt();
+          return;
+        }
+
+        if (sessionMode === "raw") {
+          const sequence = rawSequenceForKey(event);
+          if (sequence) {
             event.preventDefault();
-            onInterrupt();
+            onSendRawInput(sequence);
             return;
           }
+          if (isPrintableKey(event)) {
+            event.preventDefault();
+            onSendRawInput(event.key);
+          }
+          return;
+        }
+
+        if (isBusy) {
           if (event.key === "Tab") {
             event.preventDefault();
           }
@@ -150,7 +191,9 @@ export function XtermShell({
           </div>
         ))}
         <div className="terminal-line terminal-prompt-line">
-          {isBusy ? (
+          {sessionMode === "raw" ? (
+            <span className="terminal-busy-label">[raw mode passthrough]</span>
+          ) : isBusy ? (
             <span className="terminal-busy-label">[managed command in flight]</span>
           ) : (
             <span className="terminal-prompt">
@@ -165,7 +208,3 @@ export function XtermShell({
     </div>
   );
 }
-
-
-
-

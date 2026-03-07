@@ -1,4 +1,4 @@
-import type { DiagnosisContextPacket, Host, SessionState, TerminalSnapshot } from "@talon/core";
+import type { DiagnosisContextPacket, DisconnectCause, Host, SessionMode, SessionState, TerminalSnapshot } from "@talon/core";
 
 export type TerminalTab = "shell" | "timeline" | "diagnosis" | "artifacts";
 
@@ -51,6 +51,7 @@ export type ConnectSessionResponse = {
     sessionId: string;
     hostId: string;
     state: SessionState;
+    mode: SessionMode;
     shell: string;
     cwd: string;
     autoCaptureEnabled: boolean;
@@ -128,6 +129,13 @@ export type SessionConnectionIssue = {
   canTrustInApp?: boolean;
   inAppActionKind?: string | null;
   inAppActionLabel?: string | null;
+  disconnectCause?: DisconnectCause | null;
+};
+
+export type SessionModeMutationResponse = {
+  sessionId: string;
+  mode: SessionMode;
+  events: SessionLifecycleEvent[];
 };
 
 export type AgentFormState = {
@@ -157,4 +165,5 @@ export type SessionOverrideFormState = {
   authMethod: ConnectionAuthMethod;
   password: string;
 };
+
 

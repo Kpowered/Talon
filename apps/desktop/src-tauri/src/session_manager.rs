@@ -44,6 +44,13 @@ pub struct WriteSessionInputRequest {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SwitchSessionModeRequest {
+    pub session_id: String,
+    pub mode: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpsertHostConfigRequest {
     pub host_id: String,
     pub port: u16,
@@ -129,6 +136,7 @@ pub struct SessionSummary {
     pub session_id: String,
     pub host_id: String,
     pub state: String,
+    pub mode: String,
     pub shell: String,
     pub cwd: String,
     pub auto_capture_enabled: bool,
@@ -181,6 +189,14 @@ pub struct DisconnectSessionResponse {
     pub events: Vec<SessionLifecycleEvent>,
 }
 
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionModeMutationResponse {
+    pub session_id: String,
+    pub mode: String,
+    pub events: Vec<SessionLifecycleEvent>,
+}
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HostConfigMutationResponse {
@@ -410,6 +426,7 @@ pub fn connect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionR
             session_id: session.id,
             host_id: session.host_id,
             state: session.state,
+            mode: session.mode,
             shell: session.shell,
             cwd: session.cwd,
             auto_capture_enabled: session.auto_capture_enabled,
@@ -446,11 +463,22 @@ pub fn disconnect_session(payload: DisconnectSessionRequest) -> DisconnectSessio
 }
 
 pub fn write_session_input(payload: WriteSessionInputRequest) -> Result<(), String> {
+    let mode = session_registry::session_mode_for(&payload.session_id).unwrap_or_else(|| "managed".into());
     session_registry::write_input(&payload.session_id, &payload.data)?;
-    if payload.data.contains('\u{3}') {
+    if mode == "managed" && payload.data.contains("") {
         session_registry::schedule_interrupt_fallback(&payload.session_id);
     }
     Ok(())
+}
+
+pub fn switch_session_mode(payload: SwitchSessionModeRequest) -> Result<SessionModeMutationResponse, String> {
+    let session = session_registry::switch_session_mode(&payload.session_id, &payload.mode)
+        .ok_or_else(|| format!("Session {} not found.", payload.session_id))?;
+    Ok(SessionModeMutationResponse {
+        session_id: session.id,
+        mode: session.mode,
+        events: session_registry::recent_events(),
+    })
 }
 
 pub fn reconnect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionResponse, String> {
@@ -522,6 +550,7 @@ pub fn reconnect_session(payload: ConnectSessionRequest) -> Result<ConnectSessio
             session_id: session.id,
             host_id: session.host_id,
             state: session.state,
+            mode: session.mode,
             shell: session.shell,
             cwd: session.cwd,
             auto_capture_enabled: session.auto_capture_enabled,
