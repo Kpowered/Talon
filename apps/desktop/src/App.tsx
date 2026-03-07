@@ -438,6 +438,7 @@ function App() {
           onUseSuggestedCommand={useSuggestedCommand}
           onRecallPreviousCommand={recallPreviousCommand}
           onRecallNextCommand={recallNextCommand}
+          onInterrupt={() => void actions.interruptActiveSession()}
           onToggleSignalFilter={(signal) => setActiveSignalFilter((current) => (current === signal ? null : signal))}
           onClearSignalFilter={() => setActiveSignalFilter(null)}
           onRerunDiagnosis={() => void actions.rerunDiagnosis()}
@@ -449,5 +450,7 @@ function App() {
 }
 
 export default App;
+
+
 
 

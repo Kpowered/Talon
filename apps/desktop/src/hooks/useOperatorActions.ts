@@ -18,6 +18,7 @@ import {
   submitSessionCommand,
   upsertHost,
   upsertHostConfig,
+  writeSessionInput,
 } from "../lib/tauri";
 
 type OperatorActionsOptions = {
@@ -163,6 +164,16 @@ export function useOperatorActions(options: OperatorActionsOptions) {
     }
   }, [activeSession, refreshRegistry, reportError, setActionNotice, setTerminalTail]);
 
+  const interruptActiveSession = useCallback(async () => {
+    if (!activeSession) return;
+    try {
+      await writeSessionInput(activeSession.id, "\u0003");
+      setActionNotice({ kind: "success", message: `Sent Ctrl+C to ${activeSession.id}.` });
+      await refreshRegistry();
+    } catch (error) {
+      reportError(error);
+    }
+  }, [activeSession, refreshRegistry, reportError, setActionNotice]);
   const disconnectActiveSession = useCallback(async () => {
     if (!activeSession) return;
     setIsDisconnectingSession(true);
@@ -455,6 +466,7 @@ export function useOperatorActions(options: OperatorActionsOptions) {
     isSavingHostConfig,
     isDeletingHostConfig,
     connectSelectedHost,
+    interruptActiveSession,
     submitCommand,
     disconnectActiveSession,
     reconnectActiveSession,
@@ -476,6 +488,8 @@ export function useOperatorActions(options: OperatorActionsOptions) {
     deleteSelectedHost,
   };
 }
+
+
 
 
 

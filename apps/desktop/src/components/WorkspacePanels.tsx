@@ -40,6 +40,7 @@ type WorkspacePanelsProps = {
   onRecallPreviousCommand: () => void;
   onRecallNextCommand: () => void;
   onToggleSignalFilter: (signal: string) => void;
+  onInterrupt: () => void;
   onClearSignalFilter: () => void;
   onRerunDiagnosis: () => void;
   onRunAction: (action: SuggestedAction) => void;
@@ -77,6 +78,7 @@ export function WorkspacePanels({
   onRecallNextCommand,
   onToggleSignalFilter,
   onClearSignalFilter,
+  onInterrupt,
   onRerunDiagnosis,
   onRunAction,
 }: WorkspacePanelsProps) {
@@ -103,6 +105,7 @@ export function WorkspacePanels({
         onUseSuggestedCommand={onUseSuggestedCommand}
         onRecallPreviousCommand={onRecallPreviousCommand}
         onRecallNextCommand={onRecallNextCommand}
+        onInterrupt={onInterrupt}
       />
 
       {activeTab === "timeline" ? (
@@ -134,3 +137,4 @@ export function WorkspacePanels({
     </>
   );
 }
+

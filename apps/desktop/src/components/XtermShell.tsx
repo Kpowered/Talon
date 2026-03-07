@@ -10,6 +10,7 @@ type XtermShellProps = {
   onRecallPreviousCommand: () => void;
   onRecallNextCommand: () => void;
   onClearDraft: () => void;
+  onInterrupt: () => void;
 };
 
 function isPrintableKey(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -26,6 +27,7 @@ export function XtermShell({
   onRecallPreviousCommand,
   onRecallNextCommand,
   onClearDraft,
+  onInterrupt,
 }: XtermShellProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -69,6 +71,11 @@ export function XtermShell({
       onClick={() => containerRef.current?.focus()}
       onKeyDown={(event) => {
         if (isBusy) {
+          if (event.ctrlKey && event.key.toLowerCase() === "c") {
+            event.preventDefault();
+            onInterrupt();
+            return;
+          }
           if (event.key === "Tab") {
             event.preventDefault();
           }
@@ -158,3 +165,7 @@ export function XtermShell({
     </div>
   );
 }
+
+
+
+

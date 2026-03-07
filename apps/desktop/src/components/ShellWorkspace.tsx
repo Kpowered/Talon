@@ -24,6 +24,7 @@ type ShellWorkspaceProps = {
   onUseSuggestedCommand: () => void;
   onRecallPreviousCommand: () => void;
   onRecallNextCommand: () => void;
+  onInterrupt: () => void;
 };
 
 export function ShellWorkspace({
@@ -47,6 +48,7 @@ export function ShellWorkspace({
   onUseSuggestedCommand,
   onRecallPreviousCommand,
   onRecallNextCommand,
+  onInterrupt,
 }: ShellWorkspaceProps) {
   const managedBusy = isSubmittingCommand || activeSessionBusy;
 
@@ -121,12 +123,15 @@ export function ShellWorkspace({
             onRecallPreviousCommand={onRecallPreviousCommand}
             onRecallNextCommand={onRecallNextCommand}
             onClearDraft={onClearComposerValue}
+            onInterrupt={onInterrupt}
           />
         </div>
       ) : null}
     </section>
   );
 }
+
+
 
 
 
