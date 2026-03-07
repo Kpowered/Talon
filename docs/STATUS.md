@@ -4,7 +4,7 @@
 Build Talon into an AI-native SSH troubleshooting desktop app that captures failed commands, packages incident context, and keeps remediation operator-confirmed.
 
 ## Current Stage
-As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed product skeleton with real SSH process lifecycle management wired through the Tauri backend.
+As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed SSH desktop app with a real transport path, direct terminal typing through xterm, and a split between Talon-managed command mode and raw-input fallback mode.
 
 ## Completed
 - Connected the local workspace to `origin/main` and synced the repository.
@@ -81,12 +81,16 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - The manage-hosts password field now loads the stored host password from the local credential store, supports show/hide and copy actions, and treats an empty password field on `Save host` as an explicit password removal.
 - Saving a host from the manage-hosts dialog now persists both host metadata and password changes in one action and auto-closes the dialog on success.
 - Restored and expanded Rust regression coverage for context shaping, stream-tail truncation, command marker parsing, non-zero failure capture, and connection-issue classification; `cargo test` now passes again.
+- Hardened the managed command input so operators can submit with `Enter`, navigate per-session history with `Up/Down`, clear with `Esc`, and stay focused on the active session without relying on the `Send` button.
+- Replaced the shell tail viewer with an `xterm.js`-backed terminal surface so operators now type directly inside the terminal pane instead of a detached form field.
+- Added explicit `Managed` and `Raw` terminal input modes: managed mode keeps Talon command framing and non-zero exit capture, while raw mode writes keystrokes directly to SSH stdin and clearly warns that capture is limited.
+- Added a dedicated backend `write_session_input` Tauri command so raw terminal input can pass through the existing SSH transport without disturbing Talon wrapped-command tracking.
 ## In Progress
-- Continuing to reduce the remaining size of `App.tsx` and to harden diagnosis/trust UX now that backend internals and core test coverage are stable.
+- Hardening the new xterm terminal surface around resize behavior, bundle size, and any remaining edge cases in raw-mode operator guidance.
 
 ## Next Steps
-1. Reduce HostRail complexity further by splitting its inventory, saved-config, and session-override sections into smaller presentational components.
-2. Add deeper Rust-side coverage around diagnosis cache invalidation and trust-confirmation state transitions.
+1. Tighten xterm rendering so the shell pane can move from full replay to incremental append where it improves responsiveness.
+2. Add deeper Rust-side coverage around raw input writes, diagnosis cache invalidation, and trust-confirmation state transitions.
 3. Continue UI cleanup only where it improves operation of the provider, host management, trust, credential, command, and failure-context flows.
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.

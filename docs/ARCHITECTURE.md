@@ -142,6 +142,8 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the selected timeline signal filter is intentionally sticky across polling refreshes and auto-clears only when that signal no longer exists in the current timeline window; the active pill remains rendered even if its count drops below the repeated threshold
   - the desktop shell now has two primary presentation states: disconnected sessions render a terminal-first layout with a compact host picker and a single main terminal surface, while connected sessions expand only a narrow host rail alongside that same main workspace
   - diagnosis, timeline, and artifacts now share the main workspace tabs instead of rendering as separate always-visible panels, keeping the connected layout focused on one primary work surface
+  - the shell surface is now `xterm.js`, not a static tail-only div; frontend keyboard input is captured directly inside the terminal pane
+  - terminal input has two explicit modes: `Managed` submits full commands through Talon wrapping and preserves command completion / exit-code capture, while `Raw` writes bytes directly to the SSH stdin handle and warns that capture guarantees are reduced
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
 - Command framing:
@@ -192,7 +194,10 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 - Web UI frontend for speed of iteration
 
 ### Terminal rendering
-- Likely `xterm.js`
+- `xterm.js` is now the desktop shell surface
+- Managed mode redraws the current terminal tail plus a local editable command line inside xterm
+- Raw mode uses the same xterm surface but sends incoming keystrokes directly to the backend stdin writer
+- Current limitation: backend output is still projected as line-oriented terminal snapshots, so raw mode is useful for direct shell typing but not yet a full PTY/TUI implementation
 
 ### SSH layer
 - To be evaluated:

@@ -2,6 +2,8 @@ import type { DiagnosisContextPacket, Host, TerminalSnapshot } from "@talon/core
 
 export type TerminalTab = "shell" | "timeline" | "diagnosis" | "artifacts";
 
+export type TerminalInputMode = "managed" | "raw";
+
 export type ActionNotice = {
   kind: "success" | "error";
   message: string;

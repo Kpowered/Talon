@@ -1,5 +1,5 @@
 import type { DiagnosisContextPacket, Host, Session, SuggestedAction, TalonWorkspaceState } from "@talon/core";
-import type { AgentSettings, TerminalTab } from "../types/app";
+import type { AgentSettings, TerminalInputMode, TerminalTab } from "../types/app";
 import { ShellWorkspace } from "./ShellWorkspace";
 import { TimelineView } from "./views/TimelineView";
 import { DiagnosisView } from "./views/DiagnosisView";
@@ -24,6 +24,7 @@ type WorkspacePanelsProps = {
   isSubmittingCommand: boolean;
   composerValue: string;
   commandHistorySize: number;
+  inputMode: TerminalInputMode;
   activeAction: SuggestedAction | null;
   actionSummary: string | null;
   agentSettings: AgentSettings | null;
@@ -39,6 +40,8 @@ type WorkspacePanelsProps = {
   onUseSuggestedCommand: () => void;
   onRecallPreviousCommand: () => void;
   onRecallNextCommand: () => void;
+  onSetInputMode: (mode: TerminalInputMode) => void;
+  onWriteRawInput: (data: string) => void;
   onToggleSignalFilter: (signal: string) => void;
   onClearSignalFilter: () => void;
   onRerunDiagnosis: () => void;
@@ -60,6 +63,7 @@ export function WorkspacePanels({
   isSubmittingCommand,
   composerValue,
   commandHistorySize,
+  inputMode,
   activeAction,
   actionSummary,
   agentSettings,
@@ -75,6 +79,8 @@ export function WorkspacePanels({
   onUseSuggestedCommand,
   onRecallPreviousCommand,
   onRecallNextCommand,
+  onSetInputMode,
+  onWriteRawInput,
   onToggleSignalFilter,
   onClearSignalFilter,
   onRerunDiagnosis,
@@ -96,6 +102,7 @@ export function WorkspacePanels({
         isSubmittingCommand={isSubmittingCommand}
         composerValue={composerValue}
         commandHistorySize={commandHistorySize}
+        inputMode={inputMode}
         activeAction={activeAction}
         onSetActiveTab={onSetActiveTab}
         onSetComposerValue={onSetComposerValue}
@@ -104,6 +111,8 @@ export function WorkspacePanels({
         onUseSuggestedCommand={onUseSuggestedCommand}
         onRecallPreviousCommand={onRecallPreviousCommand}
         onRecallNextCommand={onRecallNextCommand}
+        onSetInputMode={onSetInputMode}
+        onWriteRawInput={onWriteRawInput}
       />
 
       {activeTab === "timeline" ? (

@@ -8,12 +8,13 @@ use session_manager::{
     retry_diagnosis as rerun_diagnosis, run_suggested_action as execute_suggested_action,
     save_agent_api_key as save_default_agent_api_key, save_agent_settings as persist_agent_settings,
     save_host_password as persist_host_password, submit_session_command as dispatch_session_command,
-    disconnect_session as close_session, AgentSettingsResponse, ConfirmHostTrustRequest, ConnectSessionRequest,
+    write_session_input as dispatch_session_input, disconnect_session as close_session, AgentSettingsResponse, ConfirmHostTrustRequest, ConnectSessionRequest,
     ConnectSessionResponse, ContextPacketResponse, DeleteHostConfigRequest, DeleteHostRequest,
     DisconnectSessionRequest, DisconnectSessionResponse, HostConfigMutationResponse, HostMutationResponse, HostPasswordResponse,
     HostSecretRequest, SaveAgentApiKeyRequest, SaveAgentSettingsRequest, SaveHostPasswordRequest,
     SessionEventListResponse, SessionRegistryResponse, SessionScopedRequest, SubmitCommandRequest,
     SubmitCommandResponse, TrustConfirmationResponse, TrustPreparationResponse, UpsertHostConfigRequest,
+    WriteSessionInputRequest,
     UpsertHostRequest,
 };
 use session_store::{RunbookActionResponse, SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot};
@@ -116,6 +117,11 @@ fn disconnect_session(payload: DisconnectSessionRequest) -> DisconnectSessionRes
 }
 
 #[tauri::command]
+fn write_session_input(payload: WriteSessionInputRequest) -> Result<(), String> {
+    dispatch_session_input(payload)
+}
+
+#[tauri::command]
 fn reconnect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionResponse, String> {
     reopen_session(payload)
 }
@@ -168,6 +174,7 @@ pub fn run() {
             connect_session,
             submit_session_command,
             disconnect_session,
+            write_session_input,
             reconnect_session,
             upsert_host_config,
             delete_host_config,

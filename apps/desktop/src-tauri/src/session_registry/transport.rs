@@ -450,6 +450,22 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
     terminal_snapshot(session_id)
 }
 
+pub fn write_input(session_id: &str, data: &str) -> Result<(), String> {
+    let stdin = {
+        let registry = lock_registry();
+        registry.runtimes.get(session_id).map(|runtime| runtime.stdin.clone())
+    };
+
+    let Some(stdin) = stdin else {
+        return Err("No active SSH transport for this session.".into());
+    };
+
+    let mut guard = lock_stdin(&stdin);
+    guard.write_all(data.as_bytes()).and_then(|_| guard.flush()).map_err(|error| {
+        format!("Failed to write raw input to remote shell: {}", error)
+    })
+}
+
 pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
     let pid = {
         let mut registry = lock_registry();

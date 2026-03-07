@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Host, Session, SuggestedAction } from "@talon/core";
-import type { AppCommandError, HostConnectionConfig, NewHostDraft, TerminalTab } from "./types/app";
+import type { AppCommandError, HostConnectionConfig, NewHostDraft, TerminalInputMode, TerminalTab } from "./types/app";
 import { TopBar } from "./components/TopBar";
 import { HostRail } from "./components/HostRail";
 import { ActionNoticeBar } from "./components/ActionNoticeBar";
@@ -13,7 +13,7 @@ import { useOperatorActions } from "./hooks/useOperatorActions";
 import { useActionNotice } from "./hooks/useActionNotice";
 import { useTimelineSignals } from "./hooks/useTimelineSignals";
 import { useHostRailState } from "./hooks/useHostRailState";
-import { getHostPassword } from "./lib/tauri";
+import { getHostPassword, writeSessionInput } from "./lib/tauri";
 import "./App.css";
 
 const EMPTY_NEW_HOST_DRAFT: NewHostDraft = {
@@ -41,6 +41,7 @@ function App() {
   const [isConnectingNewHost, setIsConnectingNewHost] = useState(false);
   const [newHostDialogError, setNewHostDialogError] = useState<string | null>(null);
   const [isLoadingManageHostPassword, setIsLoadingManageHostPassword] = useState(false);
+  const [inputModeBySessionId, setInputModeBySessionId] = useState<Record<string, TerminalInputMode>>({});
 
   const runtime = useWorkspaceRuntime({ onError: setActionNotice });
   const {
@@ -84,6 +85,7 @@ function App() {
   const timeline = workspace?.timeline ?? [];
   const activeAction = diagnosis?.suggestedActions.find((action: SuggestedAction) => action.status === "ready") ?? null;
   const composerValue = activeSession ? commandDraftBySessionId[activeSession.id] ?? "" : "";
+  const activeInputMode = activeSession ? inputModeBySessionId[activeSession.id] ?? "managed" : "managed";
   const activeSessionBusy = activeSession ? busySessionIds.includes(activeSession.id) : false;
   const showOperationalPanels = activeSession?.state !== "disconnected";
   const {
@@ -154,6 +156,25 @@ function App() {
     if (!activeAction) return;
     setComposerValue(activeAction.command);
   }, [activeAction, setComposerValue]);
+
+  const setActiveInputMode = useCallback(
+    (mode: TerminalInputMode) => {
+      if (!activeSession) return;
+      setInputModeBySessionId((current) => ({ ...current, [activeSession.id]: mode }));
+    },
+    [activeSession],
+  );
+
+  const handleWriteRawInput = useCallback(
+    (data: string) => {
+      if (!activeSession || !data) return;
+      void writeSessionInput(activeSession.id, data).catch((error) => {
+        const commandError = error as AppCommandError;
+        setActionNotice({ kind: "error", message: commandError.message ?? "Failed to write raw terminal input." });
+      });
+    },
+    [activeSession, setActionNotice],
+  );
 
   const actions = useOperatorActions({
     selectedHost,
@@ -421,6 +442,7 @@ function App() {
           composerValue={composerValue}
           activeAction={activeAction}
           commandHistorySize={activeSession ? (commandHistoryBySessionId[activeSession.id] ?? []).length : 0}
+          inputMode={activeInputMode}
           actionSummary={actionNotice?.kind === "success" ? actionNotice.message : null}
           agentSettings={agentSettings}
           latestContextPacket={latestContextPacket}
@@ -435,6 +457,8 @@ function App() {
           onUseSuggestedCommand={useSuggestedCommand}
           onRecallPreviousCommand={recallPreviousCommand}
           onRecallNextCommand={recallNextCommand}
+          onSetInputMode={setActiveInputMode}
+          onWriteRawInput={handleWriteRawInput}
           onToggleSignalFilter={(signal) => setActiveSignalFilter((current) => (current === signal ? null : signal))}
           onClearSignalFilter={() => setActiveSignalFilter(null)}
           onRerunDiagnosis={() => void actions.rerunDiagnosis()}

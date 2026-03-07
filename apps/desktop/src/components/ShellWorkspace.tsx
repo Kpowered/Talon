@@ -1,8 +1,7 @@
-import { useEffect, useRef } from "react";
-import type { KeyboardEvent } from "react";
 import type { Session, SuggestedAction, TalonWorkspaceState } from "@talon/core";
-import type { TerminalTab } from "../types/app";
+import type { TerminalInputMode, TerminalTab } from "../types/app";
 import { statusLabel } from "../lib/formatters";
+import { XtermShell } from "./XtermShell";
 
 type ShellWorkspaceProps = {
   activeTab: TerminalTab;
@@ -18,6 +17,7 @@ type ShellWorkspaceProps = {
   isSubmittingCommand: boolean;
   composerValue: string;
   commandHistorySize: number;
+  inputMode: TerminalInputMode;
   activeAction: SuggestedAction | null;
   onSetActiveTab: (tab: TerminalTab) => void;
   onSetComposerValue: (value: string) => void;
@@ -26,6 +26,8 @@ type ShellWorkspaceProps = {
   onUseSuggestedCommand: () => void;
   onRecallPreviousCommand: () => void;
   onRecallNextCommand: () => void;
+  onSetInputMode: (mode: TerminalInputMode) => void;
+  onWriteRawInput: (data: string) => void;
 };
 
 export function ShellWorkspace({
@@ -42,6 +44,7 @@ export function ShellWorkspace({
   isSubmittingCommand,
   composerValue,
   commandHistorySize,
+  inputMode,
   activeAction,
   onSetActiveTab,
   onSetComposerValue,
@@ -50,35 +53,10 @@ export function ShellWorkspace({
   onUseSuggestedCommand,
   onRecallPreviousCommand,
   onRecallNextCommand,
+  onSetInputMode,
+  onWriteRawInput,
 }: ShellWorkspaceProps) {
-  const composerRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (activeTab !== "shell") return;
-    composerRef.current?.focus();
-  }, [activeSession.id, activeTab]);
-
-  const handleComposerKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      onSubmitCommand();
-      return;
-    }
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      onRecallPreviousCommand();
-      return;
-    }
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      onRecallNextCommand();
-      return;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      onClearComposerValue();
-    }
-  };
+  const managedBusy = isSubmittingCommand || activeSessionBusy;
 
   return (
     <section className="panel panel-terminal compact-panel main-workspace shell-workspace">
@@ -87,30 +65,20 @@ export function ShellWorkspace({
           <p className="panel-kicker">Workspace</p>
           <div className="title-row compact">
             <h2>{selectedHost.config.label}</h2>
-            <span className={
-              'live-dot status-' + failure.severity
-            }>{statusLabel(failure.severity)}</span>
+            <span className={`live-dot status-${failure.severity}`}>{statusLabel(failure.severity)}</span>
           </div>
         </div>
         <div className="terminal-tabs compact-tabs">
-          <button className={
-            'tab ' + (activeTab === "shell" ? "active" : "")
-          } onClick={() => onSetActiveTab("shell")}>
+          <button className={`tab ${activeTab === "shell" ? "active" : ""}`} onClick={() => onSetActiveTab("shell")}>
             Shell
           </button>
-          <button className={
-            'tab ' + (activeTab === "timeline" ? "active" : "")
-          } onClick={() => onSetActiveTab("timeline")}>
+          <button className={`tab ${activeTab === "timeline" ? "active" : ""}`} onClick={() => onSetActiveTab("timeline")}>
             Timeline
           </button>
-          <button className={
-            'tab ' + (activeTab === "diagnosis" ? "active" : "")
-          } onClick={() => onSetActiveTab("diagnosis")}>
+          <button className={`tab ${activeTab === "diagnosis" ? "active" : ""}`} onClick={() => onSetActiveTab("diagnosis")}>
             Diagnosis
           </button>
-          <button className={
-            'tab ' + (activeTab === "artifacts" ? "active" : "")
-          } onClick={() => onSetActiveTab("artifacts")}>
+          <button className={`tab ${activeTab === "artifacts" ? "active" : ""}`} onClick={() => onSetActiveTab("artifacts")}>
             Artifacts
           </button>
         </div>
@@ -130,59 +98,76 @@ export function ShellWorkspace({
         <span className="terminal-path">{activeSession.cwd}</span>
         <span className="terminal-meta-chip">{selectedHost.config.address}</span>
         <span className="terminal-meta-chip">{activeSession.state}</span>
-        <span className="terminal-meta-chip">{failure.exitCode !== 0 ? 'exit ' + failure.exitCode : "clean"}</span>
-        <span className="terminal-mode">
-          {activeSessionBusy ? "Command in flight" : activeSession.autoCaptureEnabled ? "Auto-capture ON" : "Auto-capture OFF"}
-        </span>
+        <span className="terminal-meta-chip">{failure.exitCode !== 0 ? `exit ${failure.exitCode}` : "clean"}</span>
+        <span className="terminal-mode">{managedBusy ? "Command in flight" : activeSession.autoCaptureEnabled ? "Auto-capture ON" : "Auto-capture OFF"}</span>
       </div>
 
       {activeTab === "shell" ? (
-        <div className="shell-pane">
-          <div className="terminal-window compact-terminal-window">
-            {terminalTail.map((line, index) => (
-              <div
-                key={line + index}
-                className={line.startsWith("$") || /^\d{2}:\d{2}:\d{2}/.test(line) ? "terminal-line prompt" : "terminal-line"}
+        <div className="shell-pane shell-pane-xterm">
+          <div className="terminal-command-bar">
+            <div className="terminal-mode-toggle" role="tablist" aria-label="Terminal input mode">
+              <button
+                type="button"
+                className={`mode-chip ${inputMode === "managed" ? "active" : ""}`}
+                onClick={() => onSetInputMode("managed")}
               >
-                {line || <span>&nbsp;</span>}
-              </div>
-            ))}
-            {isRunningAction ? <div className="terminal-line prompt">...running suggested action through Tauri backend</div> : null}
-            {isSubmittingCommand ? <div className="terminal-line prompt">...submitting command to managed session</div> : null}
+                Managed
+              </button>
+              <button
+                type="button"
+                className={`mode-chip ${inputMode === "raw" ? "active" : ""}`}
+                onClick={() => onSetInputMode("raw")}
+                disabled={managedBusy}
+              >
+                Raw
+              </button>
+            </div>
+            <div className="composer-meta-row terminal-hints-row">
+              {inputMode === "managed" ? (
+                <>
+                  <span className="composer-shortcut">Direct terminal input</span>
+                  <span className="composer-shortcut">Enter submits</span>
+                  <span className="composer-shortcut">Up/Down history {commandHistorySize > 0 ? `(${commandHistorySize})` : ""}</span>
+                </>
+              ) : (
+                <>
+                  <span className="composer-shortcut">Raw input beta</span>
+                  <span className="composer-shortcut">Output remains line-buffered</span>
+                  <span className="composer-shortcut">Auto-capture limited</span>
+                </>
+              )}
+            </div>
+            <div className="composer-actions terminal-inline-actions">
+              <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={!activeAction || inputMode !== "managed"}>
+                Use suggested
+              </button>
+              {managedBusy && inputMode === "managed" ? <span className="terminal-inline-status">Waiting for command completion</span> : null}
+            </div>
           </div>
 
-          <div className="command-composer compact-composer terminal-composer terminal-composer-inline">
-            <div className="composer-meta-row">
-              <span className="composer-shortcut">Enter to send</span>
-              <span className="composer-shortcut">Up/Down history {commandHistorySize > 0 ? '(' + commandHistorySize + ')' : ''}</span>
-              <span className="composer-shortcut">Esc to clear</span>
+          {inputMode === "raw" ? (
+            <div className="terminal-mode-banner warning">
+              Raw terminal mode is enabled. Keystrokes go directly to SSH stdin, but Talon command completion and failure capture stay limited until you switch back to Managed mode.
             </div>
-            <div className="composer-input-row">
-              <input
-                ref={composerRef}
-                className="composer-field"
-                value={composerValue}
-                onChange={(event) => onSetComposerValue(event.target.value)}
-                onKeyDown={handleComposerKeyDown}
-                placeholder="Type directly here and press Enter"
-                spellCheck={false}
-                autoCapitalize="off"
-                autoCorrect="off"
-              />
-              <div className="composer-actions">
-                <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={!activeAction}>
-                  Use suggested
-                </button>
-                <button
-                  className="ghost-button small"
-                  onClick={onSubmitCommand}
-                  disabled={isSubmittingCommand || activeSessionBusy || !composerValue.trim()}
-                >
-                  {isSubmittingCommand ? "Sending..." : activeSessionBusy ? "Busy..." : "Send"}
-                </button>
-              </div>
-            </div>
-          </div>
+          ) : null}
+
+          <XtermShell
+            sessionId={activeSession.id}
+            terminalTail={[
+              ...terminalTail,
+              ...(isRunningAction ? ["...running suggested action through Tauri backend"] : []),
+              ...(isSubmittingCommand ? ["...submitting command to managed session"] : []),
+            ]}
+            draft={composerValue}
+            inputMode={inputMode}
+            isBusy={managedBusy}
+            onDraftChange={onSetComposerValue}
+            onSubmitCommand={onSubmitCommand}
+            onRecallPreviousCommand={onRecallPreviousCommand}
+            onRecallNextCommand={onRecallNextCommand}
+            onClearDraft={onClearComposerValue}
+            onWriteRawInput={onWriteRawInput}
+          />
         </div>
       ) : null}
     </section>

@@ -35,6 +35,13 @@ pub struct DisconnectSessionRequest {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct WriteSessionInputRequest {
+    pub session_id: String,
+    pub data: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpsertHostConfigRequest {
     pub host_id: String,
     pub port: u16,
@@ -386,6 +393,10 @@ pub fn disconnect_session(payload: DisconnectSessionRequest) -> DisconnectSessio
         terminal: session_registry::disconnect_session(&payload.session_id),
         events: session_registry::recent_events(),
     }
+}
+
+pub fn write_session_input(payload: WriteSessionInputRequest) -> Result<(), String> {
+    session_registry::write_input(&payload.session_id, &payload.data)
 }
 
 pub fn reconnect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionResponse, String> {

@@ -168,6 +168,10 @@ export function disconnectSession(sessionId: string) {
   return invokeCommand<DisconnectSessionResponse>("disconnect_session", "session.disconnect", { payload: { sessionId } });
 }
 
+export function writeSessionInput(sessionId: string, data: string) {
+  return invokeCommand<void>("write_session_input", "session.input.write", { payload: { sessionId, data } });
+}
+
 export function runSuggestedAction(sessionId: string, action: SuggestedAction) {
   return invokeCommand<RunbookActionResult>("run_suggested_action", "session.action.run", {
     payload: { sessionId, actionId: action.id },
