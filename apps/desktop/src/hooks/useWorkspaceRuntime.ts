@@ -33,6 +33,7 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
   const [selectedHostId, setSelectedHostId] = useState<string | null>(null);
   const [isLoadingState, setIsLoadingState] = useState(true);
   const [hostConfigs, setHostConfigs] = useState<HostConnectionConfig[]>([]);
+  const [registryActiveSessionId, setRegistryActiveSessionId] = useState<string | null>(null);
   const [busySessionIds, setBusySessionIds] = useState<string[]>([]);
   const [activeConnectionIssue, setActiveConnectionIssue] = useState<SessionConnectionIssue | null>(null);
   const [terminalTail, setTerminalTail] = useState<string[]>([]);
@@ -59,8 +60,9 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     return state;
   }, [terminalSessionId]);
 
-  const applyRegistry = useCallback((registry: { hostConfigs: HostConnectionConfig[]; busySessionIds: string[]; activeConnectionIssue: SessionConnectionIssue | null }) => {
+  const applyRegistry = useCallback((registry: { hostConfigs: HostConnectionConfig[]; activeSessionId: string; busySessionIds: string[]; activeConnectionIssue: SessionConnectionIssue | null }) => {
     setHostConfigs(registry.hostConfigs);
+    setRegistryActiveSessionId(registry.activeSessionId || null);
     setBusySessionIds(registry.busySessionIds);
     setActiveConnectionIssue(registry.activeConnectionIssue);
     return registry;
@@ -148,18 +150,19 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
   }, [applyRegistry, applyWorkspace, reportError]);
 
   useEffect(() => {
-    if (!workspace?.activeSessionId) return;
+    const liveSessionId = registryActiveSessionId || workspace?.activeSessionId;
+    if (!liveSessionId) return;
 
     const interval = window.setInterval(() => {
       void refreshWorkspace();
       void refreshRegistry();
-      void loadTerminalSnapshot(workspace.activeSessionId);
+      void loadTerminalSnapshot(liveSessionId);
     }, 1500);
 
     return () => {
       window.clearInterval(interval);
     };
-  }, [loadTerminalSnapshot, refreshRegistry, refreshWorkspace, workspace?.activeSessionId]);
+  }, [loadTerminalSnapshot, refreshRegistry, refreshWorkspace, registryActiveSessionId, workspace?.activeSessionId]);
 
   useEffect(() => {
     if (!workspace?.activeSessionId) {
@@ -184,6 +187,7 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     isLoadingState,
     hostConfigs,
     setHostConfigs,
+    registryActiveSessionId,
     busySessionIds,
     activeConnectionIssue,
     setActiveConnectionIssue,

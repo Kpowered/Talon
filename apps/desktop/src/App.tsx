@@ -51,6 +51,7 @@ function App() {
     isLoadingState,
     hostConfigs,
     setHostConfigs,
+    registryActiveSessionId,
     busySessionIds,
     activeConnectionIssue,
     setActiveConnectionIssue,
@@ -65,9 +66,10 @@ function App() {
     loadTerminalSnapshot,
   } = runtime;
 
+  const resolvedActiveSessionId = registryActiveSessionId || workspace?.activeSessionId || null;
   const activeSession = useMemo(
-    () => workspace?.sessions.find((session: Session) => session.id === workspace.activeSessionId) ?? null,
-    [workspace],
+    () => workspace?.sessions.find((session: Session) => session.id === resolvedActiveSessionId) ?? workspace?.sessions.find((session: Session) => session.id === workspace.activeSessionId) ?? null,
+    [resolvedActiveSessionId, workspace],
   );
 
   const hosts = workspace?.hosts ?? [];

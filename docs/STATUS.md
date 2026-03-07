@@ -87,6 +87,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Hardened disconnect-state terminal preservation so polling no longer wipes the visible shell transcript on same-session empty snapshots, and backend SSH wait/exit failures are now written into the terminal buffer for operator review.
 - Switched the live SSH transport from `ssh -T` to forced PTY allocation so the remote shell is kept alive as a terminal session instead of a brittle non-PTY stdin/stdout command channel.
 - Removed the eager post-connect shell metadata probe from the SSH stdin path so Talon no longer writes bootstrap commands into a just-opened interactive shell before the operator starts typing.
+- Frontend runtime selection now prefers the session registry active-session pointer over transient workspace projection fallbacks, reducing cases where the UI appears to drop a just-connected live session.
 - Kept the lower-level raw stdin write path internal-only for now rather than exposing it as a first-class operator mode before PTY-grade behavior exists.
 ## In Progress
 - Hardening the new xterm terminal surface around resize behavior, bundle size, and any remaining edge cases in prompt rendering and incremental replay.
