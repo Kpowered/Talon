@@ -76,10 +76,14 @@ fn should_suppress_managed_shell_echo(state: &SessionRegistry, session_id: &str,
     if trimmed.is_empty() {
         return false;
     }
-    if trimmed.contains("talon_exit=$?")
+    if trimmed.contains("talon_done=0")
+        || trimmed.contains("talon_exit=$?")
         || trimmed.contains("talon_cwd=$(pwd)")
+        || trimmed.contains("trap - INT")
+        || trimmed.contains("talon_exit=130")
         || trimmed.contains(CMD_START_PREFIX)
         || trimmed.contains(CMD_END_PREFIX)
+        || trimmed.contains("if [ \"$talon_done\" -eq 0 ]")
     {
         return true;
     }
@@ -573,6 +577,32 @@ trap - INT
     )
 }
 
+
+pub fn interrupt_active_command(session_id: &str) -> bool {
+    let mut registry = lock_registry();
+    let Some(command_id) = registry
+        .active_commands
+        .get(session_id)
+        .map(|command| command.id.clone())
+    else {
+        return false;
+    };
+    let cwd = registry
+        .managed_sessions
+        .iter()
+        .find(|session| session.id == session_id)
+        .map(|session| session.cwd.clone())
+        .unwrap_or_else(|| "~".into());
+
+    complete_active_command(&mut registry, session_id, &command_id, 130, &cwd);
+    push_event(
+        &mut registry,
+        session_id,
+        "command-interrupted",
+        format!("{} interrupted by operator", command_id),
+    );
+    true
+}
 pub fn write_input(session_id: &str, data: &str) -> Result<(), String> {
     let stdin = {
         let registry = lock_registry();
@@ -735,6 +765,7 @@ mod transport_tests {
         assert_eq!(registry.command_history[0].command, "false");
     }
 }
+
 
 
 
