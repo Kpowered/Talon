@@ -2680,3 +2680,95 @@ button {
   border-radius: 6px;
   font-size: 0.76rem;
 }
+
+.manage-hosts-drawer-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(3, 6, 12, 0.22);
+}
+
+.manage-hosts-drawer {
+  width: min(760px, 78vw);
+  height: 100%;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  background: rgba(9, 12, 19, 0.98);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: -18px 0 36px rgba(0, 0, 0, 0.28);
+}
+
+.manage-hosts-drawer-sidebar {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 14px;
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(14, 17, 25, 0.98);
+}
+
+.manage-hosts-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.manage-hosts-drawer-header h2 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.manage-hosts-search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.manage-hosts-search span {
+  color: #7f8aa3;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.manage-hosts-search input {
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+.manage-hosts-list-drawer {
+  min-height: 0;
+  gap: 6px;
+}
+
+.manage-host-item-drawer {
+  padding: 10px 11px;
+  border-radius: 10px;
+}
+
+.manage-hosts-drawer-editor {
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 18px 20px;
+}
+
+.manage-hosts-summary-drawer {
+  margin-bottom: 12px;
+}
+
+.manage-hosts-form-drawer {
+  gap: 10px;
+}
+
+.manage-hosts-form-drawer input,
+.manage-hosts-form-drawer select {
+  min-height: 38px;
+}
+
+.manage-host-actions-drawer {
+  margin-top: 14px;
+}

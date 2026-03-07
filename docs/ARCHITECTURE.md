@@ -151,6 +151,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the left host rail is now intentionally navigation-like rather than dashboard-like: host entries render as light rows, while destructive/settings operations stay in dialogs instead of the permanent sidebar
   - the top workspace strip is now effectively removed from the operator view; host/session state is expressed either through the left navigation rail or the terminal footer line, not through a second page header
   - the current desktop shell is intentionally biased toward minimal chrome: the left rail is narrow navigation, the main terminal frame uses near-flat borders, and the inspect drawer is visually secondary rather than a peer workspace
+  - saved-host management now follows the same operational pattern: a right-side management drawer keeps the terminal visible, provides search over the host list, and edits one selected host at a time without blocking the whole shell
   - the connected-session Host Rail is intentionally minimal and defers detailed host editing, password management, and provider settings to dedicated dialogs
   - the shell surface is now a managed terminal transcript view; frontend keyboard input is captured directly inside the terminal pane and rendered by React rather than `xterm.js`
 - session state is now explicitly lifecycle-based: `connecting` at spawn time, `connected` only after live shell output, `disconnected` on transport exit, and `degraded` on stream/wait failures
@@ -235,6 +236,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+
 
 
 
