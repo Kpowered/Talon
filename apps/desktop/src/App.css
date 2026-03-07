@@ -2229,3 +2229,145 @@ button {
   padding: 4px;
   border-radius: 12px;
 }
+
+.workspace-topbar-thin {
+  min-height: 34px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.workspace-topbar-spacer {
+  min-width: 0;
+  flex: 1;
+}
+
+.workspace-topbar-actions-thin {
+  gap: 6px;
+}
+
+.workspace-topbar-thin .ghost-button.small,
+.workspace-topbar-thin .primary-button.small {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+}
+
+.sidebar-shell-nav {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(17, 20, 28, 0.96), rgba(13, 16, 23, 0.96));
+}
+
+.sidebar-brand-compact {
+  gap: 8px;
+  padding-bottom: 2px;
+}
+
+.sidebar-brand-compact strong {
+  font-size: 0.92rem;
+}
+
+.sidebar-actions-compact {
+  gap: 6px;
+}
+
+.sidebar-list-section-nav {
+  gap: 8px;
+}
+
+.sidebar-host-list-nav {
+  gap: 3px;
+}
+
+.sidebar-host-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.sidebar-host-row:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.sidebar-host-row.selected {
+  background: rgba(248, 178, 91, 0.08);
+}
+
+.sidebar-host-row-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar-host-row-copy strong {
+  font-size: 0.88rem;
+  color: #eef3fb;
+}
+
+.sidebar-host-row-copy span {
+  font-size: 0.76rem;
+  color: #7f8aa3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-inline-issue {
+  margin-top: auto;
+  color: #c49e5a;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  padding: 4px 2px 0;
+}
+
+.terminal-stage-clean {
+  padding: 10px;
+  border-radius: 14px;
+  gap: 8px;
+  background: linear-gradient(180deg, rgba(10, 13, 20, 0.98), rgba(8, 11, 18, 0.98));
+}
+
+.terminal-stage-header-clean {
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-stage-copy-clean h2 {
+  font-size: 0.96rem;
+}
+
+.terminal-stage-actions-clean {
+  gap: 4px;
+}
+
+.terminal-stage-hints-clean {
+  justify-content: flex-start;
+  gap: 6px 10px;
+  font-size: 0.66rem;
+}
+
+.terminal-stage-hints-clean .ghost-button.small {
+  min-height: 26px;
+  padding: 0 8px;
+}
+
+.terminal-statusline-clean {
+  gap: 6px;
+  font-size: 0.7rem;
+  color: #7d879d;
+}

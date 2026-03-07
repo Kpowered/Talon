@@ -372,19 +372,14 @@ function App() {
         <HostRail
           hosts={hosts}
           selectedHost={selectedHost}
-          selectedHostConfig={selectedHostConfig}
           activeConnectionIssue={activeConnectionIssue}
-          isDeletingHostConfig={actions.isDeletingHostConfig}
           onSelectHost={setSelectedHostId}
           onCreateHost={openNewHostDialog}
           onManageHosts={() => setIsManageHostsDialogOpen(true)}
-          onDeleteSelectedHost={() => void actions.deleteSelectedHost()}
         />
 
         <section className="workspace-shell">
           <TopBar
-            selectedHostLabel={selectedHost.config.label}
-            selectedHostAddress={selectedHost.config.address}
             isConnected={activeSession.state === "connected"}
             isConnectingSession={actions.isConnectingSession || isConnectingNewHost || activeSession.state === "connecting"}
             isDisconnectingSession={actions.isDisconnectingSession}
@@ -439,6 +434,9 @@ function App() {
 }
 
 export default App;
+
+
+
 
 
 

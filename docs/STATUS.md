@@ -99,6 +99,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Rebuilt the desktop shell into a fixed Termius-style frame: a narrow always-on left host sidebar, a single terminal-first main workspace, and an on-demand Inspect drawer for timeline, diagnosis, and artifacts.
 - Removed the old always-visible multi-panel host/config layout from the main surface so host creation, editing, and deeper configuration now live in dialogs while the live terminal stays primary.
 - Reduced layout crowding after the shell rewrite: connection state and in-flight command indicators now live in a compact terminal footer line instead of occupying the upper-right workspace header.
+- Continued collapsing the UI toward navigation + terminal: the left host rail is now list-like instead of card-heavy, repeated selected-host blocks were removed, and suggested actions no longer live as a permanent upper-right panel.
 ## In Progress
 - Tightening the new terminal-first shell after the layout rewrite, including spacing density, copy hierarchy, and any regressions around host-management entry points.
 
@@ -118,6 +119,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 
 
 

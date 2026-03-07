@@ -1,6 +1,4 @@
 type TopBarProps = {
-  selectedHostLabel: string;
-  selectedHostAddress: string;
   isConnected: boolean;
   isConnectingSession: boolean;
   isDisconnectingSession: boolean;
@@ -12,8 +10,6 @@ type TopBarProps = {
 };
 
 export function TopBar({
-  selectedHostLabel,
-  selectedHostAddress,
   isConnected,
   isConnectingSession,
   isDisconnectingSession,
@@ -24,16 +20,9 @@ export function TopBar({
   onManageHosts,
 }: TopBarProps) {
   return (
-    <header className="workspace-topbar workspace-topbar-minimal">
-      <div className="workspace-topbar-primary">
-        <div className="workspace-topbar-copy">
-          <p className="workspace-topbar-kicker">Terminal</p>
-          <h1>{selectedHostLabel}</h1>
-          <span className="workspace-topbar-address">{selectedHostAddress}</span>
-        </div>
-      </div>
-
-      <div className="workspace-topbar-actions">
+    <header className="workspace-topbar workspace-topbar-thin">
+      <div className="workspace-topbar-spacer" />
+      <div className="workspace-topbar-actions workspace-topbar-actions-thin">
         <button className="ghost-button small" onClick={onManageHosts}>
           Hosts
         </button>
@@ -55,5 +44,3 @@ export function TopBar({
     </header>
   );
 }
-
-

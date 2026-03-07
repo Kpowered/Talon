@@ -72,14 +72,12 @@ export function ShellWorkspace({
   }, [managedBusy]);
 
   return (
-    <section className="terminal-stage panel compact-panel terminal-stage-compact">
-      <div className="terminal-stage-header terminal-stage-header-compact">
-        <div className="terminal-stage-copy terminal-stage-copy-compact">
-          <p className="panel-kicker">Live terminal</p>
+    <section className="terminal-stage panel compact-panel terminal-stage-compact terminal-stage-clean">
+      <div className="terminal-stage-header terminal-stage-header-clean">
+        <div className="terminal-stage-copy terminal-stage-copy-clean">
           <h2>{selectedHost.config.label}</h2>
         </div>
-        <div className="terminal-stage-actions terminal-stage-actions-compact">
-          {inspectNotice ? <span className="inspect-summary-pill">{inspectNotice}</span> : null}
+        <div className="terminal-stage-actions terminal-stage-actions-clean">
           <button className={`ghost-button small inspect-toggle ${inspectNotice ? "has-signal" : ""}`} onClick={inspectOpen ? onCloseInspect : onOpenInspect}>
             {inspectOpen ? "Hide Inspect" : "Inspect"}
           </button>
@@ -93,31 +91,20 @@ export function ShellWorkspace({
         </div>
       ) : null}
 
-      {inspectNotice && !inspectOpen ? (
-        <div className="inspect-hint-banner inspect-hint-banner-compact">
-          <strong>Inspect ready</strong>
-          <p>Open it only when you need surrounding context.</p>
-          <button className="ghost-button small" onClick={onOpenInspect}>
-            Open inspect
-          </button>
-        </div>
-      ) : null}
-
-      <div className="terminal-stage-hints terminal-stage-hints-compact">
-        <span>Direct terminal input</span>
+      <div className="terminal-stage-hints terminal-stage-hints-clean">
         <span>Enter submits</span>
         <span>History {commandHistorySize > 0 ? `(${commandHistorySize})` : ""}</span>
         <span>Esc clears</span>
-        <div className="terminal-stage-toolbar-actions">
-          <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={!activeAction || managedBusy}>
+        {activeAction ? (
+          <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={managedBusy}>
             Use suggested
           </button>
-          {managedBusy ? (
-            <button className="ghost-button small" onClick={onInterrupt}>
-              Interrupt
-            </button>
-          ) : null}
-        </div>
+        ) : null}
+        {managedBusy ? (
+          <button className="ghost-button small" onClick={onInterrupt}>
+            Interrupt
+          </button>
+        ) : null}
       </div>
 
       <div className="terminal-stage-body">
@@ -135,16 +122,14 @@ export function ShellWorkspace({
         />
       </div>
 
-      <div className="terminal-statusline">
+      <div className="terminal-statusline terminal-statusline-clean">
         <span className={`terminal-status-dot tone-${activeSession.state}`} />
         <span>{activeSession.state}</span>
         <span>{selectedHost.config.address}</span>
         <span>{activeSession.cwd}</span>
-        <span>{activeSession.shell}</span>
         {managedBusy ? <span>command in flight</span> : null}
-        {runningDurationLabel ? <span>running {runningDurationLabel}</span> : null}
+        {runningDurationLabel ? <span>{runningDurationLabel}</span> : null}
         {failure.exitCode !== 0 ? <span className="tone-warn">exit {failure.exitCode}</span> : null}
-        {activeCommand?.command ? <span className="truncate">{activeCommand.command}</span> : null}
       </div>
     </section>
   );
