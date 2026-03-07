@@ -4,7 +4,7 @@
 Build Talon into an AI-native SSH troubleshooting desktop app that captures failed commands, packages incident context, and keeps remediation operator-confirmed.
 
 ## Current Stage
-As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed SSH desktop app with a real transport path and direct terminal typing inside a managed terminal surface. The current stabilization pass is focused on live connect-state projection, terminal transcript preservation, lifecycle visibility, managed-command operator control, failure-context quality during interactive SSH sessions, and shrinking the desktop shell toward a denser terminal-first layout.
+As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed SSH desktop app with a real transport path and direct terminal typing inside a managed terminal surface. The current stabilization pass is focused on live connect-state projection, terminal transcript preservation, lifecycle visibility, managed-command operator control, failure-context quality during interactive SSH sessions, and tightening the terminal-first desktop shell while moving saved-host editing into a real separate Tauri child window.
 
 ## Completed
 - Connected the local workspace to `origin/main` and synced the repository.
@@ -29,7 +29,8 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added in-flight command guardrails so each session now serializes wrapped command execution and rejects concurrent submissions until completion.
 - Added desktop-side busy-session awareness so the composer reflects when a managed shell already has an active command in progress.
 - Replaced the unstable xterm display layer with a managed terminal transcript view so live SSH output no longer clears unexpectedly.
-- Reshaped host management into compact floating popovers anchored near the saved-host rail so list, edit, connect, and delete flows no longer take over the main terminal workspace.`r`n- Collapsed saved-host editing to a single compact editor popover: the left rail now remains the only host list, while Manage and right-click Edit both open direct inline editing for the currently targeted host.`r`n- Made the saved-host editor draggable and proportionally resizable so operators can enlarge or reposition it instead of being blocked by a fixed overlay size.`r`n- Repacked the saved-host editor into a denser desktop form by removing the unused region field, compressing header chrome, and regrouping address, port, credentials, and key material onto fewer rows.`r`n- Switched the saved-host editor to auth-driven detail boxes: password auth now reveals a compact password panel, private-key auth reveals the real key-path panel, and tags/fingerprint moved into a collapsible identity section.`r`n- Trimmed host-editor vertical spacing further by removing the identity heading, flattening row gaps, and tightening the password detail card.`r`n- Flattened host-editor secondary sections by removing the remaining tags/fingerprint and auth-card chrome, leaving inline fields and inline auth controls instead of boxed subpanels.`r`n- Fixed the editor grid to pin rows to the top of the floating window so unused vertical space no longer expands the gaps between form rows.`r`n- Reduced per-field vertical occupancy again by forcing grouped editor rows to min-content sizing and zero row-gap in the host editor grid.`r`n- Replaced the editor form grid with a flex-stack layout so row spacing is determined explicitly by sequential blocks rather than implicit CSS grid track sizing.`r`n- Reduced editor dead space further by making the default floating editor height auth-sensitive: smaller for agent mode, taller only when password/private-key details are present.`r`n- Removed the editor close button and proportional resize affordance again, leaving a drag-only floating editor with a smaller default height to keep more of the terminal visible.`r`n- Fully removed host-editor resize behavior from both the React component and CSS so the editor can no longer be resized accidentally by lingering chrome or stale handlers.`r`n- Restored drag interaction across the editor surface and relaxed drag bounds so the floating editor can be moved outside the main content region without requiring a tiny title strip.
+- Reworked saved-host management around a dense host editor surface and compact left-rail interactions, including double-click connect and right-click host actions.
+- Replaced the in-window floating host editor with a real Tauri child window so the editor can be dragged outside the fixed `1024x768` main app shell, while save/delete actions still round-trip through the main window state and close automatically after persistence.
 - Fixed the desktop window to a non-resizable `1024x768` frame to keep the terminal-first layout stable while UI density is still being refined.
 - Added managed-command interrupt support through Ctrl+C and a shared raw-input path back to the SSH transport. Interrupt completion markers now carry shell and cwd metadata, and delayed fallback cleanup preserves a stable busy-state transition when the remote shell does not close the wrapper cleanly. The wrapped command path now emits a completion marker even when the operator interrupts a running command, so busy state can clear cleanly.
 - Added operator-visible connection issue handling for host trust, authentication, timeout, and network-path failures, including suggested operator actions and recommended commands in the UI.
@@ -109,7 +110,8 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Reworked saved-host management into a scale-oriented side drawer with a searchable host list on the left and a dedicated edit panel on the right, so managing dozens of hosts no longer depends on a blocking center modal.
 - Split the same host-management drawer into two levels: opening Manage now defaults to the narrow searchable list, and detailed editing only expands when the operator explicitly opens host details.
 ## In Progress
-- Tightening the new terminal-first shell after the layout rewrite, including spacing density, copy hierarchy, and any regressions around host-management entry points.
+- Verifying the new Tauri child-window host editor path under real desktop runtime conditions, especially window focus reuse, close behavior, and save/delete refresh timing.
+- Continuing low-risk terminal-first UI cleanup only where it reduces clutter without disturbing the working SSH path.
 
 ## Next Steps
 1. Add deeper Rust-side coverage around live transcript tail capture, active-command state, diagnosis cache invalidation, and trust-confirmation state transitions.
@@ -127,6 +129,8 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
+
 
 
 

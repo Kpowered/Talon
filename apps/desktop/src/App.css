@@ -3032,3 +3032,14 @@ button {
   cursor: auto;
 }
 
+
+.manage-hosts-drag-grip {
+  height: 10px;
+  margin-bottom: 2px;
+  border-radius: 999px;
+  cursor: move;
+  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.1), rgba(255,255,255,0.04));
+}
+
+
+
