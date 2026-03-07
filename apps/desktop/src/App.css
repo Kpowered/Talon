@@ -2892,23 +2892,23 @@ button {
 }
 
 .manage-hosts-editor-popover.compact {
-  left: 420px;
-  width: 292px;
-  max-height: 470px;
+  left: 214px;
+  width: 430px;
+  height: 720px;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 4px;
   overflow: hidden;
-  padding: 8px;
+  padding: 10px 12px 8px;
 }
 
 .manage-hosts-editor-grid {
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding-right: 2px;
+  gap: 6px 10px;
+  padding-right: 0;
 }
 
 .manage-hosts-editor-grid .span-2 {
@@ -2916,20 +2916,20 @@ button {
 }
 
 .connection-field.compact-field {
-  gap: 4px;
+  gap: 2px;
 }
 
 .connection-field.compact-field span {
-  font-size: 0.66rem;
-  letter-spacing: 0.08em;
+  font-size: 0.62rem;
+  letter-spacing: 0.07em;
 }
 
 .connection-field.compact-field input,
 .connection-field.compact-field select {
-  min-height: 32px;
-  padding: 7px 9px;
+  min-height: 30px;
+  padding: 5px 8px;
   border-radius: 8px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
 }
 
 .password-field-row.compact {
@@ -2940,15 +2940,51 @@ button {
 
 .password-field-row.compact .ghost-button.small,
 .manage-hosts-popover .ghost-button.small {
-  min-height: 32px;
-  padding: 6px 9px;
+  min-height: 30px;
+  padding: 5px 8px;
   border-radius: 8px;
-  font-size: 0.74rem;
+  font-size: 0.72rem;
 }
 
 .manage-host-actions.compact {
   justify-content: flex-end;
   gap: 6px;
   margin-top: 0;
+}
+
+
+
+.manage-hosts-popover-header.compact.editor-actions-only {
+  justify-content: flex-end;
+  min-height: 12px;
+}
+
+
+
+.manage-hosts-editor-popover.movable {
+  position: fixed;
+}
+
+.drag-handle {
+  cursor: move;
+  user-select: none;
+}
+
+.manage-hosts-window-hint {
+  color: #72809c;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.manage-hosts-resize-handle {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 16px;
+  height: 16px;
+  border-right: 2px solid rgba(255,255,255,0.18);
+  border-bottom: 2px solid rgba(255,255,255,0.18);
+  cursor: nwse-resize;
 }
 

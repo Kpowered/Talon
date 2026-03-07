@@ -1,6 +1,7 @@
+import type { MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Host } from "@talon/core";
 import type { ConnectionAuthMethod, HostConnectionConfig, SavedHostFormState } from "../types/app";
-import { useState } from "react";
 
 type ManageHostsDialogProps = {
   selectedHost: Host | null;
@@ -15,6 +16,27 @@ type ManageHostsDialogProps = {
   onClose: () => void;
 };
 
+type WindowBounds = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+const DEFAULT_BOUNDS: WindowBounds = {
+  left: 214,
+  top: 24,
+  width: 430,
+  height: 720,
+};
+
+const MIN_WIDTH = 360;
+const MIN_HEIGHT = 600;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 export function ManageHostsDialog({
   selectedHost,
   selectedHostConfig,
@@ -28,6 +50,73 @@ export function ManageHostsDialog({
   onClose,
 }: ManageHostsDialogProps) {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [bounds, setBounds] = useState<WindowBounds>(DEFAULT_BOUNDS);
+  const dragStateRef = useRef<{ pointerX: number; pointerY: number; left: number; top: number } | null>(null);
+  const resizeStateRef = useRef<{ pointerX: number; pointerY: number; width: number; height: number; ratio: number } | null>(null);
+
+  useEffect(() => {
+    setBounds(DEFAULT_BOUNDS);
+  }, [selectedHost?.id]);
+
+  useEffect(() => {
+    function handleMouseMove(event: MouseEvent) {
+      const dragState = dragStateRef.current;
+      if (dragState) {
+        const nextLeft = dragState.left + (event.clientX - dragState.pointerX);
+        const nextTop = dragState.top + (event.clientY - dragState.pointerY);
+        const maxLeft = Math.max(12, window.innerWidth - bounds.width - 12);
+        const maxTop = Math.max(12, window.innerHeight - bounds.height - 12);
+        setBounds((current) => ({
+          ...current,
+          left: clamp(nextLeft, 12, maxLeft),
+          top: clamp(nextTop, 12, maxTop),
+        }));
+        return;
+      }
+
+      const resizeState = resizeStateRef.current;
+      if (resizeState) {
+        const widthFromPointer = resizeState.width + (event.clientX - resizeState.pointerX);
+        let nextWidth = clamp(widthFromPointer, MIN_WIDTH, window.innerWidth - bounds.left - 12);
+        let nextHeight = nextWidth / resizeState.ratio;
+
+        if (nextHeight < MIN_HEIGHT) {
+          nextHeight = MIN_HEIGHT;
+          nextWidth = nextHeight * resizeState.ratio;
+        }
+
+        const maxHeight = Math.max(MIN_HEIGHT, window.innerHeight - bounds.top - 12);
+        if (nextHeight > maxHeight) {
+          nextHeight = maxHeight;
+          nextWidth = nextHeight * resizeState.ratio;
+        }
+
+        const maxWidth = Math.max(MIN_WIDTH, window.innerWidth - bounds.left - 12);
+        if (nextWidth > maxWidth) {
+          nextWidth = maxWidth;
+          nextHeight = nextWidth / resizeState.ratio;
+        }
+
+        setBounds((current) => ({
+          ...current,
+          width: Math.round(nextWidth),
+          height: Math.round(nextHeight),
+        }));
+      }
+    }
+
+    function handleMouseUp() {
+      dragStateRef.current = null;
+      resizeStateRef.current = null;
+    }
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [bounds.height, bounds.left, bounds.top, bounds.width]);
 
   if (!selectedHost) {
     return null;
@@ -38,20 +127,41 @@ export function ManageHostsDialog({
     await navigator.clipboard.writeText(savedHostForm.savedPassword);
   }
 
+  function handleDragStart(event: ReactMouseEvent<HTMLDivElement>) {
+    if ((event.target as HTMLElement).closest("button")) {
+      return;
+    }
+    dragStateRef.current = {
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      left: bounds.left,
+      top: bounds.top,
+    };
+  }
+
+  function handleResizeStart(event: ReactMouseEvent<HTMLDivElement>) {
+    event.stopPropagation();
+    resizeStateRef.current = {
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      width: bounds.width,
+      height: bounds.height,
+      ratio: bounds.width / bounds.height,
+    };
+  }
+
   return (
     <div className="manage-hosts-popover-shell" role="presentation" onClick={onClose}>
       <section
-        className="manage-hosts-popover manage-hosts-editor-popover compact single-pane"
+        className="manage-hosts-popover manage-hosts-editor-popover compact single-pane movable"
         role="dialog"
         aria-modal="true"
         aria-label={`Edit ${selectedHost.config.label}`}
+        style={{ left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height }}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="manage-hosts-popover-header compact editor">
-          <div className="manage-hosts-editor-title">
-            <strong>{selectedHost.config.label}</strong>
-            <span>{selectedHost.config.address}</span>
-          </div>
+        <div className="manage-hosts-popover-header compact editor editor-actions-only drag-handle" onMouseDown={handleDragStart}>
+          <div className="manage-hosts-window-hint">Drag to move</div>
           <button className="ghost-button small" onClick={onClose} type="button">
             x
           </button>
@@ -136,6 +246,8 @@ export function ManageHostsDialog({
             {isDeletingHostConfig ? "Deleting..." : "Delete"}
           </button>
         </div>
+
+        <div className="manage-hosts-resize-handle" onMouseDown={handleResizeStart} />
       </section>
     </div>
   );
