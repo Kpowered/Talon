@@ -4,7 +4,7 @@
 Build Talon into an AI-native SSH troubleshooting desktop app that captures failed commands, packages incident context, and keeps remediation operator-confirmed.
 
 ## Current Stage
-As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed SSH desktop app with a real transport path and direct terminal typing through xterm on a single Talon-managed input path. The current stabilization pass is focused on live connect-state projection, terminal transcript preservation, and lifecycle visibility during interactive SSH sessions.
+As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed SSH desktop app with a real transport path and direct terminal typing inside a managed terminal surface. The current stabilization pass is focused on live connect-state projection, terminal transcript preservation, lifecycle visibility, managed-command operator control, and failure-context quality during interactive SSH sessions.
 
 ## Completed
 - Connected the local workspace to `origin/main` and synced the repository.
@@ -28,6 +28,8 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added explicit backend disconnect and reconnect flows for managed SSH sessions and surfaced those controls in the desktop shell.
 - Added in-flight command guardrails so each session now serializes wrapped command execution and rejects concurrent submissions until completion.
 - Added desktop-side busy-session awareness so the composer reflects when a managed shell already has an active command in progress.
+- Replaced the unstable xterm display layer with a managed terminal transcript view so live SSH output no longer clears unexpectedly.
+- Added managed-command interrupt support through Ctrl+C and a shared raw-input path back to the SSH transport.
 - Added operator-visible connection issue handling for host trust, authentication, timeout, and network-path failures, including suggested operator actions and recommended commands in the UI.
 - Added a verification log in `docs/VERIFICATION.md` and captured the current environment's local SSH probe transcripts.
 - Validated an operator-provided external password-auth SSH target outside the product flow, confirming reachable handshake, shell bootstrap, and a controlled non-zero remote exit.
@@ -82,19 +84,19 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Saving a host from the manage-hosts dialog now persists both host metadata and password changes in one action and auto-closes the dialog on success.
 - Restored and expanded Rust regression coverage for context shaping, stream-tail truncation, command marker parsing, non-zero failure capture, and connection-issue classification; `cargo test` now passes again.
 - Hardened the managed command input so operators can submit with `Enter`, navigate per-session history with `Up/Down`, clear with `Esc`, and stay focused on the active session without relying on the `Send` button.
-- Replaced the shell tail viewer with an `xterm.js`-backed terminal surface so operators now type directly inside the terminal pane instead of a detached form field.
-- Reworked the xterm shell back to a single operator-facing input mode so terminal typing stays direct while Talon command framing, non-zero exit capture, and failure packaging remain the default path.
+- Replaced the shell tail viewer with a managed terminal transcript surface so operators now type directly inside the terminal pane instead of a detached form field.
+- Reworked the shell into a single operator-facing managed mode so terminal typing stays direct while Talon command framing, non-zero exit capture, interrupt handling, and failure packaging remain the default path.
 - Hardened disconnect-state terminal preservation so polling no longer wipes the visible shell transcript on same-session empty snapshots, and backend SSH wait/exit failures are now written into the terminal buffer for operator review.
 - Switched the live SSH transport from `ssh -T` to forced PTY allocation so the remote shell is kept alive as a terminal session instead of a brittle non-PTY stdin/stdout command channel.
 - Removed the eager post-connect shell metadata probe from the SSH stdin path so Talon no longer writes bootstrap commands into a just-opened interactive shell before the operator starts typing.
 - Frontend runtime selection now prefers the session registry active-session pointer over transient workspace projection fallbacks, reducing cases where the UI appears to drop a just-connected live session.
 - Kept the lower-level raw stdin write path internal-only for now rather than exposing it as a first-class operator mode before PTY-grade behavior exists.
 ## In Progress
-- Hardening the new xterm terminal surface around resize behavior, bundle size, and any remaining edge cases in prompt rendering and incremental replay.
+- Hardening the managed terminal surface around prompt fidelity, polling cadence, and any remaining edge cases in long-running interactive commands.
 
 ## Next Steps
-1. Tighten xterm rendering so the shell pane can move from full replay to incremental append where it improves responsiveness.
-2. Add deeper Rust-side coverage around stdin passthrough helpers, diagnosis cache invalidation, and trust-confirmation state transitions.
+1. Add deeper Rust-side coverage around stdin passthrough helpers, active-command state, diagnosis cache invalidation, and trust-confirmation state transitions.
+2. Refine failure and interrupt context packaging so diagnosis and artifacts stay useful for both real errors and operator-aborted commands.
 3. Continue UI cleanup only where it improves operation of the provider, host management, trust, credential, command, and failure-context flows.
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
@@ -108,17 +110,3 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
-
-
-
-
-
-
-
-
-
-
-
-
-
-

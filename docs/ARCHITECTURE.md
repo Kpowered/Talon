@@ -142,18 +142,18 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the selected timeline signal filter is intentionally sticky across polling refreshes and auto-clears only when that signal no longer exists in the current timeline window; the active pill remains rendered even if its count drops below the repeated threshold
   - the desktop shell now has two primary presentation states: disconnected sessions render a terminal-first layout with a compact host picker and a single main terminal surface, while connected sessions expand only a narrow host rail alongside that same main workspace
   - diagnosis, timeline, and artifacts now share the main workspace tabs instead of rendering as separate always-visible panels, keeping the connected layout focused on one primary work surface
-  - the shell surface is now `xterm.js`, not a static tail-only div; frontend keyboard input is captured directly inside the terminal pane
+  - the shell surface is now a managed terminal transcript view; frontend keyboard input is captured directly inside the terminal pane and rendered by React rather than `xterm.js`
 - session state is now explicitly lifecycle-based: `connecting` at spawn time, `connected` only after live shell output, `disconnected` on transport exit, and `degraded` on stream/wait failures
-- terminal projection is intentionally sanitized before rendering into xterm so ANSI control sequences that clear the screen or rewrite window metadata do not erase Talon-managed transcript state
-  - the operator-facing terminal now uses one Talon-managed direct-input mode: typing happens inside xterm, but `Enter` still submits through Talon command wrapping so command completion and exit-code capture remain intact
+- terminal projection is intentionally sanitized before rendering into the managed transcript view so ANSI control sequences that clear the screen or rewrite window metadata do not erase Talon-managed transcript state
+  - the operator-facing terminal now uses one Talon-managed direct-input mode: typing happens inside the managed terminal view, but `Enter` still submits through Talon command wrapping so command completion and exit-code capture remain intact
   - a lower-level stdin passthrough helper still exists in the backend as scaffolding, but it is no longer exposed as a primary UI mode until a fuller PTY model exists
   - saved config persists address, port, username, auth method, and fingerprint hint
-  - passwords are still operator-entered at connect time rather than persisted
+  - passwords can be persisted in the local credential store and are injected into `ssh.exe` through `SSH_ASKPASS` when password auth is selected
 - Command framing:
   - submitted commands are wrapped with Talon control markers before being written to the remote shell
   - stdout parsing detects command start and command end markers
   - command completion records now store exit code, updated cwd, and bounded stdout/stderr tails
-  - a session can have only one wrapped command in flight; additional submissions are rejected until completion markers are observed
+  - a session can have only one wrapped command in flight; additional submissions are rejected until completion markers are observed, and Ctrl+C / the Interrupt button forward a raw `\u0003` into the live transport
 - Failure packaging:
   - non-zero command completions are converted into structured `FailureContext` records
   - workspace timeline and diagnosis state are now derived from live command history and connection issues when runtime data exists
@@ -197,10 +197,10 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 - Web UI frontend for speed of iteration
 
 ### Terminal rendering
-- `xterm.js` is now the desktop shell surface
-- The current shell path is single-mode and Talon-managed: backend output is appended into xterm while the current input line is rendered locally inside the terminal surface
+- A React-managed transcript view is now the desktop shell surface
+- The current shell path is single-mode and Talon-managed: backend output is appended into the transcript while the current input line is rendered locally inside the terminal surface
 - The transport now forces PTY allocation instead of `ssh -T`, because Talon is acting as a persistent shell session rather than a one-shot non-interactive command pipe
-- xterm rendering now prefers incremental append over full reset/replay to reduce visible flashing during polling refreshes
+- the managed terminal view is append-oriented, exposes active-command metadata to the frontend, and preserves transcript state across polling refreshes instead of replaying or clearing the screen
 - when structured command/failure signals are absent, the workspace timeline degrades gracefully to recent lifecycle events from the session registry so connection progress is still visible to the operator
 - A lower-level stdin passthrough helper exists in the backend but is intentionally not surfaced as a normal operator mode until fuller PTY/TUI behavior is implemented
 
@@ -222,16 +222,3 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
-
-
-
-
-
-
-
-
-
-
-
-
-

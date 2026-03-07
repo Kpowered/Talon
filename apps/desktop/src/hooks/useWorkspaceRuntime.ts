@@ -4,6 +4,7 @@ import type {
   ActionNotice,
   AgentSettings,
   AppCommandError,
+  ActiveCommandSummary,
   HostConnectionConfig,
   SessionConnectionIssue,
 } from "../types/app";
@@ -41,6 +42,7 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
   const [registryActiveSessionId, setRegistryActiveSessionId] = useState<string | null>(null);
   const [busySessionIds, setBusySessionIds] = useState<string[]>([]);
   const [activeConnectionIssue, setActiveConnectionIssue] = useState<SessionConnectionIssue | null>(null);
+  const [activeCommand, setActiveCommand] = useState<ActiveCommandSummary | null>(null);
   const [terminalTail, setTerminalTail] = useState<string[]>([]);
   const [terminalSessionId, setTerminalSessionId] = useState<string | null>(null);
   const [agentSettings, setAgentSettings] = useState<AgentSettings | null>(null);
@@ -57,11 +59,12 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     return state;
   }, []);
 
-  const applyRegistry = useCallback((registry: { hostConfigs: HostConnectionConfig[]; activeSessionId: string; busySessionIds: string[]; activeConnectionIssue: SessionConnectionIssue | null }) => {
+  const applyRegistry = useCallback((registry: { hostConfigs: HostConnectionConfig[]; activeSessionId: string; busySessionIds: string[]; activeConnectionIssue: SessionConnectionIssue | null; activeCommand: ActiveCommandSummary | null }) => {
     setHostConfigs(registry.hostConfigs);
     setRegistryActiveSessionId(registry.activeSessionId || null);
     setBusySessionIds(registry.busySessionIds);
     setActiveConnectionIssue(registry.activeConnectionIssue);
+    setActiveCommand(registry.activeCommand);
     return registry;
   }, []);
 
@@ -195,6 +198,7 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     busySessionIds,
     activeConnectionIssue,
     setActiveConnectionIssue,
+    activeCommand,
     terminalTail,
     setTerminalTail,
     agentSettings,
@@ -206,13 +210,3 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     loadTerminalSnapshot,
   };
 }
-
-
-
-
-
-
-
-
-
-

@@ -55,6 +55,7 @@ function App() {
     busySessionIds,
     activeConnectionIssue,
     setActiveConnectionIssue,
+    activeCommand,
     terminalTail,
     setTerminalTail,
     agentSettings,
@@ -417,6 +418,7 @@ function App() {
           diagnosis={diagnosis}
           activeConnectionIssueTitle={activeConnectionIssue?.title ?? null}
           activeConnectionIssueSummary={activeConnectionIssue?.summary ?? null}
+          activeCommand={activeCommand}
           showOperationalPanels={showOperationalPanels}
           terminalTail={terminalTail}
           isRunningAction={actions.isRunningAction}
@@ -450,7 +452,3 @@ function App() {
 }
 
 export default App;
-
-
-
-

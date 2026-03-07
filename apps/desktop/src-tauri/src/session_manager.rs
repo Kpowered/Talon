@@ -141,11 +141,20 @@ pub struct ConnectSessionResponse {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ActiveCommandSummary {
+    pub session_id: String,
+    pub command: String,
+    pub started_at: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SessionRegistryResponse {
     pub host_configs: Vec<HostConnectionConfig>,
     pub active_session_id: String,
     pub busy_session_ids: Vec<String>,
     pub active_connection_issue: Option<SessionConnectionIssue>,
+    pub active_command: Option<ActiveCommandSummary>,
 }
 
 #[derive(Serialize)]
@@ -220,6 +229,11 @@ pub fn get_session_registry() -> SessionRegistryResponse {
         active_session_id: active_session_id.clone(),
         busy_session_ids: session_registry::busy_session_ids(),
         active_connection_issue: session_registry::connection_issue_for(&active_session_id),
+        active_command: session_registry::active_command_for(&active_session_id).map(|command| ActiveCommandSummary {
+            session_id: active_session_id.clone(),
+            command: command.command,
+            started_at: command.started_at,
+        }),
     }
 }
 
@@ -463,9 +477,3 @@ pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionRes
     }
     crate::session_store::run_suggested_action(payload)
 }
-
-
-
-
-
-

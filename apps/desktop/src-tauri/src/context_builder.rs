@@ -170,17 +170,28 @@ pub fn build_failure_context(
             )
         })
         .unwrap_or_else(|| ("unknown-host".into(), "sh".into(), "~".into()));
-    let severity = if command.exit_code == 1 { "warning" } else { "critical" };
+    let interrupted = command.exit_code == 130;
+    let severity = if interrupted || command.exit_code == 1 { "warning" } else { "critical" };
+    let summary = if interrupted {
+        format!("Command '{}' was interrupted by the operator on {}.", command.command, host_id)
+    } else {
+        format!(
+            "Command '{}' exited with status {} on {}.",
+            command.command, command.exit_code, host_id
+        )
+    };
+    let outcome = if interrupted {
+        "outcome: operator-interrupted".into()
+    } else {
+        format!("outcome: exit-{}", command.exit_code)
+    };
 
     FailureContext {
         id: format!("failure-{}", command.id),
         session_id: session_id.into(),
         host_id: host_id.clone(),
         command_id: command.id.clone(),
-        summary: format!(
-            "Command '{}' exited with status {} on {}.",
-            command.command, command.exit_code, host_id
-        ),
+        summary,
         severity: severity.into(),
         stderr_class: command.stderr_class.clone(),
         stderr_evidence: command.stderr_evidence.clone(),
@@ -192,6 +203,7 @@ pub fn build_failure_context(
         related_artifacts: vec![
             format!("command: {}", command.command),
             format!("captured from live SSH session {}", session_id),
+            outcome,
             command
                 .stderr_class
                 .as_ref()
@@ -513,8 +525,3 @@ mod tests {
         assert_eq!(timeline[0].stderr_evidence.as_deref(), Some("connection refused"));
     }
 }
-
-
-
-
-

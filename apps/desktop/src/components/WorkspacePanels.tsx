@@ -1,5 +1,5 @@
 import type { DiagnosisContextPacket, Host, Session, SuggestedAction, TalonWorkspaceState } from "@talon/core";
-import type { AgentSettings, TerminalTab } from "../types/app";
+import type { ActiveCommandSummary, AgentSettings, TerminalTab } from "../types/app";
 import { ShellWorkspace } from "./ShellWorkspace";
 import { TimelineView } from "./views/TimelineView";
 import { DiagnosisView } from "./views/DiagnosisView";
@@ -18,6 +18,7 @@ type WorkspacePanelsProps = {
   };
   activeConnectionIssueTitle: string | null;
   activeConnectionIssueSummary: string | null;
+  activeCommand: ActiveCommandSummary | null;
   showOperationalPanels: boolean;
   terminalTail: string[];
   isRunningAction: string | null;
@@ -55,6 +56,7 @@ export function WorkspacePanels({
   diagnosis,
   activeConnectionIssueTitle,
   activeConnectionIssueSummary,
+  activeCommand,
   showOperationalPanels,
   terminalTail,
   isRunningAction,
@@ -92,6 +94,7 @@ export function WorkspacePanels({
         failure={failure}
         activeConnectionIssueTitle={activeConnectionIssueTitle}
         activeConnectionIssueSummary={activeConnectionIssueSummary}
+        activeCommand={activeCommand}
         showOperationalPanels={showOperationalPanels}
         terminalTail={terminalTail}
         isSubmittingCommand={isSubmittingCommand}
@@ -137,4 +140,3 @@ export function WorkspacePanels({
     </>
   );
 }
-

@@ -1,5 +1,6 @@
 import type { Session, SuggestedAction, TalonWorkspaceState } from "@talon/core";
-import type { TerminalTab } from "../types/app";
+import { useEffect, useState } from "react";
+import type { ActiveCommandSummary, TerminalTab } from "../types/app";
 import { statusLabel } from "../lib/formatters";
 import { XtermShell } from "./XtermShell";
 
@@ -11,6 +12,7 @@ type ShellWorkspaceProps = {
   failure: TalonWorkspaceState["latestFailure"];
   activeConnectionIssueTitle: string | null;
   activeConnectionIssueSummary: string | null;
+  activeCommand: ActiveCommandSummary | null;
   showOperationalPanels: boolean;
   terminalTail: string[];
   isSubmittingCommand: boolean;
@@ -35,6 +37,7 @@ export function ShellWorkspace({
   failure,
   activeConnectionIssueTitle,
   activeConnectionIssueSummary,
+  activeCommand,
   showOperationalPanels,
   terminalTail,
   isSubmittingCommand,
@@ -51,6 +54,28 @@ export function ShellWorkspace({
   onInterrupt,
 }: ShellWorkspaceProps) {
   const managedBusy = isSubmittingCommand || activeSessionBusy;
+  const [runtimeNow, setRuntimeNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!managedBusy || !activeCommand?.startedAt) {
+      return;
+    }
+    const interval = window.setInterval(() => {
+      setRuntimeNow(Date.now());
+    }, 1000);
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [activeCommand?.startedAt, managedBusy]);
+
+  const runningDurationLabel = activeCommand?.startedAt
+    ? (() => {
+        const elapsedSeconds = Math.max(0, Math.floor((runtimeNow - Date.parse(activeCommand.startedAt)) / 1000));
+        const minutes = Math.floor(elapsedSeconds / 60).toString().padStart(2, "0");
+        const seconds = (elapsedSeconds % 60).toString().padStart(2, "0");
+        return `${minutes}:${seconds}`;
+      })()
+    : null;
 
   return (
     <section className="panel panel-terminal compact-panel main-workspace shell-workspace">
@@ -93,7 +118,22 @@ export function ShellWorkspace({
         <span className="terminal-meta-chip">{selectedHost.config.address}</span>
         <span className="terminal-meta-chip">{activeSession.state}</span>
         <span className="terminal-meta-chip">{failure.exitCode !== 0 ? `exit ${failure.exitCode}` : "clean"}</span>
-        <span className="terminal-mode">{activeSession.state === "connecting" ? "Connecting" : managedBusy ? "Command in flight" : activeSession.autoCaptureEnabled ? "Auto-capture ON" : "Auto-capture OFF"}</span>
+        <span className="terminal-mode">
+          {activeSession.state === "connecting"
+            ? "Connecting"
+            : managedBusy
+              ? "Command in flight"
+              : activeSession.autoCaptureEnabled
+                ? "Auto-capture ON"
+                : "Auto-capture OFF"}
+        </span>
+        {managedBusy && activeCommand ? <span className="terminal-meta-chip">{activeCommand.command}</span> : null}
+        {managedBusy && runningDurationLabel ? <span className="terminal-meta-chip">running {runningDurationLabel}</span> : null}
+        {managedBusy ? (
+          <button className="ghost-button small" onClick={onInterrupt}>
+            Interrupt
+          </button>
+        ) : null}
       </div>
 
       {activeTab === "shell" ? (
@@ -109,7 +149,11 @@ export function ShellWorkspace({
               <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={!activeAction || managedBusy}>
                 Use suggested
               </button>
-              {managedBusy ? <span className="terminal-inline-status">Waiting for command completion</span> : null}
+              {managedBusy ? (
+                <span className="terminal-inline-status">
+                  {runningDurationLabel ? `Running for ${runningDurationLabel}` : "Waiting for command completion"}
+                </span>
+              ) : null}
             </div>
           </div>
 
@@ -130,9 +174,3 @@ export function ShellWorkspace({
     </section>
   );
 }
-
-
-
-
-
-

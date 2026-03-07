@@ -168,12 +168,13 @@ export function useOperatorActions(options: OperatorActionsOptions) {
     if (!activeSession) return;
     try {
       await writeSessionInput(activeSession.id, "\u0003");
+      setTerminalTail((current) => [...current, "^C", "Interrupt sent to remote shell..."]);
       setActionNotice({ kind: "success", message: `Sent Ctrl+C to ${activeSession.id}.` });
       await refreshRegistry();
     } catch (error) {
       reportError(error);
     }
-  }, [activeSession, refreshRegistry, reportError, setActionNotice]);
+  }, [activeSession, refreshRegistry, reportError, setActionNotice, setTerminalTail]);
   const disconnectActiveSession = useCallback(async () => {
     if (!activeSession) return;
     setIsDisconnectingSession(true);
@@ -488,9 +489,3 @@ export function useOperatorActions(options: OperatorActionsOptions) {
     deleteSelectedHost,
   };
 }
-
-
-
-
-
-

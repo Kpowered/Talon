@@ -66,12 +66,13 @@ pub struct CommandHistoryEntry {
     pub stderr_tail: Vec<String>,
 }
 
-struct ActiveCommandState {
-    id: String,
-    command: String,
-    started_at: String,
-    stdout_tail: Vec<String>,
-    stderr_tail: Vec<String>,
+#[derive(Clone)]
+pub struct ActiveCommandState {
+    pub id: String,
+    pub command: String,
+    pub started_at: String,
+    pub stdout_tail: Vec<String>,
+    pub stderr_tail: Vec<String>,
 }
 
 #[derive(Default)]

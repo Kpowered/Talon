@@ -58,11 +58,18 @@ export type ConnectSessionResponse = {
   events: SessionLifecycleEvent[];
 };
 
+export type ActiveCommandSummary = {
+  sessionId: string;
+  command: string;
+  startedAt: string;
+};
+
 export type SessionRegistryResponse = {
   hostConfigs: HostConnectionConfig[];
   activeSessionId: string;
   busySessionIds: string[];
   activeConnectionIssue: SessionConnectionIssue | null;
+  activeCommand: ActiveCommandSummary | null;
 };
 
 export type SubmitCommandResponse = {
@@ -150,4 +157,3 @@ export type SessionOverrideFormState = {
   authMethod: ConnectionAuthMethod;
   password: string;
 };
-

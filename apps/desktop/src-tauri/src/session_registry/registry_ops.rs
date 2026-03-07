@@ -83,6 +83,13 @@ pub fn busy_session_ids() -> Vec<String> {
         .collect()
 }
 
+pub fn active_command_for(session_id: &str) -> Option<ActiveCommandState> {
+    lock_registry()
+        .active_commands
+        .get(session_id)
+        .cloned()
+}
+
 pub fn connection_issue_for(session_id: &str) -> Option<SessionConnectionIssue> {
     lock_registry()
         .connection_issues
@@ -616,5 +623,3 @@ mod registry_ops_tests {
         assert_eq!(tail.last().map(String::as_str), Some("line-80"));
     }
 }
-
-
