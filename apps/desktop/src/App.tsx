@@ -68,7 +68,7 @@ function App() {
 
   const resolvedActiveSessionId = registryActiveSessionId || workspace?.activeSessionId || null;
   const activeSession = useMemo(
-    () => workspace?.sessions.find((session: Session) => session.id === resolvedActiveSessionId) ?? workspace?.sessions.find((session: Session) => session.id === workspace.activeSessionId) ?? null,
+    () => workspace?.sessions.find((session: Session) => session.id === resolvedActiveSessionId) ?? workspace?.sessions.find((session: Session) => session.id === workspace.activeSessionId) ?? workspace?.sessions[0] ?? null,
     [resolvedActiveSessionId, workspace],
   );
 
@@ -449,4 +449,5 @@ function App() {
 }
 
 export default App;
+
 
