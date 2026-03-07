@@ -2,6 +2,7 @@ import type { NewHostDraft } from "../types/app";
 
 type NewHostDialogProps = {
   draft: NewHostDraft;
+  errorMessage: string | null;
   isSaving: boolean;
   isConnecting: boolean;
   onChange: (updater: (current: NewHostDraft) => NewHostDraft) => void;
@@ -10,7 +11,7 @@ type NewHostDialogProps = {
   onConnect: () => void;
 };
 
-export function NewHostDialog({ draft, isSaving, isConnecting, onChange, onCancel, onSave, onConnect }: NewHostDialogProps) {
+export function NewHostDialog({ draft, errorMessage, isSaving, isConnecting, onChange, onCancel, onSave, onConnect }: NewHostDialogProps) {
   return (
     <div className="dialog-backdrop" role="presentation">
       <section className="dialog-card new-host-dialog" role="dialog" aria-modal="true" aria-labelledby="new-host-title">
@@ -23,6 +24,8 @@ export function NewHostDialog({ draft, isSaving, isConnecting, onChange, onCance
             Cancel
           </button>
         </div>
+
+        {errorMessage ? <div className="dialog-error" role="alert">{errorMessage}</div> : null}
 
         <div className="connection-form compact-form dialog-form">
           <label className="connection-field">

@@ -33,6 +33,7 @@ function App() {
   const [newHostDraft, setNewHostDraft] = useState<NewHostDraft>(EMPTY_NEW_HOST_DRAFT);
   const [isSavingNewHost, setIsSavingNewHost] = useState(false);
   const [isConnectingNewHost, setIsConnectingNewHost] = useState(false);
+  const [newHostDialogError, setNewHostDialogError] = useState<string | null>(null);
 
   const runtime = useWorkspaceRuntime({ onError: setActionNotice });
   const {
@@ -153,14 +154,16 @@ function App() {
     };
 
     if (!draft.address) {
-      setActionNotice({ kind: "error", message: "Enter a host address before saving or connecting." });
+      setNewHostDialogError("Enter a host address before saving or connecting.");
       return;
     }
 
     if (draft.authMethod === "password" && !draft.password.trim()) {
-      setActionNotice({ kind: "error", message: "Enter a password before connecting with password auth." });
+      setNewHostDialogError("Enter a password before connecting with password auth.");
       return;
     }
+
+    setNewHostDialogError(null);
 
     if (connectAfterCreate) {
       setIsConnectingNewHost(true);
@@ -176,7 +179,7 @@ function App() {
       hostRail.setIsSessionOverrideExpanded(true);
     } catch (error) {
       const commandError = error as AppCommandError;
-      setActionNotice({ kind: "error", message: commandError.message ?? "Failed to create host." });
+      setNewHostDialogError(commandError.message ?? "Failed to create host.");
     } finally {
       setIsSavingNewHost(false);
       setIsConnectingNewHost(false);
@@ -185,6 +188,7 @@ function App() {
 
   function openNewHostDialog() {
     setNewHostDraft(EMPTY_NEW_HOST_DRAFT);
+    setNewHostDialogError(null);
     setIsNewHostDialogOpen(true);
   }
 
@@ -192,6 +196,7 @@ function App() {
     if (isSavingNewHost || isConnectingNewHost) return;
     setIsNewHostDialogOpen(false);
     setNewHostDraft(EMPTY_NEW_HOST_DRAFT);
+    setNewHostDialogError(null);
   }
 
   if (!workspace || !diagnosis || !failure || !activeSession || !selectedHost) {
@@ -219,9 +224,13 @@ function App() {
       {isNewHostDialogOpen ? (
         <NewHostDialog
           draft={newHostDraft}
+          errorMessage={newHostDialogError}
           isSaving={isSavingNewHost}
           isConnecting={isConnectingNewHost}
-          onChange={(updater) => setNewHostDraft((current) => updater(current))}
+          onChange={(updater) => {
+            setNewHostDialogError(null);
+            setNewHostDraft((current) => updater(current));
+          }}
           onCancel={closeNewHostDialog}
           onSave={() => void handleCreateHost(false)}
           onConnect={() => void handleCreateHost(true)}
@@ -298,3 +307,10 @@ function App() {
 }
 
 export default App;
+
+
+
+
+
+
+

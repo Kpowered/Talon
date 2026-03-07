@@ -1385,3 +1385,14 @@ button {
   margin-top: 16px;
   justify-content: flex-end;
 }
+
+.dialog-error {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 130, 130, 0.28);
+  background: linear-gradient(180deg, rgba(109, 39, 39, 0.34), rgba(255, 255, 255, 0.03));
+  color: #ffd9d9;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
