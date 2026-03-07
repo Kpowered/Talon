@@ -2896,7 +2896,7 @@ button {
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 1px;
   overflow: hidden;
-  padding: 5px 8px 5px;
+  padding: 4px 8px 4px;
 }
 
 .manage-hosts-editor-grid {
@@ -2904,7 +2904,7 @@ button {
   overflow: auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 78px;
-  gap: 2px 8px;
+  gap: 1px 8px;
   padding-right: 2px;
 }
 
@@ -2923,6 +2923,12 @@ button {
 .operator-line {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 6px;
+}
+
+.compact-inline-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -2943,53 +2949,36 @@ button {
   font-size: 0.74rem;
 }
 
-.compact-details {
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.02);
-  padding: 4px 6px 6px;
+.auth-inline {
+  display: grid;
+  gap: 3px;
+  margin-top: 1px;
 }
 
-.compact-details summary {
-  cursor: pointer;
+.auth-inline span {
   color: #8f9bb4;
-  font-size: 0.66rem;
-  list-style: none;
-  user-select: none;
-}
-
-.compact-details summary::-webkit-details-marker {
-  display: none;
-}
-
-.compact-details-body.two-up {
-  margin-top: 6px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.auth-box {
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.02);
-  padding: 6px;
-  display: grid;
-  gap: 6px;
-}
-
-.auth-box-title {
-  color: #aeb9d0;
-  font-size: 0.67rem;
+  font-size: 0.58rem;
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
-.auth-box-note {
+.auth-inline-password {
+  grid-template-columns: 1fr;
+}
+
+.auth-inline-key {
+  grid-template-columns: 1fr;
+}
+
+.auth-inline-field {
+  gap: 1px;
+}
+
+.auth-inline-note {
   margin: 0;
   color: #7987a2;
-  font-size: 0.68rem;
-  line-height: 1.35;
+  font-size: 0.66rem;
+  line-height: 1.2;
 }
 
 .password-field-row.compact {
@@ -3009,13 +2998,13 @@ button {
 .manage-host-actions.compact {
   justify-content: flex-end;
   gap: 6px;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .manage-hosts-popover-header.compact.editor-actions-only {
   justify-content: flex-end;
   min-height: 0;
-  margin-bottom: 2px;
+  margin-bottom: 0;
 }
 
 .manage-hosts-editor-popover.movable {
@@ -3044,8 +3033,3 @@ button {
   border-bottom: 2px solid rgba(255,255,255,0.18);
   cursor: nwse-resize;
 }
-
-.compact-details-plain {
-  margin-top: 0;
-}
-

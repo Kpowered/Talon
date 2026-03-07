@@ -197,27 +197,24 @@ export function ManageHostsDialog({
             </label>
           </div>
 
-          <details className="compact-details span-2" open>
-            <summary>Identity</summary>
-            <div className="compact-details-body two-up">
-              <label className="connection-field compact-field">
-                <span>Tags</span>
-                <input value={savedHostForm.tags} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, tags: event.target.value }))} placeholder="production, hk" />
-              </label>
-              <label className="connection-field compact-field">
-                <span>Fingerprint</span>
-                <input
-                  value={savedHostForm.fingerprintHint}
-                  onChange={(event) => onSetSavedHostForm((current) => ({ ...current, fingerprintHint: event.target.value }))}
-                  placeholder="Pending trust"
-                />
-              </label>
-            </div>
-          </details>
+          <div className="compact-inline-pair span-2">
+            <label className="connection-field compact-field">
+              <span>Tags</span>
+              <input value={savedHostForm.tags} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, tags: event.target.value }))} placeholder="production, hk" />
+            </label>
+            <label className="connection-field compact-field">
+              <span>Fingerprint</span>
+              <input
+                value={savedHostForm.fingerprintHint}
+                onChange={(event) => onSetSavedHostForm((current) => ({ ...current, fingerprintHint: event.target.value }))}
+                placeholder="Pending trust"
+              />
+            </label>
+          </div>
 
           {authMethod === "password" ? (
-            <div className="auth-box span-2">
-              <div className="auth-box-title">Password auth</div>
+            <div className="auth-inline auth-inline-password span-2">
+              <span>Password</span>
               <div className="password-field-row compact inline-tools">
                 <input
                   type={isPasswordVisible ? "text" : "password"}
@@ -236,17 +233,16 @@ export function ManageHostsDialog({
           ) : null}
 
           {authMethod === "private-key" ? (
-            <div className="auth-box span-2">
-              <div className="auth-box-title">Private key auth</div>
-              <label className="connection-field compact-field">
-                <span>Key path</span>
+            <div className="auth-inline auth-inline-key span-2">
+              <label className="connection-field compact-field auth-inline-field">
+                <span>Private key</span>
                 <input
                   value={savedHostForm.privateKeyPath}
                   onChange={(event) => onSetSavedHostForm((current) => ({ ...current, privateKeyPath: event.target.value }))}
                   placeholder="C:\\Users\\...\\id_ed25519"
                 />
               </label>
-              <p className="auth-box-note">Current backend stores a real key path. Inline pasted key support needs a backend model change.</p>
+              <p className="auth-inline-note">Inline pasted key support still needs a backend model change.</p>
             </div>
           ) : null}
         </div>
@@ -265,4 +261,3 @@ export function ManageHostsDialog({
     </div>
   );
 }
-
