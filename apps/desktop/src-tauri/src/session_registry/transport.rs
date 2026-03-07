@@ -250,6 +250,11 @@ fn launch_runtime(
                 "disconnected",
                 format!("ssh process wait failed: {}", error),
             );
+            push_terminal_line(
+                &mut state,
+                &session_id,
+                format!("SSH session wait failed: {}", error),
+            );
         }
     });
 

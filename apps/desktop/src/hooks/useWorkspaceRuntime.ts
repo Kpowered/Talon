@@ -13,6 +13,21 @@ type WorkspaceRuntimeOptions = {
   onError: (notice: ActionNotice) => void;
 };
 
+function shouldApplyTerminalSnapshot(
+  nextSessionId: string,
+  nextLines: string[],
+  currentSessionId: string | null,
+  currentLines: string[],
+) {
+  if (nextSessionId !== currentSessionId) {
+    return true;
+  }
+  if (nextLines.length > 0) {
+    return true;
+  }
+  return currentLines.length === 0;
+}
+
 export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
   const [workspace, setWorkspace] = useState<TalonWorkspaceState | null>(null);
   const [selectedHostId, setSelectedHostId] = useState<string | null>(null);
@@ -21,6 +36,7 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
   const [busySessionIds, setBusySessionIds] = useState<string[]>([]);
   const [activeConnectionIssue, setActiveConnectionIssue] = useState<SessionConnectionIssue | null>(null);
   const [terminalTail, setTerminalTail] = useState<string[]>([]);
+  const [terminalSessionId, setTerminalSessionId] = useState<string | null>(null);
   const [agentSettings, setAgentSettings] = useState<AgentSettings | null>(null);
   const [latestContextPacket, setLatestContextPacket] = useState<DiagnosisContextPacket | null>(null);
 
@@ -32,9 +48,16 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
       }
       return state.sessions[0]?.hostId ?? state.hosts[0]?.id ?? null;
     });
-    setTerminalTail(state.terminal.lines);
+    setTerminalTail((current) => {
+      const nextSessionId = state.terminal.sessionId || state.activeSessionId || terminalSessionId || "";
+      if (shouldApplyTerminalSnapshot(nextSessionId, state.terminal.lines, terminalSessionId, current)) {
+        setTerminalSessionId(nextSessionId || null);
+        return state.terminal.lines;
+      }
+      return current;
+    });
     return state;
-  }, []);
+  }, [terminalSessionId]);
 
   const applyRegistry = useCallback((registry: { hostConfigs: HostConnectionConfig[]; busySessionIds: string[]; activeConnectionIssue: SessionConnectionIssue | null }) => {
     setHostConfigs(registry.hostConfigs);
@@ -78,14 +101,20 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     async (sessionId: string) => {
       try {
         const snapshot = await getTerminalSnapshot(sessionId);
-        setTerminalTail(snapshot.lines);
+        setTerminalTail((current) => {
+          if (shouldApplyTerminalSnapshot(snapshot.sessionId || sessionId, snapshot.lines, terminalSessionId, current)) {
+            setTerminalSessionId(snapshot.sessionId || sessionId);
+            return snapshot.lines;
+          }
+          return current;
+        });
         return snapshot;
       } catch (error) {
         reportError(error);
         throw error;
       }
     },
-    [reportError],
+    [reportError, terminalSessionId],
   );
 
   useEffect(() => {

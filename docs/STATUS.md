@@ -84,6 +84,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Hardened the managed command input so operators can submit with `Enter`, navigate per-session history with `Up/Down`, clear with `Esc`, and stay focused on the active session without relying on the `Send` button.
 - Replaced the shell tail viewer with an `xterm.js`-backed terminal surface so operators now type directly inside the terminal pane instead of a detached form field.
 - Reworked the xterm shell back to a single operator-facing input mode so terminal typing stays direct while Talon command framing, non-zero exit capture, and failure packaging remain the default path.
+- Hardened disconnect-state terminal preservation so polling no longer wipes the visible shell transcript on same-session empty snapshots, and backend SSH wait/exit failures are now written into the terminal buffer for operator review.
 - Kept the lower-level raw stdin write path internal-only for now rather than exposing it as a first-class operator mode before PTY-grade behavior exists.
 ## In Progress
 - Hardening the new xterm terminal surface around resize behavior, bundle size, and any remaining edge cases in prompt rendering and incremental replay.
