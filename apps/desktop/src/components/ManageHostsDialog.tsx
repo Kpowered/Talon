@@ -162,29 +162,29 @@ export function ManageHostsDialog({
           </button>
         </div>
 
-        <div className="manage-hosts-editor-grid compact-grid">
-          <label className="connection-field compact-field span-2">
+        <div className="manage-hosts-editor-stack">
+          <label className="connection-field compact-field">
             <span>Label</span>
             <input value={savedHostForm.label} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, label: event.target.value }))} />
           </label>
 
-          <label className="connection-field compact-field span-address">
-            <span>Address</span>
-            <input value={savedHostForm.address} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, address: event.target.value }))} />
-          </label>
+          <div className="editor-row address-row">
+            <label className="connection-field compact-field grow">
+              <span>Address</span>
+              <input value={savedHostForm.address} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, address: event.target.value }))} />
+            </label>
+            <label className="connection-field compact-field port-cell">
+              <span>Port</span>
+              <input value={savedHostForm.port} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, port: event.target.value }))} inputMode="numeric" />
+            </label>
+          </div>
 
-          <label className="connection-field compact-field span-port">
-            <span>Port</span>
-            <input value={savedHostForm.port} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, port: event.target.value }))} inputMode="numeric" />
-          </label>
-
-          <div className="operator-line span-2">
-            <label className="connection-field compact-field operator-user">
+          <div className="editor-row operator-row">
+            <label className="connection-field compact-field grow">
               <span>User</span>
               <input value={savedHostForm.username} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, username: event.target.value }))} />
             </label>
-
-            <label className="connection-field compact-field operator-auth">
+            <label className="connection-field compact-field auth-cell">
               <span>Auth</span>
               <select
                 value={authMethod}
@@ -197,12 +197,12 @@ export function ManageHostsDialog({
             </label>
           </div>
 
-          <div className="compact-inline-pair span-2">
-            <label className="connection-field compact-field">
+          <div className="editor-row meta-row">
+            <label className="connection-field compact-field grow">
               <span>Tags</span>
               <input value={savedHostForm.tags} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, tags: event.target.value }))} placeholder="production, hk" />
             </label>
-            <label className="connection-field compact-field">
+            <label className="connection-field compact-field grow">
               <span>Fingerprint</span>
               <input
                 value={savedHostForm.fingerprintHint}
@@ -213,7 +213,7 @@ export function ManageHostsDialog({
           </div>
 
           {authMethod === "password" ? (
-            <div className="auth-inline auth-inline-password span-2">
+            <div className="auth-inline auth-inline-password">
               <span>Password</span>
               <div className="password-field-row compact inline-tools">
                 <input
@@ -233,7 +233,7 @@ export function ManageHostsDialog({
           ) : null}
 
           {authMethod === "private-key" ? (
-            <div className="auth-inline auth-inline-key span-2">
+            <div className="auth-inline auth-inline-key">
               <label className="connection-field compact-field auth-inline-field">
                 <span>Private key</span>
                 <input
