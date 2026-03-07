@@ -326,17 +326,17 @@ fn next_command_id(registry: &mut SessionRegistry, session_id: &str) -> String {
     format!("cmd-{}-{}", session_id, registry.command_counter)
 }
 
-fn parse_command_end(line: &str) -> Option<(String, i32, String)> {
+fn parse_command_end(line: &str) -> Option<(String, i32, String, Option<String>)> {
     let marker_index = line.find(CMD_END_PREFIX)?;
     let payload = &line[(marker_index + CMD_END_PREFIX.len())..];
-    let mut parts = payload.splitn(3, "__");
+    let mut parts = payload.splitn(4, "__");
     let command_id = parts.next()?.to_string();
     let exit_code = parts.next()?.parse::<i32>().ok()?;
     let cwd = parts.next()?.to_string();
-    Some((command_id, exit_code, cwd))
+    let shell = parts.next().map(|value| value.to_string()).filter(|value| !value.trim().is_empty());
+    Some((command_id, exit_code, cwd, shell))
 }
-
-fn complete_active_command(registry: &mut SessionRegistry, session_id: &str, command_id: &str, exit_code: i32, cwd: &str) {
+fn complete_active_command(registry: &mut SessionRegistry, session_id: &str, command_id: &str, exit_code: i32, cwd: &str, shell: Option<&str>) {
     let Some(command) = registry.active_commands.remove(session_id) else {
         push_event(
             registry,
@@ -359,7 +359,7 @@ fn complete_active_command(registry: &mut SessionRegistry, session_id: &str, com
         );
     }
 
-    update_session_metadata(registry, session_id, None, Some(cwd));
+    update_session_metadata(registry, session_id, shell, Some(cwd));
     let completed_at = now_iso();
     let stderr_signal = classify_command_stderr_signal(&command.stderr_tail);
     let stderr_class = stderr_signal.as_ref().map(|(class, _, _)| (*class).to_string());
@@ -623,3 +623,5 @@ mod registry_ops_tests {
         assert_eq!(tail.last().map(String::as_str), Some("line-80"));
     }
 }
+
+

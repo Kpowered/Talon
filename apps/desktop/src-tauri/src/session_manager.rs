@@ -448,7 +448,7 @@ pub fn disconnect_session(payload: DisconnectSessionRequest) -> DisconnectSessio
 pub fn write_session_input(payload: WriteSessionInputRequest) -> Result<(), String> {
     session_registry::write_input(&payload.session_id, &payload.data)?;
     if payload.data.contains('\u{3}') {
-        let _ = session_registry::interrupt_active_command(&payload.session_id);
+        session_registry::schedule_interrupt_fallback(&payload.session_id);
     }
     Ok(())
 }
@@ -530,5 +530,7 @@ pub fn run_suggested_action(payload: SuggestedActionRequest) -> RunbookActionRes
     }
     crate::session_store::run_suggested_action(payload)
 }
+
+
 
 

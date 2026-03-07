@@ -152,8 +152,8 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
                         continue;
                     }
 
-                    if let Some((command_id, exit_code, cwd)) = parse_command_end(&line) {
-                        complete_active_command(&mut state, &session_id, &command_id, exit_code, cwd.trim());
+                    if let Some((command_id, exit_code, cwd, shell)) = parse_command_end(&line) {
+                        complete_active_command(&mut state, &session_id, &command_id, exit_code, cwd.trim(), shell.as_deref());
                         continue;
                     }
 
@@ -563,11 +563,11 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
 fn build_wrapped_command(command_id: &str, command: &str) -> String {
     format!(
         r#"talon_done=0
-trap 'if [ "$talon_done" -eq 0 ]; then talon_done=1; talon_exit=130; talon_cwd=$(pwd); printf '{end}{id}__%s__%s\n' "$talon_exit" "$talon_cwd"; fi' INT
+trap 'if [ "$talon_done" -eq 0 ]; then talon_done=1; talon_exit=130; talon_cwd=$(pwd); talon_shell=${{SHELL:-sh}}; printf '{end}{id}__%s__%s__%s\n' "$talon_exit" "$talon_cwd" "$talon_shell"; fi' INT
 printf '{start}{id}\n'
 {command}
 talon_exit=$?
-if [ "$talon_done" -eq 0 ]; then talon_done=1; talon_cwd=$(pwd); printf '{end}{id}__%s__%s\n' "$talon_exit" "$talon_cwd"; fi
+if [ "$talon_done" -eq 0 ]; then talon_done=1; talon_cwd=$(pwd); talon_shell=${{SHELL:-sh}}; printf '{end}{id}__%s__%s__%s\n' "$talon_exit" "$talon_cwd" "$talon_shell"; fi
 trap - INT
 "#,
         start = CMD_START_PREFIX,
@@ -587,14 +587,14 @@ pub fn interrupt_active_command(session_id: &str) -> bool {
     else {
         return false;
     };
-    let cwd = registry
+    let (cwd, shell) = registry
         .managed_sessions
         .iter()
         .find(|session| session.id == session_id)
-        .map(|session| session.cwd.clone())
-        .unwrap_or_else(|| "~".into());
+        .map(|session| (session.cwd.clone(), session.shell.clone()))
+        .unwrap_or_else(|| ("~".into(), "sh".into()));
 
-    complete_active_command(&mut registry, session_id, &command_id, 130, &cwd);
+    complete_active_command(&mut registry, session_id, &command_id, 130, &cwd, Some(&shell));
     push_event(
         &mut registry,
         session_id,
@@ -602,6 +602,14 @@ pub fn interrupt_active_command(session_id: &str) -> bool {
         format!("{} interrupted by operator", command_id),
     );
     true
+}
+
+pub fn schedule_interrupt_fallback(session_id: &str) {
+    let session_id = session_id.to_string();
+    thread::spawn(move || {
+        thread::sleep(std::time::Duration::from_millis(350));
+        let _ = interrupt_active_command(&session_id);
+    });
 }
 pub fn write_input(session_id: &str, data: &str) -> Result<(), String> {
     let stdin = {
@@ -734,11 +742,12 @@ mod transport_tests {
         assert_eq!(parsed.0, "cmd-7");
         assert_eq!(parsed.1, 127);
         assert_eq!(parsed.2, "/srv/app");
-    }    #[test]
+    }
+    #[test]
     fn builds_interrupt_safe_wrapped_command() {
         let wrapped = build_wrapped_command("cmd-7", "sleep 30");
         assert!(wrapped.contains("trap 'if [ \"$talon_done\" -eq 0 ]"));
-        assert!(wrapped.contains("__TALON_CMD_END__cmd-7__%s__%s"));
+        assert!(wrapped.contains("__TALON_CMD_END__cmd-7__%s__%s__%s"));
         assert!(wrapped.contains("talon_exit=130"));
     }
 
@@ -756,7 +765,7 @@ mod transport_tests {
             },
         );
 
-        complete_active_command(&mut registry, "session-1", "cmd-1", 1, "/root");
+        complete_active_command(&mut registry, "session-1", "cmd-1", 1, "/root", Some("/bin/bash"));
 
         let failure = registry.latest_failures.get("session-1").expect("failure should be captured");
         assert_eq!(failure.exit_code, 1);
@@ -765,6 +774,8 @@ mod transport_tests {
         assert_eq!(registry.command_history[0].command, "false");
     }
 }
+
+
 
 
 
