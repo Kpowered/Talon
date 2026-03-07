@@ -89,6 +89,7 @@ function App() {
   const composerValue = activeSession ? commandDraftBySessionId[activeSession.id] ?? "" : "";
   const activeSessionBusy = activeSession ? busySessionIds.includes(activeSession.id) : false;
   const showOperationalPanels = activeSession?.state !== "disconnected";
+  const inspectNotice = activeConnectionIssue?.title ?? (failure?.exitCode != null && failure.exitCode !== 0 ? `Exit ${failure.exitCode}` : null);
   const {
     activeSignalFilter,
     setActiveSignalFilter,
@@ -117,6 +118,21 @@ function App() {
     [activeSession],
   );
 
+  const openInspectPanel = useCallback(() => {
+    if (activeConnectionIssue) {
+      setActiveTab("timeline");
+      return;
+    }
+    if (failure?.exitCode != null && failure.exitCode !== 0) {
+      setActiveTab("diagnosis");
+      return;
+    }
+    setActiveTab("timeline");
+  }, [activeConnectionIssue, failure?.exitCode]);
+
+  const closeInspectPanel = useCallback(() => {
+    setActiveTab("shell");
+  }, []);
   const clearComposerValue = useCallback(() => {
     if (!activeSession) return;
     setCommandDraftBySessionId((current) => ({ ...current, [activeSession.id]: "" }));
@@ -445,6 +461,9 @@ function App() {
           onClearSignalFilter={() => setActiveSignalFilter(null)}
           onRerunDiagnosis={() => void actions.rerunDiagnosis()}
           onRunAction={(action) => void actions.runAction(action)}
+          onOpenInspect={openInspectPanel}
+          onCloseInspect={closeInspectPanel}
+          inspectNotice={inspectNotice}
         />
       </section>
     </main>

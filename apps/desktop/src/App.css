@@ -1560,3 +1560,132 @@ button {
     opacity: 0;
   }
 }
+
+.workspace-panels {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.workspace-panels.inspect-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.workspace-panels.inspect-open {
+  grid-template-columns: minmax(0, 1fr) 360px;
+}
+
+.shell-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.inspect-summary-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255, 184, 77, 0.12);
+  border: 1px solid rgba(255, 184, 77, 0.18);
+  color: #ffd89a;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.inspect-toggle.has-signal {
+  border-color: rgba(255, 184, 77, 0.28);
+  color: #ffe4b5;
+}
+
+.inspect-hint-banner {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 14px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 184, 77, 0.18);
+  background: linear-gradient(180deg, rgba(62, 41, 14, 0.42), rgba(255, 255, 255, 0.03));
+}
+
+.inspect-hint-banner strong {
+  color: #ffe7bc;
+  font-size: 0.88rem;
+}
+
+.inspect-hint-banner p {
+  margin: 0;
+  color: #c7d1e5;
+  font-size: 0.88rem;
+}
+
+.inspect-drawer {
+  gap: 12px;
+  min-height: calc(100vh - 112px);
+}
+
+.inspect-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inspect-drawer-copy {
+  margin: 6px 0 0;
+  color: #98a4bb;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.inspect-tabbar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(9, 13, 21, 0.84);
+}
+
+.inspect-drawer-body {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.inspect-drawer .workspace-stack {
+  min-height: 0;
+}
+
+@media (max-width: 1380px) {
+  .workspace-panels.inspect-open {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .workspace-panels.inspect-open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inspect-drawer {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .inspect-hint-banner {
+    grid-template-columns: 1fr;
+  }
+
+  .shell-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

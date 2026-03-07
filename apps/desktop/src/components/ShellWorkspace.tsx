@@ -19,7 +19,7 @@ type ShellWorkspaceProps = {
   composerValue: string;
   commandHistorySize: number;
   activeAction: SuggestedAction | null;
-  onSetActiveTab: (tab: TerminalTab) => void;
+  inspectNotice: string | null;
   onSetComposerValue: (value: string) => void;
   onClearComposerValue: () => void;
   onSubmitCommand: () => void;
@@ -27,6 +27,8 @@ type ShellWorkspaceProps = {
   onRecallPreviousCommand: () => void;
   onRecallNextCommand: () => void;
   onInterrupt: () => void;
+  onOpenInspect: () => void;
+  onCloseInspect: () => void;
 };
 
 export function ShellWorkspace({
@@ -44,7 +46,7 @@ export function ShellWorkspace({
   composerValue,
   commandHistorySize,
   activeAction,
-  onSetActiveTab,
+  inspectNotice,
   onSetComposerValue,
   onClearComposerValue,
   onSubmitCommand,
@@ -52,8 +54,11 @@ export function ShellWorkspace({
   onRecallPreviousCommand,
   onRecallNextCommand,
   onInterrupt,
+  onOpenInspect,
+  onCloseInspect,
 }: ShellWorkspaceProps) {
   const managedBusy = isSubmittingCommand || activeSessionBusy;
+  const inspectOpen = activeTab !== "shell";
   const [runtimeNow, setRuntimeNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -87,18 +92,10 @@ export function ShellWorkspace({
             <span className={`live-dot status-${failure.severity}`}>{statusLabel(failure.severity)}</span>
           </div>
         </div>
-        <div className="terminal-tabs compact-tabs">
-          <button className={`tab ${activeTab === "shell" ? "active" : ""}`} onClick={() => onSetActiveTab("shell")}>
-            Shell
-          </button>
-          <button className={`tab ${activeTab === "timeline" ? "active" : ""}`} onClick={() => onSetActiveTab("timeline")}>
-            Timeline
-          </button>
-          <button className={`tab ${activeTab === "diagnosis" ? "active" : ""}`} onClick={() => onSetActiveTab("diagnosis")}>
-            Diagnosis
-          </button>
-          <button className={`tab ${activeTab === "artifacts" ? "active" : ""}`} onClick={() => onSetActiveTab("artifacts")}>
-            Artifacts
+        <div className="shell-header-actions">
+          {inspectNotice ? <span className="inspect-summary-pill">{inspectNotice}</span> : null}
+          <button className={`ghost-button small inspect-toggle ${inspectNotice ? "has-signal" : ""}`} onClick={inspectOpen ? onCloseInspect : onOpenInspect}>
+            {inspectOpen ? "Hide inspect" : "Inspect"}
           </button>
         </div>
       </div>
@@ -107,9 +104,19 @@ export function ShellWorkspace({
         <div className="connection-banner shell-banner">
           <strong>{activeConnectionIssueTitle ?? "Terminal-first workspace"}</strong>
           <p>
-            {activeConnectionIssueSummary ??
-              "Pick a host, adjust the next-connect override only if needed, then connect. Talon will expand the rest of the operator UI after the session is live."}
+            {activeConnectionIssueSummary
+              ?? "Pick a host, adjust the next-connect override only if needed, then connect. Talon will expand the rest of the operator UI after the session is live."}
           </p>
+        </div>
+      ) : null}
+
+      {inspectNotice && !inspectOpen ? (
+        <div className="inspect-hint-banner">
+          <strong>Inspect is available.</strong>
+          <p>Timeline, diagnosis, and captured artifacts are ready when you want the surrounding context.</p>
+          <button className="ghost-button small" onClick={onOpenInspect}>
+            Open inspect
+          </button>
         </div>
       ) : null}
 
@@ -136,41 +143,39 @@ export function ShellWorkspace({
         ) : null}
       </div>
 
-      {activeTab === "shell" ? (
-        <div className="shell-pane shell-pane-xterm">
-          <div className="terminal-command-bar single-mode">
-            <div className="composer-meta-row terminal-hints-row">
-              <span className="composer-shortcut">Direct terminal input</span>
-              <span className="composer-shortcut">Enter submits</span>
-              <span className="composer-shortcut">Up/Down history {commandHistorySize > 0 ? `(${commandHistorySize})` : ""}</span>
-              <span className="composer-shortcut">Esc clears</span>
-            </div>
-            <div className="composer-actions terminal-inline-actions">
-              <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={!activeAction || managedBusy}>
-                Use suggested
-              </button>
-              {managedBusy ? (
-                <span className="terminal-inline-status">
-                  {runningDurationLabel ? `Running for ${runningDurationLabel}` : "Waiting for command completion"}
-                </span>
-              ) : null}
-            </div>
+      <div className="shell-pane shell-pane-xterm">
+        <div className="terminal-command-bar single-mode">
+          <div className="composer-meta-row terminal-hints-row">
+            <span className="composer-shortcut">Direct terminal input</span>
+            <span className="composer-shortcut">Enter submits</span>
+            <span className="composer-shortcut">Up/Down history {commandHistorySize > 0 ? `(${commandHistorySize})` : ""}</span>
+            <span className="composer-shortcut">Esc clears</span>
           </div>
-
-          <XtermShell
-            sessionId={activeSession.id}
-            terminalTail={terminalTail}
-            draft={composerValue}
-            isBusy={managedBusy}
-            onDraftChange={onSetComposerValue}
-            onSubmitCommand={onSubmitCommand}
-            onRecallPreviousCommand={onRecallPreviousCommand}
-            onRecallNextCommand={onRecallNextCommand}
-            onClearDraft={onClearComposerValue}
-            onInterrupt={onInterrupt}
-          />
+          <div className="composer-actions terminal-inline-actions">
+            <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={!activeAction || managedBusy}>
+              Use suggested
+            </button>
+            {managedBusy ? (
+              <span className="terminal-inline-status">
+                {runningDurationLabel ? `Running for ${runningDurationLabel}` : "Waiting for command completion"}
+              </span>
+            ) : null}
+          </div>
         </div>
-      ) : null}
+
+        <XtermShell
+          sessionId={activeSession.id}
+          terminalTail={terminalTail}
+          draft={composerValue}
+          isBusy={managedBusy}
+          onDraftChange={onSetComposerValue}
+          onSubmitCommand={onSubmitCommand}
+          onRecallPreviousCommand={onRecallPreviousCommand}
+          onRecallNextCommand={onRecallNextCommand}
+          onClearDraft={onClearComposerValue}
+          onInterrupt={onInterrupt}
+        />
+      </div>
     </section>
   );
 }

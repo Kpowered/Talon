@@ -45,6 +45,9 @@ type WorkspacePanelsProps = {
   onClearSignalFilter: () => void;
   onRerunDiagnosis: () => void;
   onRunAction: (action: SuggestedAction) => void;
+  onOpenInspect: () => void;
+  onCloseInspect: () => void;
+  inspectNotice: string | null;
 };
 
 export function WorkspacePanels({
@@ -83,9 +86,19 @@ export function WorkspacePanels({
   onInterrupt,
   onRerunDiagnosis,
   onRunAction,
+  onOpenInspect,
+  onCloseInspect,
+  inspectNotice,
 }: WorkspacePanelsProps) {
+  const inspectOpen = activeTab !== "shell";
+  const inspectTitle = activeConnectionIssueTitle ?? (failure.exitCode !== 0 ? "Captured failure context" : "Session details");
+  const inspectSummary = activeConnectionIssueSummary
+    ?? (failure.exitCode !== 0
+      ? failure.summary
+      : "Timeline, diagnosis, and captured artifacts stay here so the shell remains the primary workspace.");
+
   return (
-    <>
+    <section className={`workspace-panels ${inspectOpen ? "inspect-open" : "inspect-collapsed"}`}>
       <ShellWorkspace
         activeTab={activeTab}
         activeSession={activeSession}
@@ -101,42 +114,72 @@ export function WorkspacePanels({
         composerValue={composerValue}
         commandHistorySize={commandHistorySize}
         activeAction={activeAction}
-        onSetActiveTab={onSetActiveTab}
-        onSetComposerValue={onSetComposerValue}
+        inspectNotice={inspectNotice}        onSetComposerValue={onSetComposerValue}
         onClearComposerValue={onClearComposerValue}
         onSubmitCommand={onSubmitCommand}
         onUseSuggestedCommand={onUseSuggestedCommand}
         onRecallPreviousCommand={onRecallPreviousCommand}
         onRecallNextCommand={onRecallNextCommand}
         onInterrupt={onInterrupt}
+        onOpenInspect={onOpenInspect}
+        onCloseInspect={onCloseInspect}
       />
 
-      {activeTab === "timeline" ? (
-        <TimelineView
-          failure={failure}
-          timelineSignalSummary={timelineSignalSummary}
-          activeTimelineSignalFilter={activeTimelineSignalFilter}
-          onToggleSignalFilter={onToggleSignalFilter}
-          onClearSignalFilter={onClearSignalFilter}
-          visibleTimeline={visibleTimeline}
-          repeatedSignalCounts={repeatedSignalCounts}
-        />
-      ) : null}
+      {inspectOpen ? (
+        <aside className="panel compact-panel inspect-drawer">
+          <div className="inspect-drawer-header">
+            <div>
+              <p className="panel-kicker">Inspect</p>
+              <h2>{inspectTitle}</h2>
+              <p className="inspect-drawer-copy">{inspectSummary}</p>
+            </div>
+            <button className="ghost-button small" onClick={onCloseInspect}>
+              Close
+            </button>
+          </div>
 
-      {activeTab === "diagnosis" ? (
-        <DiagnosisView
-          actionSummary={actionSummary}
-          diagnosis={diagnosis}
-          failure={failure}
-          agentSettings={agentSettings}
-          selectedHost={selectedHost}
-          isRunningAction={isRunningAction}
-          onRerunDiagnosis={onRerunDiagnosis}
-          onRunAction={onRunAction}
-        />
-      ) : null}
+          <div className="inspect-tabbar">
+            <button className={`tab ${activeTab === "timeline" ? "active" : ""}`} onClick={() => onSetActiveTab("timeline")}>
+              Timeline
+            </button>
+            <button className={`tab ${activeTab === "diagnosis" ? "active" : ""}`} onClick={() => onSetActiveTab("diagnosis")}>
+              Diagnosis
+            </button>
+            <button className={`tab ${activeTab === "artifacts" ? "active" : ""}`} onClick={() => onSetActiveTab("artifacts")}>
+              Artifacts
+            </button>
+          </div>
 
-      {activeTab === "artifacts" ? <ArtifactsView failure={failure} latestContextPacket={latestContextPacket} /> : null}
-    </>
+          <div className="inspect-drawer-body">
+            {activeTab === "timeline" ? (
+              <TimelineView
+                failure={failure}
+                timelineSignalSummary={timelineSignalSummary}
+                activeTimelineSignalFilter={activeTimelineSignalFilter}
+                onToggleSignalFilter={onToggleSignalFilter}
+                onClearSignalFilter={onClearSignalFilter}
+                visibleTimeline={visibleTimeline}
+                repeatedSignalCounts={repeatedSignalCounts}
+              />
+            ) : null}
+
+            {activeTab === "diagnosis" ? (
+              <DiagnosisView
+                actionSummary={actionSummary}
+                diagnosis={diagnosis}
+                failure={failure}
+                agentSettings={agentSettings}
+                selectedHost={selectedHost}
+                isRunningAction={isRunningAction}
+                onRerunDiagnosis={onRerunDiagnosis}
+                onRunAction={onRunAction}
+              />
+            ) : null}
+
+            {activeTab === "artifacts" ? <ArtifactsView failure={failure} latestContextPacket={latestContextPacket} /> : null}
+          </div>
+        </aside>
+      ) : null}
+    </section>
   );
 }
