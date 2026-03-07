@@ -647,7 +647,7 @@ pub fn switch_session_mode(session_id: &str, mode: &str) -> Option<ManagedSessio
 
 #[cfg(test)]
 mod registry_ops_tests {
-    use super::push_stream_tail;
+    use super::{lock_registry, push_stream_tail, session_mode_for, switch_session_mode};
 
     #[test]
     fn truncates_stream_tail_to_eighty_lines() {
@@ -657,6 +657,34 @@ mod registry_ops_tests {
         assert_eq!(tail.first().map(String::as_str), Some("line-1"));
         assert_eq!(tail.last().map(String::as_str), Some("line-80"));
     }
+
+    #[test]
+    fn switches_session_mode_and_emits_terminal_notice() {
+        {
+            let mut registry = lock_registry();
+            if let Some(session) = registry
+                .managed_sessions
+                .iter_mut()
+                .find(|session| session.id == "session-a91f")
+            {
+                session.mode = "managed".into();
+            }
+        }
+
+        let updated = switch_session_mode("session-a91f", "raw").expect("session should exist");
+        assert_eq!(updated.mode, "raw");
+        assert_eq!(session_mode_for("session-a91f").as_deref(), Some("raw"));
+
+        let registry = lock_registry();
+        let terminal = registry
+            .terminal_buffers
+            .get("session-a91f")
+            .cloned()
+            .unwrap_or_default();
+        assert!(terminal.iter().any(|line| line.contains("Raw mode enabled")));
+        assert!(registry
+            .recent_events
+            .iter()
+            .any(|event| event.event_type == "session-mode" && event.detail.contains("raw")));
+    }
 }
-
-

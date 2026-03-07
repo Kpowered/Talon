@@ -556,6 +556,7 @@ mod tests {
             severity: "critical".into(),
             stderr_class: stderr_class.map(|value| value.into()),
             stderr_evidence: stderr_class.map(|value| format!("matched: {}", value)),
+            outcome_type: "non-zero-exit".into(),
             cwd: "/srv/app".into(),
             shell: "/bin/bash".into(),
             exit_code: 1,
@@ -623,6 +624,7 @@ mod tests {
             can_trust_in_app: false,
             in_app_action_kind: None,
             in_app_action_label: None,
+            disconnect_cause: None,
         };
 
         let timeline = timeline_for_session(&[], "session-1", None, Some(&issue), &[]);

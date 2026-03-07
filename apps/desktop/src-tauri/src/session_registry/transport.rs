@@ -148,6 +148,20 @@ fn mark_remote_exit(state: &mut SessionRegistry, session_id: &str, status: Strin
     );
 }
 
+fn terminal_snapshot_locked(state: &SessionRegistry, session_id: &str) -> TerminalSnapshot {
+    let lines = state
+        .terminal_buffers
+        .get(session_id)
+        .cloned()
+        .or_else(|| state.terminal_buffers.get(&state.active_session_id).cloned())
+        .unwrap_or_default();
+
+    TerminalSnapshot {
+        session_id: session_id.into(),
+        lines,
+    }
+}
+
 fn mark_operator_disconnect(state: &mut SessionRegistry, session_id: &str, status: String) {
     update_session_state(state, session_id, "disconnected");
     update_host_observed_for_session(state, session_id, Some("warning"), true);
@@ -652,7 +666,7 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
                 "command-rejected",
                 "Command rejected because the session no longer exists.".into(),
             );
-            return terminal_snapshot(session_id);
+            return terminal_snapshot_locked(&registry, session_id);
         };
 
         if session.mode == "raw" {
@@ -667,7 +681,7 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
                 "command-rejected",
                 "Command rejected because the session is in raw mode.".into(),
             );
-            return terminal_snapshot(session_id);
+            return terminal_snapshot_locked(&registry, session_id);
         }
 
         if registry.active_commands.contains_key(session_id) {
@@ -682,7 +696,7 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
                 "command-rejected",
                 "Command rejected because another wrapped command is still in flight.".into(),
             );
-            return terminal_snapshot(session_id);
+            return terminal_snapshot_locked(&registry, session_id);
         }
     }
 
@@ -895,8 +909,10 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
 #[cfg(test)]
 mod transport_tests {
     use super::{
-        build_wrapped_command, complete_active_command, now_iso, parse_command_end, ActiveCommandState, CommandHistoryEntry,
-        Host, HostObservedState, HostRecordConfig, ManagedSessionRecord, SessionRegistry,
+        build_wrapped_command, complete_active_command, interrupt_active_command,
+        lock_registry, mark_operator_disconnect, mark_remote_exit, now_iso, parse_command_end,
+        submit_command, ActiveCommandState, CommandHistoryEntry, Host, HostObservedState,
+        HostRecordConfig, ManagedSessionRecord, SessionRegistry,
     };
     use std::collections::HashMap;
 
@@ -945,6 +961,11 @@ mod transport_tests {
         }
     }
 
+    fn reset_global_registry() {
+        let mut registry = lock_registry();
+        *registry = test_registry();
+    }
+
     #[test]
     fn parses_command_end_markers() {
         let parsed = parse_command_end("__TALON_CMD_END__cmd-7__127__/srv/app__/bin/bash").expect("marker should parse");
@@ -953,6 +974,7 @@ mod transport_tests {
         assert_eq!(parsed.2, "/srv/app");
         assert_eq!(parsed.3.as_deref(), Some("/bin/bash"));
     }
+
     #[test]
     fn builds_interrupt_safe_wrapped_command() {
         let wrapped = build_wrapped_command("cmd-7", "sleep 30");
@@ -983,25 +1005,95 @@ mod transport_tests {
         assert_eq!(failure.cwd, "/root");
         assert_eq!(registry.command_history[0].command, "false");
     }
+
+    #[test]
+    fn raw_mode_rejects_structured_submit() {
+        reset_global_registry();
+        {
+            let mut registry = lock_registry();
+            registry.managed_sessions[0].mode = "raw".into();
+        }
+
+        let snapshot = submit_command("session-1", "pwd");
+
+        assert!(snapshot.lines.iter().any(|line| line.contains("raw mode is active")));
+        let registry = lock_registry();
+        assert!(registry.active_commands.is_empty());
+        assert!(registry.recent_events.iter().any(|event| event.event_type == "command-rejected" && event.detail.contains("raw mode")));
+    }
+
+    #[test]
+    fn busy_session_rejects_concurrent_submit() {
+        reset_global_registry();
+        {
+            let mut registry = lock_registry();
+            registry.active_commands.insert(
+                "session-1".into(),
+                ActiveCommandState {
+                    id: "cmd-busy".into(),
+                    command: "sleep 5".into(),
+                    started_at: now_iso(),
+                    stdout_tail: Vec::new(),
+                    stderr_tail: Vec::new(),
+                },
+            );
+        }
+
+        let snapshot = submit_command("session-1", "pwd");
+
+        assert!(snapshot.lines.iter().any(|line| line.contains("another command is still running")));
+        let registry = lock_registry();
+        assert_eq!(registry.active_commands.get("session-1").map(|command| command.id.as_str()), Some("cmd-busy"));
+    }
+
+    #[test]
+    fn interrupt_records_operator_interrupted_failure() {
+        reset_global_registry();
+        {
+            let mut registry = lock_registry();
+            registry.active_commands.insert(
+                "session-1".into(),
+                ActiveCommandState {
+                    id: "cmd-2".into(),
+                    command: "curl ip.sb -4".into(),
+                    started_at: now_iso(),
+                    stdout_tail: vec!["partial".into()],
+                    stderr_tail: Vec::new(),
+                },
+            );
+        }
+
+        assert!(interrupt_active_command("session-1"));
+
+        let registry = lock_registry();
+        let failure = registry.latest_failures.get("session-1").expect("interrupt should capture failure context");
+        assert_eq!(failure.exit_code, 130);
+        assert_eq!(failure.outcome_type, "operator-interrupted");
+        assert!(registry.command_history.iter().any(|entry| entry.id == "cmd-2" && entry.exit_code == 130));
+        assert!(registry.recent_events.iter().any(|event| event.event_type == "command-interrupted"));
+    }
+
+    #[test]
+    fn remote_exit_creates_reconnect_oriented_issue() {
+        let mut registry = test_registry();
+
+        mark_remote_exit(&mut registry, "session-1", "exit code: 0".into());
+
+        let issue = registry.connection_issues.get("session-1").expect("remote exit should create issue");
+        assert_eq!(issue.disconnect_cause.as_deref(), Some("remote-exit"));
+        assert_eq!(registry.managed_sessions[0].state, "disconnected");
+        assert!(registry.terminal_buffers.get("session-1").into_iter().flatten().any(|line| line.contains("Remote shell exited")));
+    }
+
+    #[test]
+    fn operator_disconnect_clears_connection_issue() {
+        let mut registry = test_registry();
+        mark_remote_exit(&mut registry, "session-1", "exit code: 0".into());
+        assert!(registry.connection_issues.contains_key("session-1"));
+
+        mark_operator_disconnect(&mut registry, "session-1", "exit code: 0".into());
+
+        assert!(!registry.connection_issues.contains_key("session-1"));
+        assert_eq!(registry.managed_sessions[0].state, "disconnected");
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
