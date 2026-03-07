@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Host, Session, SuggestedAction } from "@talon/core";
-import type { ConnectionAuthMethod, HostConnectionConfig, TerminalTab } from "./types/app";
+import type { HostConnectionConfig, TerminalTab } from "./types/app";
 import { TopBar } from "./components/TopBar";
 import { HostRail } from "./components/HostRail";
 import { ActionNoticeBar } from "./components/ActionNoticeBar";
@@ -10,34 +10,13 @@ import { useWorkspaceRuntime } from "./hooks/useWorkspaceRuntime";
 import { useOperatorActions } from "./hooks/useOperatorActions";
 import { useActionNotice } from "./hooks/useActionNotice";
 import { useTimelineSignals } from "./hooks/useTimelineSignals";
+import { useHostRailState } from "./hooks/useHostRailState";
 import "./App.css";
 
 function App() {
   const [activeTab, setActiveTab] = useState<TerminalTab>("shell");
   const { notice: actionNotice, setNotice: setActionNotice, clearNotice } = useActionNotice();
-  const [connectionAddress, setConnectionAddress] = useState("");
-  const [connectionPort, setConnectionPort] = useState("22");
-  const [connectionUsername, setConnectionUsername] = useState("");
-  const [connectionAuthMethod, setConnectionAuthMethod] = useState<ConnectionAuthMethod>("agent");
-  const [connectionPassword, setConnectionPassword] = useState("");
-  const initializedConnectionHostId = useRef<string | null>(null);
-  const [hostLabelInput, setHostLabelInput] = useState("");
-  const [hostAddressInput, setHostAddressInput] = useState("");
-  const [hostRegionInput, setHostRegionInput] = useState("custom");
-  const [hostTagsInput, setHostTagsInput] = useState("");
-  const [hostPortInput, setHostPortInput] = useState("22");
-  const [hostUsernameInput, setHostUsernameInput] = useState("");
-  const [hostAuthMethodInput, setHostAuthMethodInput] = useState<ConnectionAuthMethod>("agent");
-  const [hostFingerprintHintInput, setHostFingerprintHintInput] = useState("Pending trust");
-  const [hostPrivateKeyPathInput, setHostPrivateKeyPathInput] = useState("");
-  const [savedHostPasswordInput, setSavedHostPasswordInput] = useState("");
-  const [agentBaseUrlInput, setAgentBaseUrlInput] = useState("");
-  const [agentModelInput, setAgentModelInput] = useState("");
-  const [agentAutoDiagnoseInput, setAgentAutoDiagnoseInput] = useState(true);
-  const [agentApiKeyInput, setAgentApiKeyInput] = useState("");
   const [composerValue, setComposerValue] = useState("");
-  const [isSavedConfigExpanded, setIsSavedConfigExpanded] = useState(false);
-  const [isSessionOverrideExpanded, setIsSessionOverrideExpanded] = useState(false);
 
   const runtime = useWorkspaceRuntime({ onError: setActionNotice });
   const {
@@ -89,94 +68,64 @@ function App() {
     signalSummary: timelineSignalSummary,
     visibleTimeline,
   } = useTimelineSignals(timeline);
-
-  useEffect(() => {
-    if (!agentSettings) return;
-    setAgentBaseUrlInput(agentSettings.baseUrl);
-    setAgentModelInput(agentSettings.model);
-    setAgentAutoDiagnoseInput(agentSettings.autoDiagnose);
-  }, [agentSettings]);
-
-  useEffect(() => {
-    const nextHost = workspace?.hosts.find((host: Host) => host.id === selectedHostId) ?? workspace?.hosts[0];
-    if (!nextHost) return;
-    if (initializedConnectionHostId.current === nextHost.id) return;
-
-    const nextConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === nextHost.id) ?? null;
-    const derivedUsername = nextHost.config.address.includes("@") ? nextHost.config.address.split("@")[0] : nextConfig?.username ?? "";
-    setConnectionAddress(nextHost.config.address);
-    setConnectionPort(String(nextConfig?.port ?? 22));
-    setConnectionUsername(nextConfig?.username ?? derivedUsername);
-    setConnectionAuthMethod((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
-    setConnectionPassword("");
-    setHostLabelInput(nextHost.config.label);
-    setHostAddressInput(nextHost.config.address);
-    setHostRegionInput(nextHost.config.region);
-    setHostTagsInput(nextHost.config.tags.join(", "));
-    setHostPortInput(String(nextConfig?.port ?? 22));
-    setHostUsernameInput(nextConfig?.username ?? derivedUsername);
-    setHostAuthMethodInput((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
-    setHostFingerprintHintInput(nextConfig?.fingerprintHint ?? "Pending trust");
-    setHostPrivateKeyPathInput(nextConfig?.privateKeyPath ?? "");
-    setSavedHostPasswordInput("");
-    initializedConnectionHostId.current = nextHost.id;
-  }, [hostConfigs, selectedHostId, workspace]);
-
-  useEffect(() => {
-    if (!activeConnectionIssue) return;
-    setIsSessionOverrideExpanded(true);
-  }, [activeConnectionIssue]);
-
-  function resetConnectionOverride() {
-    if (!selectedHost) return;
-    const nextConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === selectedHost.id) ?? null;
-    const derivedUsername = selectedHost.config.address.includes("@") ? selectedHost.config.address.split("@")[0] : nextConfig?.username ?? "";
-    setConnectionAddress(selectedHost.config.address);
-    setConnectionPort(String(nextConfig?.port ?? 22));
-    setConnectionUsername(nextConfig?.username ?? derivedUsername);
-    setConnectionAuthMethod((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
-    setConnectionPassword("");
-  }
+  const hostRail = useHostRailState({
+    workspaceHosts: hosts,
+    selectedHostId,
+    hostConfigs,
+    agentSettings,
+    activeConnectionIssue,
+  });
 
   const actions = useOperatorActions({
     selectedHost,
     activeSession,
     activeConnectionIssue,
-    connectionAddress,
-    connectionPort,
-    connectionUsername,
-    connectionAuthMethod,
-    connectionPassword,
-    savedHostPasswordInput,
-    hostLabelInput,
-    hostAddressInput,
-    hostRegionInput,
-    hostTagsInput,
-    hostPortInput,
-    hostUsernameInput,
-    hostAuthMethodInput,
-    hostFingerprintHintInput,
-    hostPrivateKeyPathInput,
+    connectionAddress: hostRail.sessionOverride.address,
+    connectionPort: hostRail.sessionOverride.port,
+    connectionUsername: hostRail.sessionOverride.username,
+    connectionAuthMethod: hostRail.sessionOverride.authMethod,
+    connectionPassword: hostRail.sessionOverride.password,
+    savedHostPasswordInput: hostRail.savedHostForm.savedPassword,
+    hostLabelInput: hostRail.savedHostForm.label,
+    hostAddressInput: hostRail.savedHostForm.address,
+    hostRegionInput: hostRail.savedHostForm.region,
+    hostTagsInput: hostRail.savedHostForm.tags,
+    hostPortInput: hostRail.savedHostForm.port,
+    hostUsernameInput: hostRail.savedHostForm.username,
+    hostAuthMethodInput: hostRail.savedHostForm.authMethod,
+    hostFingerprintHintInput: hostRail.savedHostForm.fingerprintHint,
+    hostPrivateKeyPathInput: hostRail.savedHostForm.privateKeyPath,
     agentSettings,
-    agentBaseUrlInput,
-    agentModelInput,
-    agentAutoDiagnoseInput,
-    agentApiKeyInput,
+    agentBaseUrlInput: hostRail.agentForm.baseUrl,
+    agentModelInput: hostRail.agentForm.model,
+    agentAutoDiagnoseInput: hostRail.agentForm.autoDiagnose,
+    agentApiKeyInput: hostRail.agentForm.apiKey,
     setWorkspace,
     setHostConfigs,
     setTerminalTail,
     setActionNotice,
     setComposerValue,
     setAgentSettings,
-    setSavedHostPasswordInput,
+    setSavedHostPasswordInput: (value) => {
+      hostRail.setSavedHostForm((current) => ({
+        ...current,
+        savedPassword: typeof value === "function" ? value(current.savedPassword) : value,
+      }));
+    },
     setActiveConnectionIssue,
     setSelectedHostId,
-    resetConnectionOverride,
+    resetConnectionOverride: () => hostRail.resetSessionOverride(selectedHost),
     refreshWorkspace,
     refreshRegistry,
     refreshAll,
     loadTerminalSnapshot,
   });
+
+  useEffect(() => {
+    if (!agentSettings?.hasApiKey && !hostRail.agentForm.apiKey) return;
+    if (agentSettings?.hasApiKey) return;
+    hostRail.setAgentForm((current) => ({ ...current, apiKey: "" }));
+  }, [agentSettings?.hasApiKey, hostRail.agentForm.apiKey, hostRail.setAgentForm]);
 
   if (!workspace || !diagnosis || !failure || !activeSession || !selectedHost) {
     return <AppEmptyState isLoading={isLoadingState} />;
@@ -207,59 +156,27 @@ function App() {
             selectedHost={selectedHost}
             selectedHostConfig={selectedHostConfig}
             agentSettings={agentSettings}
-            agentBaseUrlInput={agentBaseUrlInput}
-            agentModelInput={agentModelInput}
-            agentAutoDiagnoseInput={agentAutoDiagnoseInput}
-            agentApiKeyInput={agentApiKeyInput}
-            isSavedConfigExpanded={isSavedConfigExpanded}
-            isSessionOverrideExpanded={isSessionOverrideExpanded}
-            hostLabelInput={hostLabelInput}
-            hostAddressInput={hostAddressInput}
-            hostRegionInput={hostRegionInput}
-            hostTagsInput={hostTagsInput}
-            hostPortInput={hostPortInput}
-            hostUsernameInput={hostUsernameInput}
-            hostAuthMethodInput={hostAuthMethodInput}
-            hostFingerprintHintInput={hostFingerprintHintInput}
-            hostPrivateKeyPathInput={hostPrivateKeyPathInput}
-            savedHostPasswordInput={savedHostPasswordInput}
-            connectionAddress={connectionAddress}
-            connectionPort={connectionPort}
-            connectionUsername={connectionUsername}
-            connectionAuthMethod={connectionAuthMethod}
-            connectionPassword={connectionPassword}
+            agentForm={hostRail.agentForm}
+            savedHostForm={hostRail.savedHostForm}
+            sessionOverride={hostRail.sessionOverride}
             activeConnectionIssue={activeConnectionIssue}
+            isSavedConfigExpanded={hostRail.isSavedConfigExpanded}
+            isSessionOverrideExpanded={hostRail.isSessionOverrideExpanded}
             isSavingHostConfig={actions.isSavingHostConfig}
             isDeletingHostConfig={actions.isDeletingHostConfig}
             onSelectHost={setSelectedHostId}
-            onSetAgentBaseUrlInput={setAgentBaseUrlInput}
-            onSetAgentModelInput={setAgentModelInput}
-            onSetAgentAutoDiagnoseInput={setAgentAutoDiagnoseInput}
-            onSetAgentApiKeyInput={setAgentApiKeyInput}
+            onSetAgentForm={hostRail.setAgentForm}
             onSaveAgentConfiguration={() => void actions.saveAgentConfiguration()}
             onSaveAgentApiKey={() => void actions.saveAgentApiKey()}
             onClearAgentApiKey={() => void actions.clearAgentApiKey()}
-            onToggleSavedConfig={() => setIsSavedConfigExpanded((current) => !current)}
-            onSetHostLabelInput={setHostLabelInput}
-            onSetHostAddressInput={setHostAddressInput}
-            onSetHostRegionInput={setHostRegionInput}
-            onSetHostTagsInput={setHostTagsInput}
-            onSetHostPortInput={setHostPortInput}
-            onSetHostUsernameInput={setHostUsernameInput}
-            onSetHostAuthMethodInput={setHostAuthMethodInput}
-            onSetHostFingerprintHintInput={setHostFingerprintHintInput}
-            onSetHostPrivateKeyPathInput={setHostPrivateKeyPathInput}
-            onSetSavedHostPasswordInput={setSavedHostPasswordInput}
+            onToggleSavedConfig={() => hostRail.setIsSavedConfigExpanded((current) => !current)}
+            onSetSavedHostForm={hostRail.setSavedHostForm}
             onSaveSavedHostPassword={() => void actions.saveSavedHostPassword()}
             onClearSavedHostPassword={() => void actions.clearSavedHostPassword()}
             onUpdateSelectedHost={() => void actions.updateSelectedHost()}
             onDeleteSelectedHost={() => void actions.deleteSelectedHost()}
-            onToggleSessionOverride={() => setIsSessionOverrideExpanded((current) => !current)}
-            onSetConnectionAddress={setConnectionAddress}
-            onSetConnectionPort={setConnectionPort}
-            onSetConnectionUsername={setConnectionUsername}
-            onSetConnectionAuthMethod={setConnectionAuthMethod}
-            onSetConnectionPassword={setConnectionPassword}
+            onToggleSessionOverride={() => hostRail.setIsSessionOverrideExpanded((current) => !current)}
+            onSetSessionOverride={hostRail.setSessionOverride}
             onResetConnectionOverride={actions.resetConnectionOverride}
             onPrepareHostTrustFlow={() => void actions.prepareHostTrustFlow()}
             onConfirmHostTrustFlow={() => void actions.confirmHostTrustFlow()}
@@ -302,3 +219,4 @@ function App() {
 }
 
 export default App;
+

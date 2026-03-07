@@ -130,7 +130,10 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
   }, [loadTerminalSnapshot, refreshRegistry, refreshWorkspace, workspace?.activeSessionId]);
 
   useEffect(() => {
-    if (!workspace?.activeSessionId) return;
+    if (!workspace?.activeSessionId) {
+      setLatestContextPacket(null);
+      return;
+    }
     void getLatestContextPacket(workspace.activeSessionId)
       .then((response) => {
         setLatestContextPacket(response.packet);
@@ -160,3 +163,4 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     loadTerminalSnapshot,
   };
 }
+

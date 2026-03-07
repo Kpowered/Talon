@@ -48,6 +48,9 @@ As of 2026-03-06:
 - Root-shell orchestration is now further split through `src/hooks/useActionNotice.ts`, `src/hooks/useTimelineSignals.ts`, `src/components/ActionNoticeBar.tsx`, `src/components/AppEmptyState.tsx`, and `src/components/WorkspacePanels.tsx`, so `App.tsx` mostly wires runtime state, form inputs, and operator actions together.
 - The timeline, diagnosis, and artifact views now render explicit empty or partial-evidence states instead of collapsing to blank panels when filters exclude events or when no structured packet / diagnosis messages are available yet.
 - Frontend command-error normalization is now source-aware: the same backend failure can surface different operator hints depending on whether it happened during connect, command submission, host trust, host config mutation, agent configuration, or live-state refresh.
+- Host-rail form orchestration now lives in `src/hooks/useHostRailState.ts`, which owns saved-host defaults, session-only override input, agent settings input, expansion state, and selected-host synchronization instead of leaving those responsibilities in the root app component.
+- `src/components/HostRail.tsx` now consumes grouped form models rather than dozens of flat scalar props, which makes the operator-editable host model boundaries clearer between persisted defaults, session-only overrides, and agent configuration.
+- `useWorkspaceRuntime` now clears the cached diagnosis context packet when the active SSH session disappears so artifact rendering tracks the current runtime session boundary more faithfully.
 - Registry and SSH-stdin lock access now goes through local recovery helpers instead of `expect(...)` so a poisoned lock degrades more safely during long-lived desktop sessions.
 - Real session connection management is now handled by backend-spawned `ssh.exe` child processes with piped stdin/stdout/stderr and reader threads owned by the registry layer.
 
@@ -204,6 +207,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+
 
 
 

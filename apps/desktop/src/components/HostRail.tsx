@@ -1,134 +1,76 @@
 import type { Host } from "@talon/core";
 import { formatTime, statusLabel } from "../lib/formatters";
-import type { AgentSettings, ConnectionAuthMethod, HostConnectionConfig, SessionConnectionIssue } from "../types/app";
+import type {
+  AgentFormState,
+  AgentSettings,
+  ConnectionAuthMethod,
+  HostConnectionConfig,
+  SavedHostFormState,
+  SessionConnectionIssue,
+  SessionOverrideFormState,
+} from "../types/app";
 
 type HostRailProps = {
   hosts: Host[];
   selectedHost: Host;
   selectedHostConfig: HostConnectionConfig | null;
   agentSettings: AgentSettings | null;
-  agentBaseUrlInput: string;
-  agentModelInput: string;
-  agentAutoDiagnoseInput: boolean;
-  agentApiKeyInput: string;
+  agentForm: AgentFormState;
+  savedHostForm: SavedHostFormState;
+  sessionOverride: SessionOverrideFormState;
+  activeConnectionIssue: SessionConnectionIssue | null;
   isSavedConfigExpanded: boolean;
   isSessionOverrideExpanded: boolean;
-  hostLabelInput: string;
-  hostAddressInput: string;
-  hostRegionInput: string;
-  hostTagsInput: string;
-  hostPortInput: string;
-  hostUsernameInput: string;
-  hostAuthMethodInput: ConnectionAuthMethod;
-  hostFingerprintHintInput: string;
-  hostPrivateKeyPathInput: string;
-  savedHostPasswordInput: string;
-  connectionAddress: string;
-  connectionPort: string;
-  connectionUsername: string;
-  connectionAuthMethod: ConnectionAuthMethod;
-  connectionPassword: string;
-  activeConnectionIssue: SessionConnectionIssue | null;
   isSavingHostConfig: boolean;
   isDeletingHostConfig: boolean;
   onSelectHost: (hostId: string) => void;
-  onSetAgentBaseUrlInput: (value: string) => void;
-  onSetAgentModelInput: (value: string) => void;
-  onSetAgentAutoDiagnoseInput: (value: boolean) => void;
-  onSetAgentApiKeyInput: (value: string) => void;
+  onSetAgentForm: (updater: (current: AgentFormState) => AgentFormState) => void;
   onSaveAgentConfiguration: () => void;
   onSaveAgentApiKey: () => void;
   onClearAgentApiKey: () => void;
   onToggleSavedConfig: () => void;
-  onSetHostLabelInput: (value: string) => void;
-  onSetHostAddressInput: (value: string) => void;
-  onSetHostRegionInput: (value: string) => void;
-  onSetHostTagsInput: (value: string) => void;
-  onSetHostPortInput: (value: string) => void;
-  onSetHostUsernameInput: (value: string) => void;
-  onSetHostAuthMethodInput: (value: ConnectionAuthMethod) => void;
-  onSetHostFingerprintHintInput: (value: string) => void;
-  onSetHostPrivateKeyPathInput: (value: string) => void;
-  onSetSavedHostPasswordInput: (value: string) => void;
+  onSetSavedHostForm: (updater: (current: SavedHostFormState) => SavedHostFormState) => void;
   onSaveSavedHostPassword: () => void;
   onClearSavedHostPassword: () => void;
   onUpdateSelectedHost: () => void;
   onDeleteSelectedHost: () => void;
   onToggleSessionOverride: () => void;
-  onSetConnectionAddress: (value: string) => void;
-  onSetConnectionPort: (value: string) => void;
-  onSetConnectionUsername: (value: string) => void;
-  onSetConnectionAuthMethod: (value: ConnectionAuthMethod) => void;
-  onSetConnectionPassword: (value: string) => void;
+  onSetSessionOverride: (updater: (current: SessionOverrideFormState) => SessionOverrideFormState) => void;
   onResetConnectionOverride: () => void;
   onPrepareHostTrustFlow: () => void;
   onConfirmHostTrustFlow: () => void;
 };
 
-export function HostRail(props: HostRailProps) {
-  const {
-    hosts,
-    selectedHost,
-    selectedHostConfig,
-    agentSettings,
-    agentBaseUrlInput,
-    agentModelInput,
-    agentAutoDiagnoseInput,
-    agentApiKeyInput,
-    isSavedConfigExpanded,
-    isSessionOverrideExpanded,
-    hostLabelInput,
-    hostAddressInput,
-    hostRegionInput,
-    hostTagsInput,
-    hostPortInput,
-    hostUsernameInput,
-    hostAuthMethodInput,
-    hostFingerprintHintInput,
-    hostPrivateKeyPathInput,
-    savedHostPasswordInput,
-    connectionAddress,
-    connectionPort,
-    connectionUsername,
-    connectionAuthMethod,
-    connectionPassword,
-    activeConnectionIssue,
-    isSavingHostConfig,
-    isDeletingHostConfig,
-    onSelectHost,
-    onSetAgentBaseUrlInput,
-    onSetAgentModelInput,
-    onSetAgentAutoDiagnoseInput,
-    onSetAgentApiKeyInput,
-    onSaveAgentConfiguration,
-    onSaveAgentApiKey,
-    onClearAgentApiKey,
-    onToggleSavedConfig,
-    onSetHostLabelInput,
-    onSetHostAddressInput,
-    onSetHostRegionInput,
-    onSetHostTagsInput,
-    onSetHostPortInput,
-    onSetHostUsernameInput,
-    onSetHostAuthMethodInput,
-    onSetHostFingerprintHintInput,
-    onSetHostPrivateKeyPathInput,
-    onSetSavedHostPasswordInput,
-    onSaveSavedHostPassword,
-    onClearSavedHostPassword,
-    onUpdateSelectedHost,
-    onDeleteSelectedHost,
-    onToggleSessionOverride,
-    onSetConnectionAddress,
-    onSetConnectionPort,
-    onSetConnectionUsername,
-    onSetConnectionAuthMethod,
-    onSetConnectionPassword,
-    onResetConnectionOverride,
-    onPrepareHostTrustFlow,
-    onConfirmHostTrustFlow,
-  } = props;
-
+export function HostRail({
+  hosts,
+  selectedHost,
+  selectedHostConfig,
+  agentSettings,
+  agentForm,
+  savedHostForm,
+  sessionOverride,
+  activeConnectionIssue,
+  isSavedConfigExpanded,
+  isSessionOverrideExpanded,
+  isSavingHostConfig,
+  isDeletingHostConfig,
+  onSelectHost,
+  onSetAgentForm,
+  onSaveAgentConfiguration,
+  onSaveAgentApiKey,
+  onClearAgentApiKey,
+  onToggleSavedConfig,
+  onSetSavedHostForm,
+  onSaveSavedHostPassword,
+  onClearSavedHostPassword,
+  onUpdateSelectedHost,
+  onDeleteSelectedHost,
+  onToggleSessionOverride,
+  onSetSessionOverride,
+  onResetConnectionOverride,
+  onPrepareHostTrustFlow,
+  onConfirmHostTrustFlow,
+}: HostRailProps) {
   return (
     <aside className="panel panel-hosts compact-panel host-rail">
       <div className="panel-header compact-panel-header">
@@ -146,14 +88,10 @@ export function HostRail(props: HostRailProps) {
 
       <div className="host-list compact-host-list">
         {hosts.map((host) => (
-          <button
-            key={host.id}
-            className={`host-card compact-host-card status-${host.observed.status} ${host.id === selectedHost.id ? "selected" : ""}`}
-            onClick={() => onSelectHost(host.id)}
-          >
-            <div className="host-row">
+          <button key={host.id} className={`host-card compact-host-card ${host.id === selectedHost.id ? "selected" : ""}`} onClick={() => onSelectHost(host.id)}>
+            <div className="host-card-top">
               <div>
-                <h3>{host.config.label}</h3>
+                <strong>{host.config.label}</strong>
                 <p>{host.config.address}</p>
               </div>
               <span className={`status-badge status-${host.observed.status}`}>{statusLabel(host.observed.status)}</span>
@@ -194,30 +132,34 @@ export function HostRail(props: HostRailProps) {
         <div className="connection-form compact-form">
           <label className="connection-field">
             <span>Base URL</span>
-            <input value={agentBaseUrlInput} onChange={(event) => onSetAgentBaseUrlInput(event.target.value)} />
+            <input value={agentForm.baseUrl} onChange={(event) => onSetAgentForm((current) => ({ ...current, baseUrl: event.target.value }))} />
           </label>
           <label className="connection-field">
             <span>Model</span>
-            <input value={agentModelInput} onChange={(event) => onSetAgentModelInput(event.target.value)} />
+            <input value={agentForm.model} onChange={(event) => onSetAgentForm((current) => ({ ...current, model: event.target.value }))} />
           </label>
           <label className="connection-field">
             <span>API key</span>
             <input
               type="password"
-              value={agentApiKeyInput}
-              onChange={(event) => onSetAgentApiKeyInput(event.target.value)}
+              value={agentForm.apiKey}
+              onChange={(event) => onSetAgentForm((current) => ({ ...current, apiKey: event.target.value }))}
               placeholder={agentSettings?.hasApiKey ? "Stored in system keychain" : "Paste API key"}
             />
           </label>
           <label className="connection-field checkbox-field">
             <span>Auto diagnose</span>
-            <input type="checkbox" checked={agentAutoDiagnoseInput} onChange={(event) => onSetAgentAutoDiagnoseInput(event.target.checked)} />
+            <input
+              type="checkbox"
+              checked={agentForm.autoDiagnose}
+              onChange={(event) => onSetAgentForm((current) => ({ ...current, autoDiagnose: event.target.checked }))}
+            />
           </label>
           <div className="host-config-actions">
             <button className="ghost-button small" onClick={onSaveAgentConfiguration}>
               Save settings
             </button>
-            <button className="ghost-button small" onClick={onSaveAgentApiKey} disabled={!agentApiKeyInput.trim()}>
+            <button className="ghost-button small" onClick={onSaveAgentApiKey} disabled={!agentForm.apiKey.trim()}>
               Save API key
             </button>
             <button className="ghost-button small" onClick={onClearAgentApiKey} disabled={!agentSettings?.hasApiKey}>
@@ -246,35 +188,42 @@ export function HostRail(props: HostRailProps) {
             <div className="connection-form compact-form">
               <label className="connection-field">
                 <span>Label</span>
-                <input value={hostLabelInput} onChange={(event) => onSetHostLabelInput(event.target.value)} />
+                <input value={savedHostForm.label} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, label: event.target.value }))} />
               </label>
               <label className="connection-field">
                 <span>Saved address</span>
-                <input value={hostAddressInput} onChange={(event) => onSetHostAddressInput(event.target.value)} />
+                <input value={savedHostForm.address} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, address: event.target.value }))} />
               </label>
               <div className="connection-grid">
                 <label className="connection-field">
                   <span>Region</span>
-                  <input value={hostRegionInput} onChange={(event) => onSetHostRegionInput(event.target.value)} />
+                  <input value={savedHostForm.region} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, region: event.target.value }))} />
                 </label>
                 <label className="connection-field">
                   <span>Tags</span>
-                  <input value={hostTagsInput} onChange={(event) => onSetHostTagsInput(event.target.value)} placeholder="production, api" />
+                  <input
+                    value={savedHostForm.tags}
+                    onChange={(event) => onSetSavedHostForm((current) => ({ ...current, tags: event.target.value }))}
+                    placeholder="production, api"
+                  />
                 </label>
               </div>
               <div className="connection-grid">
                 <label className="connection-field">
                   <span>Saved port</span>
-                  <input value={hostPortInput} onChange={(event) => onSetHostPortInput(event.target.value)} inputMode="numeric" />
+                  <input value={savedHostForm.port} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, port: event.target.value }))} inputMode="numeric" />
                 </label>
                 <label className="connection-field">
                   <span>Saved user</span>
-                  <input value={hostUsernameInput} onChange={(event) => onSetHostUsernameInput(event.target.value)} />
+                  <input value={savedHostForm.username} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, username: event.target.value }))} />
                 </label>
               </div>
               <label className="connection-field">
                 <span>Saved auth</span>
-                <select value={hostAuthMethodInput} onChange={(event) => onSetHostAuthMethodInput(event.target.value as ConnectionAuthMethod)}>
+                <select
+                  value={savedHostForm.authMethod}
+                  onChange={(event) => onSetSavedHostForm((current) => ({ ...current, authMethod: event.target.value as ConnectionAuthMethod }))}
+                >
                   <option value="agent">agent</option>
                   <option value="private-key">private-key</option>
                   <option value="password">password</option>
@@ -283,16 +232,16 @@ export function HostRail(props: HostRailProps) {
               <label className="connection-field">
                 <span>Fingerprint trust</span>
                 <input
-                  value={hostFingerprintHintInput}
-                  onChange={(event) => onSetHostFingerprintHintInput(event.target.value)}
+                  value={savedHostForm.fingerprintHint}
+                  onChange={(event) => onSetSavedHostForm((current) => ({ ...current, fingerprintHint: event.target.value }))}
                   placeholder="SHA256:... or Pending trust"
                 />
               </label>
               <label className="connection-field">
                 <span>Private key path</span>
                 <input
-                  value={hostPrivateKeyPathInput}
-                  onChange={(event) => onSetHostPrivateKeyPathInput(event.target.value)}
+                  value={savedHostForm.privateKeyPath}
+                  onChange={(event) => onSetSavedHostForm((current) => ({ ...current, privateKeyPath: event.target.value }))}
                   placeholder="C:\\Users\\...\\.ssh\\id_ed25519"
                 />
               </label>
@@ -300,13 +249,13 @@ export function HostRail(props: HostRailProps) {
                 <span>Saved password</span>
                 <input
                   type="password"
-                  value={savedHostPasswordInput}
-                  onChange={(event) => onSetSavedHostPasswordInput(event.target.value)}
+                  value={savedHostForm.savedPassword}
+                  onChange={(event) => onSetSavedHostForm((current) => ({ ...current, savedPassword: event.target.value }))}
                   placeholder={selectedHostConfig?.hasSavedPassword ? "Password saved in system keychain" : "Store password in system keychain"}
                 />
               </label>
               <div className="host-config-actions">
-                <button className="ghost-button small" onClick={onSaveSavedHostPassword} disabled={!savedHostPasswordInput.trim()}>
+                <button className="ghost-button small" onClick={onSaveSavedHostPassword} disabled={!savedHostForm.savedPassword.trim()}>
                   Save password
                 </button>
                 <button className="ghost-button small" onClick={onClearSavedHostPassword} disabled={!selectedHostConfig?.hasSavedPassword}>
@@ -333,9 +282,9 @@ export function HostRail(props: HostRailProps) {
           <span className="pill subtle">{isSessionOverrideExpanded ? "Hide" : "Edit"}</span>
         </button>
         <div className="session-facts compact-facts">
-          <span>{connectionUsername || "user"}</span>
-          <span>port {connectionPort || "22"}</span>
-          <span>{connectionAuthMethod}</span>
+          <span>{sessionOverride.username || "user"}</span>
+          <span>port {sessionOverride.port || "22"}</span>
+          <span>{sessionOverride.authMethod}</span>
         </div>
         {isSessionOverrideExpanded ? (
           <>
@@ -346,33 +295,36 @@ export function HostRail(props: HostRailProps) {
             <div className="connection-form compact-form">
               <label className="connection-field">
                 <span>Address</span>
-                <input value={connectionAddress} onChange={(event) => onSetConnectionAddress(event.target.value)} />
+                <input value={sessionOverride.address} onChange={(event) => onSetSessionOverride((current) => ({ ...current, address: event.target.value }))} />
               </label>
               <div className="connection-grid">
                 <label className="connection-field">
                   <span>Port</span>
-                  <input value={connectionPort} onChange={(event) => onSetConnectionPort(event.target.value)} inputMode="numeric" />
+                  <input value={sessionOverride.port} onChange={(event) => onSetSessionOverride((current) => ({ ...current, port: event.target.value }))} inputMode="numeric" />
                 </label>
                 <label className="connection-field">
                   <span>User</span>
-                  <input value={connectionUsername} onChange={(event) => onSetConnectionUsername(event.target.value)} />
+                  <input value={sessionOverride.username} onChange={(event) => onSetSessionOverride((current) => ({ ...current, username: event.target.value }))} />
                 </label>
               </div>
               <label className="connection-field">
                 <span>Auth</span>
-                <select value={connectionAuthMethod} onChange={(event) => onSetConnectionAuthMethod(event.target.value as ConnectionAuthMethod)}>
+                <select
+                  value={sessionOverride.authMethod}
+                  onChange={(event) => onSetSessionOverride((current) => ({ ...current, authMethod: event.target.value as ConnectionAuthMethod }))}
+                >
                   <option value="agent">agent</option>
                   <option value="private-key">private-key</option>
                   <option value="password">password</option>
                 </select>
               </label>
-              {connectionAuthMethod === "password" ? (
+              {sessionOverride.authMethod === "password" ? (
                 <label className="connection-field">
                   <span>Password</span>
                   <input
                     type="password"
-                    value={connectionPassword}
-                    onChange={(event) => onSetConnectionPassword(event.target.value)}
+                    value={sessionOverride.password}
+                    onChange={(event) => onSetSessionOverride((current) => ({ ...current, password: event.target.value }))}
                     placeholder="Enter password for the next connect"
                   />
                 </label>

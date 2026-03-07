@@ -70,12 +70,15 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Reduced `apps/desktop/src/App.tsx` again by extracting notice lifecycle, timeline signal filtering, workspace panel rendering, and empty-shell fallback into dedicated frontend hooks/components.
 - Added explicit operator-facing empty states for diagnosis, timeline filtering, artifact capture, and initial workspace load failure so the desktop shell stays readable when runtime evidence is partial.
 - Expanded frontend error copy with source-aware operator hints for command submission, reconnect, host trust, host config, agent config, and live-state refresh failures.
+- Split the remaining HostRail form state out of `App.tsx` into a dedicated `useHostRailState` hook and grouped HostRail props around agent settings, saved host defaults, and session-only overrides.
+- Reduced `apps/desktop/src/App.tsx` again to about 200 lines by moving host/config/session-override orchestration into that hook and by tightening HostRail prop boundaries.
+- Cleared stale diagnosis context packets when no active session exists so the artifacts view no longer carries over old SSH session evidence after disconnect.
 - Restored and expanded Rust regression coverage for context shaping, stream-tail truncation, command marker parsing, non-zero failure capture, and connection-issue classification; `cargo test` now passes again.
 ## In Progress
 - Continuing to reduce the remaining size of `App.tsx` and to harden diagnosis/trust UX now that backend internals and core test coverage are stable.
 
 ## Next Steps
-1. Split the remaining host/config form state out of `App.tsx` so the root component is almost entirely orchestration.
+1. Reduce HostRail complexity further by splitting its inventory, saved-config, and session-override sections into smaller presentational components.
 2. Add deeper Rust-side coverage around diagnosis cache invalidation and trust-confirmation state transitions.
 3. Continue UI cleanup only where it improves operation of the provider, trust, credential, command, and failure-context flows.
 ## Risks And Open Questions
@@ -90,6 +93,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 
 
 

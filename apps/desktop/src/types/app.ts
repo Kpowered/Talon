@@ -106,3 +106,31 @@ export type SessionConnectionIssue = {
   inAppActionKind?: string | null;
   inAppActionLabel?: string | null;
 };
+
+export type AgentFormState = {
+  baseUrl: string;
+  model: string;
+  autoDiagnose: boolean;
+  apiKey: string;
+};
+
+export type SavedHostFormState = {
+  label: string;
+  address: string;
+  region: string;
+  tags: string;
+  port: string;
+  username: string;
+  authMethod: ConnectionAuthMethod;
+  fingerprintHint: string;
+  privateKeyPath: string;
+  savedPassword: string;
+};
+
+export type SessionOverrideFormState = {
+  address: string;
+  port: string;
+  username: string;
+  authMethod: ConnectionAuthMethod;
+  password: string;
+};
