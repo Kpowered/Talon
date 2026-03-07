@@ -77,6 +77,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Cleared cached context packets on packet-fetch failure as well, avoiding stale artifact rendering when a diagnosis packet disappears between real SSH session transitions.
 - Replaced the old silent `New host` behavior with an explicit create-host dialog that lets operators enter SSH connection details up front and choose `Save`, `Connect`, or `Cancel` before any host record is created.
 - Added a direct create-and-connect flow for new hosts so Talon can persist a host/config pair and immediately open a real SSH session from the same modal input without forcing a second pass through HostRail.
+- Added a `Manage hosts` dialog from the top bar so operators can edit or delete saved hosts while disconnected; the dialog presents a left-side host list and a right-side saved-config editor with password management.
 - Restored and expanded Rust regression coverage for context shaping, stream-tail truncation, command marker parsing, non-zero failure capture, and connection-issue classification; `cargo test` now passes again.
 ## In Progress
 - Continuing to reduce the remaining size of `App.tsx` and to harden diagnosis/trust UX now that backend internals and core test coverage are stable.
@@ -84,7 +85,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 ## Next Steps
 1. Reduce HostRail complexity further by splitting its inventory, saved-config, and session-override sections into smaller presentational components.
 2. Add deeper Rust-side coverage around diagnosis cache invalidation and trust-confirmation state transitions.
-3. Continue UI cleanup only where it improves operation of the provider, trust, credential, command, and failure-context flows.
+3. Continue UI cleanup only where it improves operation of the provider, host management, trust, credential, command, and failure-context flows.
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
 - Strict host key checking remains enabled; Talon now has an explicit operator-confirmed trust flow, but fingerprint refresh and repeat-trust UX still need more hardening.
@@ -97,6 +98,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 
 
 

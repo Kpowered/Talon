@@ -1396,3 +1396,64 @@ button {
   font-size: 0.92rem;
   line-height: 1.4;
 }
+
+.manage-hosts-dialog {
+  width: min(960px, 100%);
+}
+
+.manage-hosts-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 16px;
+  min-height: 440px;
+}
+
+.manage-hosts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+  overflow: auto;
+}
+
+.manage-host-item {
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.manage-host-item strong,
+.manage-hosts-summary h3,
+.manage-hosts-summary p {
+  margin: 0;
+}
+
+.manage-host-item span,
+.manage-hosts-summary p {
+  color: #97a3bb;
+}
+
+.manage-host-item.active {
+  border-color: rgba(122, 139, 255, 0.35);
+  background: rgba(122, 139, 255, 0.12);
+}
+
+.manage-hosts-editor {
+  min-width: 0;
+  overflow: auto;
+}
+
+.manage-hosts-summary {
+  margin-bottom: 14px;
+}
+
+.manage-host-actions {
+  margin-top: 10px;
+}

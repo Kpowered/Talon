@@ -7,6 +7,7 @@ import { ActionNoticeBar } from "./components/ActionNoticeBar";
 import { AppEmptyState } from "./components/AppEmptyState";
 import { WorkspacePanels } from "./components/WorkspacePanels";
 import { NewHostDialog } from "./components/NewHostDialog";
+import { ManageHostsDialog } from "./components/ManageHostsDialog";
 import { useWorkspaceRuntime } from "./hooks/useWorkspaceRuntime";
 import { useOperatorActions } from "./hooks/useOperatorActions";
 import { useActionNotice } from "./hooks/useActionNotice";
@@ -30,6 +31,7 @@ function App() {
   const { notice: actionNotice, setNotice: setActionNotice, clearNotice } = useActionNotice();
   const [composerValue, setComposerValue] = useState("");
   const [isNewHostDialogOpen, setIsNewHostDialogOpen] = useState(false);
+  const [isManageHostsDialogOpen, setIsManageHostsDialogOpen] = useState(false);
   const [newHostDraft, setNewHostDraft] = useState<NewHostDraft>(EMPTY_NEW_HOST_DRAFT);
   const [isSavingNewHost, setIsSavingNewHost] = useState(false);
   const [isConnectingNewHost, setIsConnectingNewHost] = useState(false);
@@ -214,12 +216,31 @@ function App() {
         isConnectingSession={actions.isConnectingSession || isConnectingNewHost}
         onSelectHost={setSelectedHostId}
         onCreateHost={openNewHostDialog}
+        onManageHosts={() => setIsManageHostsDialogOpen(true)}
         onReconnect={() => void actions.reconnectActiveSession()}
         onDisconnect={() => void actions.disconnectActiveSession()}
         onConnect={() => void actions.connectSelectedHost()}
       />
 
       {actionNotice ? <ActionNoticeBar notice={actionNotice} onDismiss={clearNotice} /> : null}
+
+      {isManageHostsDialogOpen ? (
+        <ManageHostsDialog
+          hosts={hosts}
+          selectedHost={selectedHost}
+          selectedHostConfig={selectedHostConfig}
+          savedHostForm={hostRail.savedHostForm}
+          isSavingHostConfig={actions.isSavingHostConfig}
+          isDeletingHostConfig={actions.isDeletingHostConfig}
+          onSelectHost={setSelectedHostId}
+          onSetSavedHostForm={hostRail.setSavedHostForm}
+          onSaveSavedHostPassword={() => void actions.saveSavedHostPassword()}
+          onClearSavedHostPassword={() => void actions.clearSavedHostPassword()}
+          onUpdateSelectedHost={() => void actions.updateSelectedHost()}
+          onDeleteSelectedHost={() => void actions.deleteSelectedHost()}
+          onClose={() => setIsManageHostsDialogOpen(false)}
+        />
+      ) : null}
 
       {isNewHostDialogOpen ? (
         <NewHostDialog
@@ -307,10 +328,3 @@ function App() {
 }
 
 export default App;
-
-
-
-
-
-
-

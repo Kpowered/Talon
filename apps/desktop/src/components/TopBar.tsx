@@ -9,6 +9,7 @@ type TopBarProps = {
   isConnectingSession: boolean;
   onSelectHost: (hostId: string) => void;
   onCreateHost: () => void;
+  onManageHosts: () => void;
   onReconnect: () => void;
   onDisconnect: () => void;
   onConnect: () => void;
@@ -23,6 +24,7 @@ export function TopBar({
   isConnectingSession,
   onSelectHost,
   onCreateHost,
+  onManageHosts,
   onReconnect,
   onDisconnect,
   onConnect,
@@ -53,6 +55,9 @@ export function TopBar({
       <div className="topbar-actions compact-actions">
         <button className="ghost-button small" onClick={onCreateHost} disabled={isSavingHostConfig}>
           {isSavingHostConfig ? "Saving..." : "New host"}
+        </button>
+        <button className="ghost-button small" onClick={onManageHosts}>
+          Manage hosts
         </button>
         <button className="ghost-button small" onClick={onReconnect} disabled={isReconnectingSession}>
           {isReconnectingSession ? "Reconnecting..." : "Reconnect"}
