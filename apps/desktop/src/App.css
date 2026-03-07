@@ -2773,3 +2773,18 @@ button {
   margin-top: 14px;
 }
 
+
+.manage-hosts-drawer.editor-closed {
+  width: min(248px, 28vw);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.manage-hosts-drawer.editor-open {
+  width: min(560px, 56vw);
+  grid-template-columns: 170px minmax(0, 1fr);
+}
+
+.manage-hosts-sidebar-actions {
+  margin-top: auto;
+  padding-top: 8px;
+}

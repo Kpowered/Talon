@@ -35,6 +35,7 @@ function App() {
   const [commandHistoryScratchBySessionId, setCommandHistoryScratchBySessionId] = useState<Record<string, string>>({});
   const [isNewHostDialogOpen, setIsNewHostDialogOpen] = useState(false);
   const [isManageHostsDialogOpen, setIsManageHostsDialogOpen] = useState(false);
+  const [manageHostsEditorOpen, setManageHostsEditorOpen] = useState(false);
   const [newHostDraft, setNewHostDraft] = useState<NewHostDraft>(EMPTY_NEW_HOST_DRAFT);
   const [isSavingNewHost, setIsSavingNewHost] = useState(false);
   const [isConnectingNewHost, setIsConnectingNewHost] = useState(false);
@@ -409,11 +410,15 @@ function App() {
           isSavingHostConfig={actions.isSavingHostConfig}
           isDeletingHostConfig={actions.isDeletingHostConfig}
           isLoadingPassword={isLoadingManageHostPassword}
+          initialEditorOpen={manageHostsEditorOpen}
           onSelectHost={setSelectedHostId}
           onSetSavedHostForm={hostRail.setSavedHostForm}
           onSaveHost={handleSaveManagedHost}
           onDeleteSelectedHost={() => void actions.deleteSelectedHost()}
-          onClose={() => setIsManageHostsDialogOpen(false)}
+          onClose={() => {
+            setIsManageHostsDialogOpen(false);
+            setManageHostsEditorOpen(false);
+          }}
         />
       ) : null}
 
@@ -440,7 +445,10 @@ function App() {
           activeConnectionIssue={activeConnectionIssue}
           onSelectHost={setSelectedHostId}
           onCreateHost={openNewHostDialog}
-          onManageHosts={() => setIsManageHostsDialogOpen(true)}
+          onManageHosts={() => {
+            setManageHostsEditorOpen(false);
+            setIsManageHostsDialogOpen(true);
+          }}
           onConnectHost={(hostId) => void connectHostFromRail(hostId)}
           onEditHost={openManageHostById}
           onDeleteHost={(hostId) => void deleteHostFromRail(hostId)}
@@ -493,6 +501,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
