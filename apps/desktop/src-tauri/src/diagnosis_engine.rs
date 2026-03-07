@@ -100,14 +100,20 @@ fn normalize_safety(value: Option<String>) -> String {
     }
 }
 
-fn provider_to_response(base: &DiagnosisResponse, packet_id: &str, parsed: ProviderDiagnosis) -> DiagnosisResponse {
+fn provider_to_response(
+    base: &DiagnosisResponse,
+    packet_id: &str,
+    parsed: ProviderDiagnosis,
+) -> DiagnosisResponse {
     DiagnosisResponse {
         id: format!("diag-{}", packet_id),
         session_id: base.session_id.clone(),
         status: "ready".into(),
         confidence: parsed.confidence.unwrap_or(base.confidence),
         summary: parsed.summary.unwrap_or_else(|| base.summary.clone()),
-        likely_causes: parsed.likely_causes.unwrap_or_else(|| base.likely_causes.clone()),
+        likely_causes: parsed
+            .likely_causes
+            .unwrap_or_else(|| base.likely_causes.clone()),
         messages: parsed
             .messages
             .unwrap_or_default()
@@ -130,7 +136,9 @@ fn provider_to_response(base: &DiagnosisResponse, packet_id: &str, parsed: Provi
                 id: format!("diag-action-{}-{}", packet_id, index),
                 label: action.label,
                 command: action.command,
-                rationale: action.rationale.unwrap_or_else(|| "Model suggested next inspection step.".into()),
+                rationale: action
+                    .rationale
+                    .unwrap_or_else(|| "Model suggested next inspection step.".into()),
                 safety_level: normalize_safety(action.safety_level),
                 status: "ready".into(),
             })
@@ -142,7 +150,11 @@ fn provider_to_response(base: &DiagnosisResponse, packet_id: &str, parsed: Provi
     }
 }
 
-fn fallback_with_error(mut fallback: DiagnosisResponse, packet_id: &str, error: String) -> DiagnosisResponse {
+fn fallback_with_error(
+    mut fallback: DiagnosisResponse,
+    packet_id: &str,
+    error: String,
+) -> DiagnosisResponse {
     fallback.provider = "rule-engine".into();
     fallback.status = "error".into();
     fallback.error_message = Some(error.clone());
@@ -241,14 +253,25 @@ pub fn generate(input: DiagnosisGenerationInput) -> DiagnosisResponse {
     let api_key = match secrets::load_agent_api_key() {
         Ok(value) if !value.trim().is_empty() => value,
         Ok(_) | Err(_) => {
-            return fallback_with_error(input.fallback.clone(), &packet_id, "No API key configured for model diagnosis; using the local rule engine.".into())
+            return fallback_with_error(
+                input.fallback.clone(),
+                &packet_id,
+                "No API key configured for model diagnosis; using the local rule engine.".into(),
+            )
         }
     };
 
-    let client = match Client::builder().timeout(Duration::from_secs(settings.request_timeout_sec)).build() {
+    let client = match Client::builder()
+        .timeout(Duration::from_secs(settings.request_timeout_sec))
+        .build()
+    {
         Ok(client) => client,
         Err(error) => {
-            return fallback_with_error(input.fallback.clone(), &packet_id, format!("Failed to initialize model client: {}", error));
+            return fallback_with_error(
+                input.fallback.clone(),
+                &packet_id,
+                format!("Failed to initialize model client: {}", error),
+            );
         }
     };
 
@@ -259,14 +282,21 @@ pub fn generate(input: DiagnosisGenerationInput) -> DiagnosisResponse {
     });
 
     let response = match client
-        .post(format!("{}/chat/completions", settings.base_url.trim_end_matches('/')))
+        .post(format!(
+            "{}/chat/completions",
+            settings.base_url.trim_end_matches('/')
+        ))
         .bearer_auth(api_key)
         .json(&request_body)
         .send()
     {
         Ok(response) => response,
         Err(error) => {
-            return fallback_with_error(input.fallback.clone(), &packet_id, format!("Model request failed: {}", error));
+            return fallback_with_error(
+                input.fallback.clone(),
+                &packet_id,
+                format!("Model request failed: {}", error),
+            );
         }
     };
 
@@ -281,18 +311,34 @@ pub fn generate(input: DiagnosisGenerationInput) -> DiagnosisResponse {
     let completion = match response.json::<ChatCompletionResponse>() {
         Ok(value) => value,
         Err(error) => {
-            return fallback_with_error(input.fallback.clone(), &packet_id, format!("Failed to decode model response: {}", error));
+            return fallback_with_error(
+                input.fallback.clone(),
+                &packet_id,
+                format!("Failed to decode model response: {}", error),
+            );
         }
     };
 
-    let Some(content) = completion.choices.first().map(|choice| choice.message.content.clone()) else {
-        return fallback_with_error(input.fallback.clone(), &packet_id, "Model response did not include a completion choice.".into());
+    let Some(content) = completion
+        .choices
+        .first()
+        .map(|choice| choice.message.content.clone())
+    else {
+        return fallback_with_error(
+            input.fallback.clone(),
+            &packet_id,
+            "Model response did not include a completion choice.".into(),
+        );
     };
 
     let parsed = match serde_json::from_str::<ProviderDiagnosis>(&content) {
         Ok(parsed) => parsed,
         Err(error) => {
-            return fallback_with_error(input.fallback.clone(), &packet_id, format!("Model response was not valid JSON: {}", error));
+            return fallback_with_error(
+                input.fallback.clone(),
+                &packet_id,
+                format!("Model response was not valid JSON: {}", error),
+            );
         }
     };
 

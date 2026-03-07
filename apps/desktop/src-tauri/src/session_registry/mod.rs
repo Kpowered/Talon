@@ -14,8 +14,8 @@ use crate::context_builder;
 use crate::diagnosis_engine::{self, DiagnosisContextPacket, DiagnosisGenerationInput};
 use crate::secrets;
 use crate::session_store::{
-    self, DiagnosisResponse, FailureContext, Host, HostConfig as HostRecordConfig, HostObservedState, Session,
-    TalonWorkspaceState, TerminalSnapshot,
+    self, DiagnosisResponse, FailureContext, Host, HostConfig as HostRecordConfig,
+    HostObservedState, Session, TalonWorkspaceState, TerminalSnapshot,
 };
 
 const META_SHELL_PREFIX: &str = "__TALON_META_SHELL__";

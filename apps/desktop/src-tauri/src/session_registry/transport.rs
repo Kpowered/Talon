@@ -520,13 +520,7 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
 
     if let Some((stdin, command_id)) = stdin {
         let mut guard = lock_stdin(&stdin);
-        let wrapped_command = format!(
-            "printf '{start}{id}\\n'\n{command}\ntalon_exit=$?\ntalon_cwd=$(pwd)\nprintf '{end}{id}__%s__%s\\n' \"$talon_exit\" \"$talon_cwd\"\n",
-            start = CMD_START_PREFIX,
-            end = CMD_END_PREFIX,
-            id = command_id,
-            command = trimmed
-        );
+        let wrapped_command = build_wrapped_command(&command_id, trimmed);
         let write_result = guard.write_all(wrapped_command.as_bytes()).and_then(|_| guard.flush());
 
         if let Err(error) = write_result {
@@ -560,6 +554,23 @@ pub fn submit_command(session_id: &str, command: &str) -> TerminalSnapshot {
     }
 
     terminal_snapshot(session_id)
+}
+
+fn build_wrapped_command(command_id: &str, command: &str) -> String {
+    format!(
+        r#"talon_done=0
+trap 'if [ "$talon_done" -eq 0 ]; then talon_done=1; talon_exit=130; talon_cwd=$(pwd); printf '{end}{id}__%s__%s\n' "$talon_exit" "$talon_cwd"; fi' INT
+printf '{start}{id}\n'
+{command}
+talon_exit=$?
+if [ "$talon_done" -eq 0 ]; then talon_done=1; talon_cwd=$(pwd); printf '{end}{id}__%s__%s\n' "$talon_exit" "$talon_cwd"; fi
+trap - INT
+"#,
+        start = CMD_START_PREFIX,
+        end = CMD_END_PREFIX,
+        id = command_id,
+        command = command
+    )
 }
 
 pub fn write_input(session_id: &str, data: &str) -> Result<(), String> {
@@ -638,7 +649,7 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
 #[cfg(test)]
 mod transport_tests {
     use super::{
-        complete_active_command, now_iso, parse_command_end, ActiveCommandState, CommandHistoryEntry,
+        build_wrapped_command, complete_active_command, now_iso, parse_command_end, ActiveCommandState, CommandHistoryEntry,
         Host, HostObservedState, HostRecordConfig, ManagedSessionRecord, SessionRegistry,
     };
     use std::collections::HashMap;
@@ -693,6 +704,12 @@ mod transport_tests {
         assert_eq!(parsed.0, "cmd-7");
         assert_eq!(parsed.1, 127);
         assert_eq!(parsed.2, "/srv/app");
+    }    #[test]
+    fn builds_interrupt_safe_wrapped_command() {
+        let wrapped = build_wrapped_command("cmd-7", "sleep 30");
+        assert!(wrapped.contains("trap 'if [ \"$talon_done\" -eq 0 ]"));
+        assert!(wrapped.contains("__TALON_CMD_END__cmd-7__%s__%s"));
+        assert!(wrapped.contains("talon_exit=130"));
     }
 
     #[test]
@@ -718,6 +735,10 @@ mod transport_tests {
         assert_eq!(registry.command_history[0].command, "false");
     }
 }
+
+
+
+
 
 
 

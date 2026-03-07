@@ -1,4 +1,6 @@
-use crate::session_registry::{CommandHistoryEntry, ManagedSessionRecord, SessionConnectionIssue, SessionLifecycleEvent};
+use crate::session_registry::{
+    CommandHistoryEntry, ManagedSessionRecord, SessionConnectionIssue, SessionLifecycleEvent,
+};
 use crate::session_store::{
     DiagnosisMessage, DiagnosisResponse, FailureContext, SuggestedAction, TimelineEvent,
 };
@@ -171,9 +173,16 @@ pub fn build_failure_context(
         })
         .unwrap_or_else(|| ("unknown-host".into(), "sh".into(), "~".into()));
     let interrupted = command.exit_code == 130;
-    let severity = if interrupted || command.exit_code == 1 { "warning" } else { "critical" };
+    let severity = if interrupted || command.exit_code == 1 {
+        "warning"
+    } else {
+        "critical"
+    };
     let summary = if interrupted {
-        format!("Command '{}' was interrupted by the operator on {}.", command.command, host_id)
+        format!(
+            "Command '{}' was interrupted by the operator on {}.",
+            command.command, host_id
+        )
     } else {
         format!(
             "Command '{}' exited with status {} on {}.",
@@ -290,10 +299,7 @@ pub fn build_diagnosis_from_connection_issue(issue: &SessionConnectionIssue) -> 
         },
         confidence: 83,
         summary: issue.title.clone(),
-        likely_causes: vec![
-            issue.summary.clone(),
-            issue.operator_action.clone(),
-        ],
+        likely_causes: vec![issue.summary.clone(), issue.operator_action.clone()],
         messages: vec![
             DiagnosisMessage {
                 id: format!("message-{}-connection", issue.session_id),
@@ -316,11 +322,19 @@ pub fn build_diagnosis_from_connection_issue(issue: &SessionConnectionIssue) -> 
         ],
         suggested_actions: vec![SuggestedAction {
             id: format!("action-connection-{}", issue.session_id),
-            label: issue.in_app_action_label.clone().unwrap_or_else(|| "Run suggested check".into()),
+            label: issue
+                .in_app_action_label
+                .clone()
+                .unwrap_or_else(|| "Run suggested check".into()),
             command: issue.suggested_command.clone(),
-            rationale: "Use the captured connection issue details before retrying the session.".into(),
+            rationale: "Use the captured connection issue details before retrying the session."
+                .into(),
             safety_level: "read-only".into(),
-            status: if issue.in_app_action_kind.is_some() { "ready".into() } else { "ready".into() },
+            status: if issue.in_app_action_kind.is_some() {
+                "ready".into()
+            } else {
+                "ready".into()
+            },
         }],
         provider: "rule-engine".into(),
         error_message: None,
@@ -406,7 +420,10 @@ pub fn timeline_for_session(
                 id: format!("timeline-connection-{}", issue.session_id),
                 kind: "diagnosis".into(),
                 title: issue.title.clone(),
-                detail: format!("{} Suggested check: {}", issue.summary, issue.suggested_command),
+                detail: format!(
+                    "{} Suggested check: {}",
+                    issue.summary, issue.suggested_command
+                ),
                 stderr_class: Some(issue.kind.clone()),
                 stderr_evidence: Some(issue.summary.clone()),
                 occurred_at: issue.observed_at.clone(),
@@ -498,7 +515,9 @@ mod tests {
 
         assert!(timeline[0].detail.contains("stderr class filesystem"));
         assert!(timeline[0].detail.contains("evidence matched: filesystem"));
-        assert!(timeline[1].detail.contains("evidence cp: No space left on device"));
+        assert!(timeline[1]
+            .detail
+            .contains("evidence cp: No space left on device"));
     }
 
     #[test]
@@ -522,6 +541,9 @@ mod tests {
 
         let timeline = timeline_for_session(&[], "session-1", None, Some(&issue), &[]);
         assert_eq!(timeline[0].stderr_class.as_deref(), Some("network"));
-        assert_eq!(timeline[0].stderr_evidence.as_deref(), Some("connection refused"));
+        assert_eq!(
+            timeline[0].stderr_evidence.as_deref(),
+            Some("connection refused")
+        );
     }
 }

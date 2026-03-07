@@ -51,12 +51,16 @@ pub fn load_agent_settings() -> AgentSettings {
         Ok(contents) => serde_json::from_str::<AgentSettings>(&contents).unwrap_or_default(),
         Err(_) => AgentSettings::default(),
     };
-    settings.has_api_key = load_agent_api_key().map(|value| !value.is_empty()).unwrap_or(false);
+    settings.has_api_key = load_agent_api_key()
+        .map(|value| !value.is_empty())
+        .unwrap_or(false);
     settings
 }
 
 pub fn save_agent_settings(mut settings: AgentSettings) -> Result<AgentSettings, String> {
-    settings.has_api_key = load_agent_api_key().map(|value| !value.is_empty()).unwrap_or(false);
+    settings.has_api_key = load_agent_api_key()
+        .map(|value| !value.is_empty())
+        .unwrap_or(false);
     let Some(path) = agent_settings_path() else {
         return Err("Could not resolve local data directory for Talon agent settings.".into());
     };
@@ -117,5 +121,7 @@ pub fn clear_host_password(host_id: &str) -> Result<(), String> {
 }
 
 pub fn has_saved_host_password(host_id: &str) -> bool {
-    load_host_password(host_id).map(|value| !value.is_empty()).unwrap_or(false)
+    load_host_password(host_id)
+        .map(|value| !value.is_empty())
+        .unwrap_or(false)
 }

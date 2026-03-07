@@ -29,7 +29,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added in-flight command guardrails so each session now serializes wrapped command execution and rejects concurrent submissions until completion.
 - Added desktop-side busy-session awareness so the composer reflects when a managed shell already has an active command in progress.
 - Replaced the unstable xterm display layer with a managed terminal transcript view so live SSH output no longer clears unexpectedly.
-- Added managed-command interrupt support through Ctrl+C and a shared raw-input path back to the SSH transport.
+- Added managed-command interrupt support through Ctrl+C and a shared raw-input path back to the SSH transport. The wrapped command path now emits a completion marker even when the operator interrupts a running command, so busy state can clear cleanly.
 - Added operator-visible connection issue handling for host trust, authentication, timeout, and network-path failures, including suggested operator actions and recommended commands in the UI.
 - Added a verification log in `docs/VERIFICATION.md` and captured the current environment's local SSH probe transcripts.
 - Validated an operator-provided external password-auth SSH target outside the product flow, confirming reachable handshake, shell bootstrap, and a controlled non-zero remote exit.
@@ -110,3 +110,4 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+

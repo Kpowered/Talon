@@ -154,6 +154,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - stdout parsing detects command start and command end markers
   - command completion records now store exit code, updated cwd, and bounded stdout/stderr tails
   - a session can have only one wrapped command in flight; additional submissions are rejected until completion markers are observed, and Ctrl+C / the Interrupt button forward a raw `\u0003` into the live transport
+  - the wrapped command scaffold now installs an `INT` trap so operator interrupts still emit a Talon command-end marker with exit `130`, allowing the backend to clear busy state and package interruption context deterministically
 - Failure packaging:
   - non-zero command completions are converted into structured `FailureContext` records
   - workspace timeline and diagnosis state are now derived from live command history and connection issues when runtime data exists
@@ -222,3 +223,4 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+

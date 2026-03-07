@@ -3,10 +3,12 @@ use serde::{Deserialize, Serialize};
 use crate::diagnosis_engine::DiagnosisContextPacket;
 use crate::secrets::{self, AgentSettings};
 use crate::session_registry;
-use crate::session_registry::{HostConnectionConfig, SessionConnectionIssue, SessionLifecycleEvent};
+use crate::session_registry::{
+    HostConnectionConfig, SessionConnectionIssue, SessionLifecycleEvent,
+};
 use crate::session_store::{
-    Host, HostConfig as HostRecordConfig, HostObservedState, RunbookActionResponse, SuggestedActionRequest,
-    TalonWorkspaceState, TerminalSnapshot,
+    Host, HostConfig as HostRecordConfig, HostObservedState, RunbookActionResponse,
+    SuggestedActionRequest, TalonWorkspaceState, TerminalSnapshot,
 };
 
 #[derive(Deserialize)]
@@ -229,10 +231,12 @@ pub fn get_session_registry() -> SessionRegistryResponse {
         active_session_id: active_session_id.clone(),
         busy_session_ids: session_registry::busy_session_ids(),
         active_connection_issue: session_registry::connection_issue_for(&active_session_id),
-        active_command: session_registry::active_command_for(&active_session_id).map(|command| ActiveCommandSummary {
-            session_id: active_session_id.clone(),
-            command: command.command,
-            started_at: command.started_at,
+        active_command: session_registry::active_command_for(&active_session_id).map(|command| {
+            ActiveCommandSummary {
+                session_id: active_session_id.clone(),
+                command: command.command,
+                started_at: command.started_at,
+            }
         }),
     }
 }
@@ -253,7 +257,9 @@ pub fn get_agent_settings() -> AgentSettingsResponse {
     }
 }
 
-pub fn save_agent_settings(payload: SaveAgentSettingsRequest) -> Result<AgentSettingsResponse, String> {
+pub fn save_agent_settings(
+    payload: SaveAgentSettingsRequest,
+) -> Result<AgentSettingsResponse, String> {
     Ok(AgentSettingsResponse {
         settings: secrets::save_agent_settings(AgentSettings {
             provider_type: payload.provider_type,
@@ -268,7 +274,9 @@ pub fn save_agent_settings(payload: SaveAgentSettingsRequest) -> Result<AgentSet
     })
 }
 
-pub fn save_agent_api_key(payload: SaveAgentApiKeyRequest) -> Result<AgentSettingsResponse, String> {
+pub fn save_agent_api_key(
+    payload: SaveAgentApiKeyRequest,
+) -> Result<AgentSettingsResponse, String> {
     secrets::save_agent_api_key(payload.api_key.trim())?;
     Ok(get_agent_settings())
 }
@@ -278,14 +286,18 @@ pub fn clear_agent_api_key() -> Result<AgentSettingsResponse, String> {
     Ok(get_agent_settings())
 }
 
-pub fn save_host_password(payload: SaveHostPasswordRequest) -> Result<HostConfigMutationResponse, String> {
+pub fn save_host_password(
+    payload: SaveHostPasswordRequest,
+) -> Result<HostConfigMutationResponse, String> {
     secrets::save_host_password(&payload.host_id, payload.password.trim())?;
     Ok(HostConfigMutationResponse {
         host_configs: session_registry::list_host_configs(),
     })
 }
 
-pub fn clear_host_password(payload: HostSecretRequest) -> Result<HostConfigMutationResponse, String> {
+pub fn clear_host_password(
+    payload: HostSecretRequest,
+) -> Result<HostConfigMutationResponse, String> {
     let _ = secrets::clear_host_password(&payload.host_id);
     Ok(HostConfigMutationResponse {
         host_configs: session_registry::list_host_configs(),
@@ -310,13 +322,17 @@ pub fn retry_diagnosis(payload: SessionScopedRequest) -> Result<TalonWorkspaceSt
     Ok(session_registry::workspace_state())
 }
 
-pub fn prepare_host_trust(payload: SessionScopedRequest) -> Result<TrustPreparationResponse, String> {
+pub fn prepare_host_trust(
+    payload: SessionScopedRequest,
+) -> Result<TrustPreparationResponse, String> {
     Ok(TrustPreparationResponse {
         issue: session_registry::prepare_host_trust(&payload.session_id)?,
     })
 }
 
-pub fn confirm_host_trust(payload: ConfirmHostTrustRequest) -> Result<TrustConfirmationResponse, String> {
+pub fn confirm_host_trust(
+    payload: ConfirmHostTrustRequest,
+) -> Result<TrustConfirmationResponse, String> {
     let issue = session_registry::confirm_host_trust(&payload.session_id, &payload.fingerprint)?;
     Ok(TrustConfirmationResponse {
         issue,
@@ -330,10 +346,18 @@ pub fn connect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionR
         .or_else(session_registry::first_host)
         .ok_or_else(|| "Workspace state must include at least one host.".to_string())?;
     let mut effective_host = host.clone();
-    if let Some(address) = payload.address.as_ref().filter(|value| !value.trim().is_empty()) {
+    if let Some(address) = payload
+        .address
+        .as_ref()
+        .filter(|value| !value.trim().is_empty())
+    {
         effective_host.config.address = address.trim().into();
     }
-    if let Some(username) = payload.username.as_ref().filter(|value| !value.trim().is_empty()) {
+    if let Some(username) = payload
+        .username
+        .as_ref()
+        .filter(|value| !value.trim().is_empty())
+    {
         let target = effective_host
             .config
             .address
@@ -343,22 +367,31 @@ pub fn connect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionR
         effective_host.config.address = format!("{}@{}", username.trim(), target);
     }
 
-    let mut host_config = session_registry::host_config_for(&host.id).unwrap_or(HostConnectionConfig {
-        host_id: host.id.clone(),
-        port: 22,
-        username: "root".into(),
-        auth_method: "agent".into(),
-        fingerprint_hint: "unknown".into(),
-        private_key_path: None,
-        has_saved_password: secrets::has_saved_host_password(&host.id),
-    });
+    let mut host_config =
+        session_registry::host_config_for(&host.id).unwrap_or(HostConnectionConfig {
+            host_id: host.id.clone(),
+            port: 22,
+            username: "root".into(),
+            auth_method: "agent".into(),
+            fingerprint_hint: "unknown".into(),
+            private_key_path: None,
+            has_saved_password: secrets::has_saved_host_password(&host.id),
+        });
     if let Some(port) = payload.port {
         host_config.port = port;
     }
-    if let Some(username) = payload.username.as_ref().filter(|value| !value.trim().is_empty()) {
+    if let Some(username) = payload
+        .username
+        .as_ref()
+        .filter(|value| !value.trim().is_empty())
+    {
         host_config.username = username.trim().into();
     }
-    if let Some(auth_method) = payload.auth_method.as_ref().filter(|value| !value.trim().is_empty()) {
+    if let Some(auth_method) = payload
+        .auth_method
+        .as_ref()
+        .filter(|value| !value.trim().is_empty())
+    {
         host_config.auth_method = auth_method.trim().into();
     }
 
@@ -369,7 +402,8 @@ pub fn connect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionR
         .map(|value| value.to_string())
         .or_else(|| secrets::load_host_password(&host.id).ok());
 
-    let session = session_registry::connect_host(&effective_host, Some(&host_config), password.as_deref());
+    let session =
+        session_registry::connect_host(&effective_host, Some(&host_config), password.as_deref());
 
     Ok(ConnectSessionResponse {
         session: SessionSummary {
@@ -386,7 +420,9 @@ pub fn connect_session(payload: ConnectSessionRequest) -> Result<ConnectSessionR
 
 pub fn submit_session_command(payload: SubmitCommandRequest) -> SubmitCommandResponse {
     let before = session_registry::busy_session_ids();
-    let accepted = !before.iter().any(|session_id| session_id == &payload.session_id);
+    let accepted = !before
+        .iter()
+        .any(|session_id| session_id == &payload.session_id);
     SubmitCommandResponse {
         terminal: session_registry::submit_command(&payload.session_id, &payload.command),
         events: session_registry::recent_events(),
@@ -417,7 +453,9 @@ pub fn reconnect_session(payload: ConnectSessionRequest) -> Result<ConnectSessio
     connect_session(payload)
 }
 
-pub fn upsert_host_config(payload: UpsertHostConfigRequest) -> Result<HostConfigMutationResponse, String> {
+pub fn upsert_host_config(
+    payload: UpsertHostConfigRequest,
+) -> Result<HostConfigMutationResponse, String> {
     Ok(HostConfigMutationResponse {
         host_configs: session_registry::upsert_host_config(HostConnectionConfig {
             host_id: payload.host_id,
@@ -431,7 +469,9 @@ pub fn upsert_host_config(payload: UpsertHostConfigRequest) -> Result<HostConfig
     })
 }
 
-pub fn delete_host_config(payload: DeleteHostConfigRequest) -> Result<HostConfigMutationResponse, String> {
+pub fn delete_host_config(
+    payload: DeleteHostConfigRequest,
+) -> Result<HostConfigMutationResponse, String> {
     Ok(HostConfigMutationResponse {
         host_configs: session_registry::delete_host_config(&payload.host_id)?,
     })
@@ -453,9 +493,18 @@ pub fn upsert_host(payload: UpsertHostRequest) -> Result<HostMutationResponse, S
                     .as_ref()
                     .map(|host| host.observed.status.clone())
                     .unwrap_or_else(|| "healthy".into()),
-                latency_ms: existing.as_ref().map(|host| host.observed.latency_ms).unwrap_or(0),
-                cpu_percent: existing.as_ref().map(|host| host.observed.cpu_percent).unwrap_or(0),
-                memory_percent: existing.as_ref().map(|host| host.observed.memory_percent).unwrap_or(0),
+                latency_ms: existing
+                    .as_ref()
+                    .map(|host| host.observed.latency_ms)
+                    .unwrap_or(0),
+                cpu_percent: existing
+                    .as_ref()
+                    .map(|host| host.observed.cpu_percent)
+                    .unwrap_or(0),
+                memory_percent: existing
+                    .as_ref()
+                    .map(|host| host.observed.memory_percent)
+                    .unwrap_or(0),
                 last_seen_at: existing
                     .as_ref()
                     .map(|host| host.observed.last_seen_at.clone())
