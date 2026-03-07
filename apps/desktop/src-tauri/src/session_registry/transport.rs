@@ -531,6 +531,52 @@ pub fn reconnect_host(host: &Host, config: Option<&HostConnectionConfig>, passwo
     )
 }
 
+fn prime_connection_attempt(
+    host: &Host,
+    host_config: &HostConnectionConfig,
+    initial_state: &str,
+    opening_line: &str,
+    event_kind: &str,
+    event_detail: String,
+) -> ManagedSessionRecord {
+    let session_id = format!("session-{}", host.id);
+    let now = now_iso();
+    let record = ManagedSessionRecord {
+        id: session_id.clone(),
+        host_id: host.id.clone(),
+        state: initial_state.into(),
+        mode: "managed".into(),
+        shell: "sh".into(),
+        cwd: "~".into(),
+        connected_at: now.clone(),
+        last_command_at: now,
+        auto_capture_enabled: true,
+    };
+
+    let mut registry = lock_registry();
+    registry.managed_sessions.retain(|session| session.host_id != host.id);
+    registry.runtimes.remove(&session_id);
+    registry.managed_sessions.insert(0, record.clone());
+    registry.active_session_id = record.id.clone();
+    registry.terminal_buffers.insert(
+        record.id.clone(),
+        vec![
+            format!("{} {}", opening_line, host.config.address),
+            format!(
+                "Auth: {} on port {} with strict host key checking",
+                host_config.auth_method, host_config.port
+            ),
+        ],
+    );
+    push_event(
+        &mut registry,
+        &record.id,
+        event_kind,
+        event_detail,
+    );
+    record
+}
+
 fn connect_host_with_state(
     host: &Host,
     config: Option<&HostConnectionConfig>,
@@ -550,43 +596,14 @@ fn connect_host_with_state(
         has_saved_password: false,
     });
 
-    let session_id = format!("session-{}", host.id);
-    let now = now_iso();
-    let record = ManagedSessionRecord {
-        id: session_id.clone(),
-        host_id: host.id.clone(),
-        state: initial_state.into(),
-        mode: "managed".into(),
-        shell: "sh".into(),
-        cwd: "~".into(),
-        connected_at: now.clone(),
-        last_command_at: now,
-        auto_capture_enabled: true,
-    };
-
-    {
-        let mut registry = lock_registry();
-        registry.managed_sessions.retain(|session| session.host_id != host.id);
-        registry.runtimes.remove(&session_id);
-        registry.managed_sessions.insert(0, record.clone());
-        registry.active_session_id = record.id.clone();
-        registry.terminal_buffers.insert(
-            record.id.clone(),
-            vec![
-                format!("{} {}", opening_line, host.config.address),
-                format!(
-                    "Auth: {} on port {} with strict host key checking",
-                    host_config.auth_method, host_config.port
-                ),
-            ],
-        );
-        push_event(
-            &mut registry,
-            &record.id,
-            event_kind,
-            event_detail,
-        );
-    }
+    let record = prime_connection_attempt(
+        host,
+        &host_config,
+        initial_state,
+        opening_line,
+        event_kind,
+        event_detail,
+    );
 
     match launch_runtime(record.id.clone(), host.clone(), host_config, password) {
         Ok(runtime) => {
@@ -910,8 +927,9 @@ pub fn disconnect_session(session_id: &str) -> TerminalSnapshot {
 mod transport_tests {
     use super::{
         build_wrapped_command, complete_active_command, interrupt_active_command,
-        lock_registry, mark_operator_disconnect, mark_remote_exit, now_iso, parse_command_end,
-        submit_command, ActiveCommandState, CommandHistoryEntry, Host, HostObservedState,
+        lock_registry, mark_operator_disconnect, mark_remote_exit, mark_session_degraded, now_iso,
+        parse_command_end, prime_connection_attempt, run_with_test_registry, submit_command,
+        ActiveCommandState, CommandHistoryEntry, Host, HostConnectionConfig, HostObservedState,
         HostRecordConfig, ManagedSessionRecord, SessionRegistry,
     };
     use std::collections::HashMap;
@@ -961,11 +979,6 @@ mod transport_tests {
         }
     }
 
-    fn reset_global_registry() {
-        let mut registry = lock_registry();
-        *registry = test_registry();
-    }
-
     #[test]
     fn parses_command_end_markers() {
         let parsed = parse_command_end("__TALON_CMD_END__cmd-7__127__/srv/app__/bin/bash").expect("marker should parse");
@@ -1008,69 +1021,72 @@ mod transport_tests {
 
     #[test]
     fn raw_mode_rejects_structured_submit() {
-        reset_global_registry();
-        {
-            let mut registry = lock_registry();
-            registry.managed_sessions[0].mode = "raw".into();
-        }
+        run_with_test_registry(test_registry(), || {
+            {
+                let mut registry = lock_registry();
+                registry.managed_sessions[0].mode = "raw".into();
+            }
 
-        let snapshot = submit_command("session-1", "pwd");
+            let snapshot = submit_command("session-1", "pwd");
 
-        assert!(snapshot.lines.iter().any(|line| line.contains("raw mode is active")));
-        let registry = lock_registry();
-        assert!(registry.active_commands.is_empty());
-        assert!(registry.recent_events.iter().any(|event| event.event_type == "command-rejected" && event.detail.contains("raw mode")));
+            assert!(snapshot.lines.iter().any(|line| line.contains("raw mode is active")));
+            let registry = lock_registry();
+            assert!(registry.active_commands.is_empty());
+            assert!(registry.recent_events.iter().any(|event| event.event_type == "command-rejected" && event.detail.contains("raw mode")));
+        });
     }
 
     #[test]
     fn busy_session_rejects_concurrent_submit() {
-        reset_global_registry();
-        {
-            let mut registry = lock_registry();
-            registry.active_commands.insert(
-                "session-1".into(),
-                ActiveCommandState {
-                    id: "cmd-busy".into(),
-                    command: "sleep 5".into(),
-                    started_at: now_iso(),
-                    stdout_tail: Vec::new(),
-                    stderr_tail: Vec::new(),
-                },
-            );
-        }
+        run_with_test_registry(test_registry(), || {
+            {
+                let mut registry = lock_registry();
+                registry.active_commands.insert(
+                    "session-1".into(),
+                    ActiveCommandState {
+                        id: "cmd-busy".into(),
+                        command: "sleep 5".into(),
+                        started_at: now_iso(),
+                        stdout_tail: Vec::new(),
+                        stderr_tail: Vec::new(),
+                    },
+                );
+            }
 
-        let snapshot = submit_command("session-1", "pwd");
+            let snapshot = submit_command("session-1", "pwd");
 
-        assert!(snapshot.lines.iter().any(|line| line.contains("another command is still running")));
-        let registry = lock_registry();
-        assert_eq!(registry.active_commands.get("session-1").map(|command| command.id.as_str()), Some("cmd-busy"));
+            assert!(snapshot.lines.iter().any(|line| line.contains("another command is still running")));
+            let registry = lock_registry();
+            assert_eq!(registry.active_commands.get("session-1").map(|command| command.id.as_str()), Some("cmd-busy"));
+        });
     }
 
     #[test]
     fn interrupt_records_operator_interrupted_failure() {
-        reset_global_registry();
-        {
-            let mut registry = lock_registry();
-            registry.active_commands.insert(
-                "session-1".into(),
-                ActiveCommandState {
-                    id: "cmd-2".into(),
-                    command: "curl ip.sb -4".into(),
-                    started_at: now_iso(),
-                    stdout_tail: vec!["partial".into()],
-                    stderr_tail: Vec::new(),
-                },
-            );
-        }
+        run_with_test_registry(test_registry(), || {
+            {
+                let mut registry = lock_registry();
+                registry.active_commands.insert(
+                    "session-1".into(),
+                    ActiveCommandState {
+                        id: "cmd-2".into(),
+                        command: "curl ip.sb -4".into(),
+                        started_at: now_iso(),
+                        stdout_tail: vec!["partial".into()],
+                        stderr_tail: Vec::new(),
+                    },
+                );
+            }
 
-        assert!(interrupt_active_command("session-1"));
+            assert!(interrupt_active_command("session-1"));
 
-        let registry = lock_registry();
-        let failure = registry.latest_failures.get("session-1").expect("interrupt should capture failure context");
-        assert_eq!(failure.exit_code, 130);
-        assert_eq!(failure.outcome_type, "operator-interrupted");
-        assert!(registry.command_history.iter().any(|entry| entry.id == "cmd-2" && entry.exit_code == 130));
-        assert!(registry.recent_events.iter().any(|event| event.event_type == "command-interrupted"));
+            let registry = lock_registry();
+            let failure = registry.latest_failures.get("session-1").expect("interrupt should capture failure context");
+            assert_eq!(failure.exit_code, 130);
+            assert_eq!(failure.outcome_type, "operator-interrupted");
+            assert!(registry.command_history.iter().any(|entry| entry.id == "cmd-2" && entry.exit_code == 130));
+            assert!(registry.recent_events.iter().any(|event| event.event_type == "command-interrupted"));
+        });
     }
 
     #[test]
@@ -1095,5 +1111,71 @@ mod transport_tests {
 
         assert!(!registry.connection_issues.contains_key("session-1"));
         assert_eq!(registry.managed_sessions[0].state, "disconnected");
+    }
+
+    #[test]
+    fn stream_failure_marks_session_degraded_with_disconnect_cause() {
+        let mut registry = test_registry();
+
+        mark_session_degraded(
+            &mut registry,
+            "session-1",
+            "stream-failure",
+            "SSH stdout stream failed",
+            "The stdout reader failed for the managed SSH session: boom".into(),
+            "stream-error",
+            "stdout reader failed: boom".into(),
+            "SSH stdout stream failed: boom".into(),
+        );
+
+        let issue = registry.connection_issues.get("session-1").expect("stream failure should create connection issue");
+        assert_eq!(issue.disconnect_cause.as_deref(), Some("stream-failure"));
+        assert_eq!(registry.managed_sessions[0].state, "degraded");
+    }
+
+    #[test]
+    fn reconnect_prime_state_sets_reconnecting_banner() {
+        run_with_test_registry(test_registry(), || {
+            let host = Host {
+                id: "host-reconnect".into(),
+                config: HostRecordConfig {
+                    label: "reconnect-host".into(),
+                    address: "root@10.0.0.99".into(),
+                    region: "test".into(),
+                    tags: vec!["test".into()],
+                },
+                observed: HostObservedState {
+                    status: "warning".into(),
+                    latency_ms: 0,
+                    cpu_percent: 0,
+                    memory_percent: 0,
+                    last_seen_at: now_iso(),
+                },
+            };
+            let config = HostConnectionConfig {
+                host_id: host.id.clone(),
+                port: 2222,
+                username: "root".into(),
+                auth_method: "password".into(),
+                fingerprint_hint: "pending".into(),
+                private_key_path: None,
+                has_saved_password: true,
+            };
+
+            let record = prime_connection_attempt(
+                &host,
+                &config,
+                "reconnecting",
+                "Reopening SSH transport to",
+                "reconnecting",
+                "Re-launching ssh.exe for root@10.0.0.99".into(),
+            );
+
+            assert_eq!(record.state, "reconnecting");
+            let registry = lock_registry();
+            let lines = registry.terminal_buffers.get(&record.id).cloned().unwrap_or_default();
+            assert!(lines.iter().any(|line| line.contains("Reopening SSH transport to")));
+            assert!(registry.recent_events.iter().any(|event| event.event_type == "reconnecting"));
+        });
     }
 }

@@ -212,4 +212,22 @@ fn lock_stdin(stdin: &Arc<Mutex<ChildStdin>>) -> MutexGuard<'_, ChildStdin> {
     stdin.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+#[cfg(test)]
+fn registry_test_lock() -> &'static Mutex<()> {
+    static TEST_REGISTRY_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    TEST_REGISTRY_LOCK.get_or_init(|| Mutex::new(()))
+}
+
+#[cfg(test)]
+fn run_with_test_registry<T>(state: SessionRegistry, run: impl FnOnce() -> T) -> T {
+    let _guard = registry_test_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    {
+        let mut registry = lock_registry();
+        *registry = state;
+    }
+    run()
+}
+
 

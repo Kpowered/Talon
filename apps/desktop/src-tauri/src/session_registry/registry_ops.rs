@@ -647,7 +647,7 @@ pub fn switch_session_mode(session_id: &str, mode: &str) -> Option<ManagedSessio
 
 #[cfg(test)]
 mod registry_ops_tests {
-    use super::{lock_registry, push_stream_tail, session_mode_for, switch_session_mode};
+    use super::{run_with_test_registry, push_stream_tail, session_mode_for, switch_session_mode, SessionRegistry};
 
     #[test]
     fn truncates_stream_tail_to_eighty_lines() {
@@ -660,31 +660,31 @@ mod registry_ops_tests {
 
     #[test]
     fn switches_session_mode_and_emits_terminal_notice() {
-        {
-            let mut registry = lock_registry();
-            if let Some(session) = registry
-                .managed_sessions
-                .iter_mut()
-                .find(|session| session.id == "session-a91f")
-            {
-                session.mode = "managed".into();
-            }
-        }
+        run_with_test_registry(SessionRegistry {
+            hosts: super::default_hosts(),
+            host_configs: super::default_host_configs(),
+            managed_sessions: vec![super::default_session()],
+            active_session_id: "session-a91f".into(),
+            recent_events: Vec::new(),
+            terminal_buffers: std::collections::HashMap::new(),
+            stream_state: std::collections::HashMap::new(),
+            connection_issues: std::collections::HashMap::new(),
+            latest_failures: std::collections::HashMap::new(),
+            active_commands: std::collections::HashMap::new(),
+            command_history: Vec::new(),
+            runtimes: std::collections::HashMap::new(),
+            diagnosis_cache: std::collections::HashMap::new(),
+            event_counter: 0,
+            command_counter: 0,
+        }, || {
+            let updated = switch_session_mode("session-a91f", "raw").expect("session should exist");
+            assert_eq!(updated.mode, "raw");
+            assert_eq!(session_mode_for("session-a91f").as_deref(), Some("raw"));
 
-        let updated = switch_session_mode("session-a91f", "raw").expect("session should exist");
-        assert_eq!(updated.mode, "raw");
-        assert_eq!(session_mode_for("session-a91f").as_deref(), Some("raw"));
-
-        let registry = lock_registry();
-        let terminal = registry
-            .terminal_buffers
-            .get("session-a91f")
-            .cloned()
-            .unwrap_or_default();
-        assert!(terminal.iter().any(|line| line.contains("Raw mode enabled")));
-        assert!(registry
-            .recent_events
-            .iter()
-            .any(|event| event.event_type == "session-mode" && event.detail.contains("raw")));
+            let snapshot = super::terminal_snapshot("session-a91f");
+            assert!(snapshot.lines.iter().any(|line| line.contains("Raw mode enabled")));
+            let events = super::recent_events();
+            assert!(events.iter().any(|event| event.event_type == "session-mode" && event.detail.contains("raw")));
+        });
     }
 }
