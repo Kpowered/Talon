@@ -19,7 +19,7 @@ export function HostRail({
   onManageHosts,
 }: HostRailProps) {
   return (
-    <aside className="sidebar-shell sidebar-shell-nav">
+    <aside className="sidebar-shell sidebar-shell-nav sidebar-shell-ultralight">
       <div className="sidebar-brand sidebar-brand-compact">
         <div className="sidebar-brand-mark">T</div>
         <strong>Talon</strong>
@@ -35,7 +35,7 @@ export function HostRail({
       </div>
 
       <div className="sidebar-section sidebar-list-section sidebar-list-section-nav">
-        <div className="sidebar-section-header">
+        <div className="sidebar-section-header sidebar-section-header-quiet">
           <span>Hosts</span>
           <span>{hosts.length}</span>
         </div>

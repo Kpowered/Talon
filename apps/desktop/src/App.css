@@ -2461,3 +2461,112 @@ button {
   padding: 10px;
   border-radius: 14px;
 }
+
+.app-layout {
+  grid-template-columns: 188px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.sidebar-shell-ultralight {
+  padding: 7px 5px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.025);
+  background: rgba(10, 12, 18, 0.78);
+}
+
+.sidebar-section-header-quiet {
+  color: #6d7891;
+  font-size: 0.68rem;
+}
+
+.sidebar-brand-compact strong {
+  letter-spacing: 0.01em;
+}
+
+.sidebar-primary-action,
+.sidebar-ghost-action {
+  border-width: 1px;
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.sidebar-ghost-action {
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.sidebar-host-list-nav {
+  padding-right: 0;
+}
+
+.sidebar-host-row {
+  min-height: 34px;
+  padding: 4px 5px;
+  border-radius: 7px;
+}
+
+.sidebar-host-row.selected {
+  background: rgba(248, 178, 91, 0.065);
+}
+
+.sidebar-host-row-copy strong {
+  font-size: 0.83rem;
+}
+
+.sidebar-host-row-copy span {
+  font-size: 0.72rem;
+}
+
+.workspace-shell {
+  gap: 0;
+}
+
+.terminal-stage-clean {
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  background: rgba(6, 9, 15, 0.98);
+  box-shadow: none;
+}
+
+.terminal-stage-header-clean {
+  min-height: 20px;
+}
+
+.terminal-stage-copy-clean h2 {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.terminal-stage-actions-clean .ghost-button.small,
+.terminal-stage-hints-clean .ghost-button.small {
+  background: rgba(255, 255, 255, 0.018);
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.terminal-stage-body {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  background: rgba(3, 5, 10, 0.96);
+}
+
+.terminal-stage-body .managed-terminal-scroll {
+  padding: 10px 10px 6px;
+}
+
+.terminal-statusline-clean {
+  min-height: 20px;
+  padding: 4px 2px 0;
+  border-top-color: rgba(255, 255, 255, 0.025);
+}
+
+.inspect-drawer {
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  background: rgba(10, 12, 18, 0.94);
+  box-shadow: none;
+}
+
+.inspect-tabbar {
+  background: rgba(255, 255, 255, 0.018);
+  border-color: rgba(255, 255, 255, 0.04);
+}

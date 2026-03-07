@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Host, Session, SuggestedAction } from "@talon/core";
 import type { AppCommandError, HostConnectionConfig, NewHostDraft, TerminalTab } from "./types/app";
-import { TopBar } from "./components/TopBar";
 import { HostRail } from "./components/HostRail";
 import { ActionNoticeBar } from "./components/ActionNoticeBar";
 import { AppEmptyState } from "./components/AppEmptyState";
@@ -379,7 +378,6 @@ function App() {
         />
 
         <section className="workspace-shell">
-          <TopBar />
 
 
           <WorkspacePanels
@@ -426,6 +424,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 
