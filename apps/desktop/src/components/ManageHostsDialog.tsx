@@ -23,15 +23,17 @@ type WindowBounds = {
   height: number;
 };
 
-const DEFAULT_BOUNDS: WindowBounds = {
-  left: 236,
-  top: 24,
-  width: 386,
-  height: 498,
-};
+function getDefaultBounds(authMethod: ConnectionAuthMethod): WindowBounds {
+  return {
+    left: 236,
+    top: 24,
+    width: 386,
+    height: authMethod === "agent" ? 376 : 432,
+  };
+}
 
 const MIN_WIDTH = 340;
-const MIN_HEIGHT = 430;
+const MIN_HEIGHT = 340;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -50,13 +52,13 @@ export function ManageHostsDialog({
   onClose,
 }: ManageHostsDialogProps) {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [bounds, setBounds] = useState<WindowBounds>(DEFAULT_BOUNDS);
+  const [bounds, setBounds] = useState<WindowBounds>(() => getDefaultBounds(savedHostForm.authMethod));
   const dragStateRef = useRef<{ pointerX: number; pointerY: number; left: number; top: number } | null>(null);
   const resizeStateRef = useRef<{ pointerX: number; width: number; height: number; ratio: number } | null>(null);
 
   useEffect(() => {
-    setBounds(DEFAULT_BOUNDS);
-  }, [selectedHost?.id]);
+    setBounds(getDefaultBounds(savedHostForm.authMethod));
+  }, [savedHostForm.authMethod, selectedHost?.id]);
 
   useEffect(() => {
     function handleMouseMove(event: MouseEvent) {
