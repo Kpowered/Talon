@@ -13,12 +13,12 @@
                 "windows":  [
                                 {
                                     "title":  "Talon",
-                                    "width":  1440,
-                                    "height":  920,
-                                    "minWidth":  1440,
-                                    "minHeight":  920,
-                                    "maxWidth":  1440,
-                                    "maxHeight":  920,
+                                    "width":  1008,
+                                    "height":  644,
+                                    "minWidth":  1008,
+                                    "minHeight":  644,
+                                    "maxWidth":  1008,
+                                    "maxHeight":  644,
                                     "resizable":  false
                                 }
                             ],
