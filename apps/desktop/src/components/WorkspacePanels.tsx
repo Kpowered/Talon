@@ -7,7 +7,8 @@ import { ArtifactsView } from "./views/ArtifactsView";
 
 type WorkspacePanelsProps = {
   activeTab: TerminalTab;
-  activeSession: Session;  selectedHost: Host;
+  activeSession: Session;
+  selectedHost: Host;
   failure: TalonWorkspaceState["latestFailure"];
   diagnosis: TalonWorkspaceState["latestDiagnosis"] & {
     provider?: string;
@@ -48,7 +49,8 @@ type WorkspacePanelsProps = {
 
 export function WorkspacePanels({
   activeTab,
-  activeSession,  selectedHost,
+  activeSession,
+  selectedHost,
   failure,
   diagnosis,
   activeConnectionIssueTitle,
@@ -86,10 +88,10 @@ export function WorkspacePanels({
   const inspectTitle = activeConnectionIssueTitle ?? (failure.exitCode === 130 ? "Operator interrupt" : failure.exitCode !== 0 ? "Failure context" : "Session details");
   const inspectSummary = activeConnectionIssueSummary
     ?? (failure.exitCode === 130
-      ? "The operator interrupted the managed command. Review the partial output before deciding whether to rerun it."
+      ? "The operator interrupted the managed command. Review the partial output before rerunning it."
       : failure.exitCode !== 0
         ? failure.summary
-        : "Timeline, diagnosis, and artifacts stay here so the terminal remains the primary workspace.");
+        : null);
 
   return (
     <section className={`workspace-main ${inspectOpen ? "inspect-open" : "inspect-closed"}`}>
@@ -119,18 +121,16 @@ export function WorkspacePanels({
 
       {inspectOpen ? (
         <aside className="inspect-drawer panel compact-panel">
-          <div className="inspect-drawer-header">
-            <div>
-              <p className="panel-kicker">Inspect</p>
-              <h2>{inspectTitle}</h2>
-              <p className="inspect-drawer-copy">{inspectSummary}</p>
-            </div>
+          <div className="inspect-drawer-header compact">
+            <h2>{inspectTitle}</h2>
             <button className="ghost-button small" onClick={onCloseInspect}>
               Close
             </button>
           </div>
 
-          <div className="inspect-tabbar">
+          {inspectSummary ? <p className="inspect-drawer-copy compact">{inspectSummary}</p> : null}
+
+          <div className="inspect-tabbar compact">
             <button className={`tab ${activeTab === "timeline" ? "active" : ""}`} onClick={() => onSetActiveTab("timeline")}>
               Timeline
             </button>
@@ -142,7 +142,7 @@ export function WorkspacePanels({
             </button>
           </div>
 
-          <div className="inspect-drawer-body">
+          <div className="inspect-drawer-body compact">
             {activeTab === "timeline" ? (
               <TimelineView
                 failure={failure}
@@ -175,6 +175,3 @@ export function WorkspacePanels({
     </section>
   );
 }
-
-
-

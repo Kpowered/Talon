@@ -107,7 +107,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added direct host-list interaction for saved servers: double-clicking a host row now connects immediately, and right-click opens a host action menu with connect, edit, and delete.
 - Refined host management presentation: the right-click host menu is now styled as a lighter context menu, and the edit-host dialog has been resized into a smaller management card instead of a near full-screen overlay.
 - Reworked saved-host management into a scale-oriented side drawer with a searchable host list on the left and a dedicated edit panel on the right, so managing dozens of hosts no longer depends on a blocking center modal.
-- Split the same host-management drawer into two levels: opening Manage now defaults to the narrow searchable list, and detailed editing only expands when the operator explicitly opens host details.
+- Split the same host-management drawer into two levels: opening Manage now defaults to the narrow searchable list, and detailed editing only expands when the operator explicitly opens host details.`r`n- Continued the terminal-first cleanup pass by removing the remaining terminal top bar, moving inspect/suggested/interrupt controls into the bottom status line, narrowing the host rail again, shrinking the inspect drawer, and reducing the host editor popover footprint so the terminal stays dominant.
 ## In Progress
 - Tightening the new terminal-first shell after the layout rewrite, including spacing density, copy hierarchy, and any regressions around host-management entry points.
 
@@ -127,6 +127,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Bias toward read-only diagnostics first.
 - Keep docs updated alongside code changes.
 - Commit and push each meaningful phase so project state is recoverable.
+
 
 
 

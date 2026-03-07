@@ -73,39 +73,12 @@ export function ShellWorkspace({
 
   return (
     <section className="terminal-stage panel compact-panel terminal-stage-compact terminal-stage-clean">
-      <div className="terminal-stage-header terminal-stage-header-clean">
-        <div className="terminal-stage-copy terminal-stage-copy-clean">
-          <h2>{selectedHost.config.label}</h2>
-        </div>
-        <div className="terminal-stage-actions terminal-stage-actions-clean">
-          <button className={`ghost-button small inspect-toggle ${inspectNotice ? "has-signal" : ""}`} onClick={inspectOpen ? onCloseInspect : onOpenInspect}>
-            {inspectOpen ? "Hide Inspect" : "Inspect"}
-          </button>
-        </div>
-      </div>
-
       {activeConnectionIssueTitle ? (
         <div className="terminal-stage-banner tone-warning">
           <strong>{activeConnectionIssueTitle}</strong>
           <p>{activeConnectionIssueSummary}</p>
         </div>
       ) : null}
-
-      <div className="terminal-stage-hints terminal-stage-hints-clean">
-        <span>Enter submits</span>
-        <span>History {commandHistorySize > 0 ? `(${commandHistorySize})` : ""}</span>
-        <span>Esc clears</span>
-        {activeAction ? (
-          <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={managedBusy}>
-            Use suggested
-          </button>
-        ) : null}
-        {managedBusy ? (
-          <button className="ghost-button small" onClick={onInterrupt}>
-            Interrupt
-          </button>
-        ) : null}
-      </div>
 
       <div className="terminal-stage-body">
         <XtermShell
@@ -123,13 +96,33 @@ export function ShellWorkspace({
       </div>
 
       <div className="terminal-statusline terminal-statusline-clean">
-        <span className={`terminal-status-dot tone-${activeSession.state}`} />
-        <span>{activeSession.state}</span>
-        <span>{selectedHost.config.address}</span>
-        <span>{activeSession.cwd}</span>
-        {managedBusy ? <span>command in flight</span> : null}
-        {runningDurationLabel ? <span>{runningDurationLabel}</span> : null}
-        {failure.exitCode !== 0 ? <span className="tone-warn">exit {failure.exitCode}</span> : null}
+        <div className="terminal-status-meta terminal-status-meta-clean">
+          <span className={`terminal-status-dot tone-${activeSession.state}`} />
+          <span>{activeSession.state}</span>
+          <span>{selectedHost.config.label}</span>
+          <span>{selectedHost.config.address}</span>
+          <span>{activeSession.cwd}</span>
+          <span>history {commandHistorySize}</span>
+          {managedBusy ? <span className="tone-warn">command in flight</span> : null}
+          {runningDurationLabel ? <span>{runningDurationLabel}</span> : null}
+          {failure.exitCode !== 0 ? <span className="tone-warn">exit {failure.exitCode}</span> : null}
+        </div>
+
+        <div className="terminal-status-actions">
+          {activeAction ? (
+            <button className="ghost-button small terminal-footer-button" onClick={onUseSuggestedCommand} disabled={managedBusy}>
+              Use suggested
+            </button>
+          ) : null}
+          {managedBusy ? (
+            <button className="ghost-button small terminal-footer-button" onClick={onInterrupt}>
+              Interrupt
+            </button>
+          ) : null}
+          <button className={`ghost-button small terminal-footer-button inspect-toggle ${inspectNotice ? "has-signal" : ""}`} onClick={inspectOpen ? onCloseInspect : onOpenInspect}>
+            {inspectOpen ? "Hide Inspect" : "Inspect"}
+          </button>
+        </div>
       </div>
     </section>
   );

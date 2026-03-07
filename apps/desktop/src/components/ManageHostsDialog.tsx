@@ -25,10 +25,10 @@ type WindowBounds = {
 
 function getDefaultBounds(authMethod: ConnectionAuthMethod): WindowBounds {
   return {
-    left: 236,
+    left: 210,
     top: 24,
-    width: 386,
-    height: authMethod === "agent" ? 340 : 396,
+    width: 358,
+    height: authMethod === "agent" ? 286 : 334,
   };
 }
 
@@ -218,4 +218,5 @@ export function ManageHostsDialog({
     </div>
   );
 }
+
 
