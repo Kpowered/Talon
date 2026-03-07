@@ -28,12 +28,12 @@ function getDefaultBounds(authMethod: ConnectionAuthMethod): WindowBounds {
     left: 236,
     top: 24,
     width: 386,
-    height: authMethod === "agent" ? 376 : 432,
+    height: authMethod === "agent" ? 340 : 396,
   };
 }
 
 const MIN_WIDTH = 340;
-const MIN_HEIGHT = 340;
+const MIN_HEIGHT = 320;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -263,3 +263,4 @@ export function ManageHostsDialog({
     </div>
   );
 }
+
