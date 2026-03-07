@@ -14,8 +14,24 @@ function deriveUsername(host: Host, config: HostConnectionConfig | null) {
   return host.config.address.includes("@") ? host.config.address.split("@")[0] : config?.username ?? "";
 }
 
+function hostSnapshot(host: Host, config: HostConnectionConfig | null) {
+  return JSON.stringify({
+    hostId: host.id,
+    label: host.config.label,
+    address: host.config.address,
+    region: host.config.region,
+    tags: host.config.tags,
+    port: config?.port ?? 22,
+    username: config?.username ?? "",
+    authMethod: config?.authMethod ?? "agent",
+    fingerprintHint: config?.fingerprintHint ?? "Pending trust",
+    privateKeyPath: config?.privateKeyPath ?? "",
+    hasSavedPassword: config?.hasSavedPassword ?? false,
+  });
+}
+
 export function useHostRailState({ workspaceHosts, selectedHostId, hostConfigs, agentSettings, activeConnectionIssue }: HostRailStateOptions) {
-  const initializedConnectionHostId = useRef<string | null>(null);
+  const syncedHostSnapshot = useRef<string | null>(null);
   const [agentForm, setAgentForm] = useState<AgentFormState>({
     baseUrl: "",
     model: "",
@@ -57,18 +73,21 @@ export function useHostRailState({ workspaceHosts, selectedHostId, hostConfigs, 
   useEffect(() => {
     const nextHost = workspaceHosts.find((host) => host.id === selectedHostId) ?? workspaceHosts[0];
     if (!nextHost) return;
-    if (initializedConnectionHostId.current === nextHost.id) return;
 
     const nextConfig = hostConfigs.find((config) => config.hostId === nextHost.id) ?? null;
+    const nextSnapshot = hostSnapshot(nextHost, nextConfig);
+    if (syncedHostSnapshot.current === nextSnapshot) return;
+
     const derivedUser = deriveUsername(nextHost, nextConfig);
 
-    setSessionOverride({
+    setSessionOverride((current) => ({
+      ...current,
       address: nextHost.config.address,
       port: String(nextConfig?.port ?? 22),
       username: nextConfig?.username ?? derivedUser,
       authMethod: (nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent",
       password: "",
-    });
+    }));
 
     setSavedHostForm({
       label: nextHost.config.label,
@@ -83,7 +102,7 @@ export function useHostRailState({ workspaceHosts, selectedHostId, hostConfigs, 
       savedPassword: "",
     });
 
-    initializedConnectionHostId.current = nextHost.id;
+    syncedHostSnapshot.current = nextSnapshot;
   }, [hostConfigs, selectedHostId, workspaceHosts]);
 
   useEffect(() => {
