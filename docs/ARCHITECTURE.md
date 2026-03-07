@@ -225,6 +225,8 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 - managed-command submission is now enforced server-side as a managed-only path: raw sessions reject structured submit calls, busy managed sessions reject concurrent wrapped commands, and missing sessions surface an explicit command-rejected result instead of silently failing
 - raw passthrough now forwards a broader PTY-oriented key set, including Ctrl-letter control bytes and common navigation keys, so full-screen and pager-style remote programs behave more like a native terminal
 - the diagnosis/artifact drawer now treats connection issues and disconnect cause as first-class packet evidence: operators see a compact handoff summary and at-a-glance packet first, while the full JSON remains available under a folded details section
+- transport/unit coverage now explicitly exercises the managed/raw submit boundary, operator interrupt completion path, remote-exit vs operator-disconnect classification, and session-mode mutation notices; this test pass also caught and drove a fix for a registry re-lock in early command rejection handling
+- the current desktop density pass further compresses the left host rail, inspect drawer, terminal footer, and host editor defaults, but keeps the same host-management and shell workflows intact
 - transport failures are beginning to distinguish degraded sessions from intentional disconnects via issue metadata rather than only a flat disconnected state, so reconnect UX and diagnosis can be driven by disconnect cause
 - diagnosis/artifact rendering is now operator-oriented: alongside the raw packet JSON, the desktop shows a compact handoff summary, visible outcome type, and session-mode context so failures can be reviewed or shared without reading the full packet first
 - A lower-level stdin passthrough helper exists in the backend but is intentionally not surfaced as a normal operator mode until fuller PTY/TUI behavior is implemented
@@ -247,6 +249,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+
 
 
 

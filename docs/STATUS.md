@@ -131,11 +131,14 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Hardened raw terminal passthrough for interactive tools by mapping additional control and navigation keys such as Escape, Delete, Home/End, PageUp/PageDown, and generic Ctrl+letter control bytes.
 - Added lightweight managed-mode hints for obviously interactive commands so operators are nudged toward raw mode without Talon auto-switching modes or hiding structured capture behavior.
 - Repacked diagnosis and artifacts again into a denser operator packet: disconnect-cause-aware primary findings, transport-action guidance, compact at-a-glance evidence, copyable handoff text, and a folded full-packet JSON section.
+- Added Rust unit coverage for managed/raw submit boundaries, operator interrupt completion, remote-exit vs operator-disconnect classification, and session-mode mutation notices.
+- Fixed a real backend self-lock in `submit_command`: early rejection paths no longer try to build a terminal snapshot by re-locking the session registry while the registry mutex is already held.
+- Tightened the terminal-first desktop shell again by shrinking the host rail, inspect drawer, status line, and host-editor default footprint without changing the underlying workflows.
 ## In Progress
 - Tightening the terminal-first shell after the layout rewrite, with the core SSH, mode, and operator-packet paths now largely real and the remaining work focused on polish, targeted bug fixes, and deeper verification.
 
 ## Next Steps
-1. Add deeper Rust-side coverage around transcript preservation, command completion markers, interrupt fallback, and reconnect/degraded state transitions.
+1. Add a second Rust-side coverage pass for reconnect requests, transport stream read failures, and any remaining trust-confirmation edge cases.
 2. Keep tightening failure and interrupt context packaging so long-running, low-output, and transport-drop cases retain the most useful operator evidence.
 3. Continue UI cleanup only where it improves terminal operation, host management, trust, credential, command, and failure-context flows without reintroducing layout churn.
 ## Risks And Open Questions

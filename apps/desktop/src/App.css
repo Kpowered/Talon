@@ -3286,3 +3286,166 @@ button {
   margin-bottom: 8px;
 }
 
+.app-layout {
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 5px;
+}
+
+.sidebar-shell-nav.sidebar-shell-ultralight {
+  padding: 5px 4px;
+  border-radius: 9px;
+}
+
+.sidebar-primary-action,
+.sidebar-ghost-action {
+  padding: 6px 7px;
+  border-radius: 7px;
+  font-size: 0.74rem;
+}
+
+.sidebar-host-row {
+  min-height: 30px;
+  padding: 3px 4px;
+  gap: 5px;
+  border-radius: 6px;
+}
+
+.sidebar-host-row-copy strong {
+  font-size: 0.77rem;
+}
+
+.sidebar-host-row-copy span,
+.sidebar-inline-issue {
+  font-size: 0.67rem;
+}
+
+.workspace-main.inspect-open {
+  grid-template-columns: minmax(0, 1fr) 236px;
+}
+
+.terminal-stage-clean {
+  padding: 4px;
+  gap: 4px;
+  border-radius: 9px;
+}
+
+.terminal-stage-banner {
+  padding: 5px 7px;
+}
+
+.terminal-stage-banner p {
+  font-size: 0.7rem;
+}
+
+.terminal-stage-body .managed-terminal-scroll {
+  padding: 6px 7px 3px;
+}
+
+.terminal-statusline-clean {
+  gap: 6px;
+  min-height: 20px;
+  padding-top: 3px;
+}
+
+.terminal-status-meta-clean {
+  gap: 6px;
+  font-size: 0.66rem;
+}
+
+.terminal-footer-button {
+  min-height: 22px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.65rem;
+}
+
+.inspect-drawer {
+  padding: 6px;
+  border-radius: 9px;
+}
+
+.inspect-drawer-header.compact h2 {
+  font-size: 0.78rem;
+}
+
+.inspect-drawer-copy.compact {
+  margin: 0 0 5px;
+  font-size: 0.68rem;
+}
+
+.inspect-tabbar.compact {
+  margin-bottom: 5px;
+}
+
+.inspect-tabbar.compact .tab {
+  min-height: 24px;
+  font-size: 0.69rem;
+}
+
+.inspect-drawer-body.compact {
+  gap: 5px;
+}
+
+.manage-hosts-list-popover {
+  width: 188px;
+  max-height: 352px;
+  gap: 5px;
+  padding: 7px;
+}
+
+.manage-hosts-search.compact input {
+  min-height: 30px;
+  padding: 6px 9px;
+}
+
+.manage-host-item.compact {
+  padding: 7px 8px;
+}
+
+.manage-hosts-editor-popover.compact {
+  padding: 2px 6px 3px;
+  border-radius: 8px;
+}
+
+.manage-hosts-editor-stack {
+  gap: 0;
+}
+
+.editor-row {
+  gap: 5px;
+}
+
+.connection-field.compact-field input,
+.connection-field.compact-field select {
+  min-height: 24px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+}
+
+.password-field-row.compact .ghost-button.small,
+.manage-hosts-popover .ghost-button.small {
+  min-height: 24px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  font-size: 0.64rem;
+}
+
+.manage-host-actions.compact {
+  gap: 4px;
+  margin-top: 1px;
+}
+
+.compact-hero,
+.compact-action-box,
+.artifact-card,
+.diagnosis-card,
+.insight-card {
+  border-radius: 10px;
+}
+
+.artifact-card,
+.diagnosis-card,
+.insight-card {
+  padding: 8px 10px;
+}
