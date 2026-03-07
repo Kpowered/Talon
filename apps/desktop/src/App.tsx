@@ -1,28 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import type {
-  DiagnosisContextPacket,
-  Host,
-  RunbookActionResult,
-  Session,
-  SuggestedAction,
-  TalonWorkspaceState,
-  TerminalSnapshot,
-} from "@talon/core";
+import type { DiagnosisContextPacket, Host, Session, SuggestedAction, TalonWorkspaceState } from "@talon/core";
 import type {
   AgentSettings,
-  AgentSettingsResponse,
-  ConnectSessionResponse,
   ConnectionAuthMethod,
-  ContextPacketResponse,
-  DisconnectSessionResponse,
-  HostConfigMutationResponse,
   HostConnectionConfig,
-  HostMutationResponse,
   SessionConnectionIssue,
-  SessionRegistryResponse,
   TerminalTab,
-  SubmitCommandResponse,
 } from "./types/app";
 import { TopBar } from "./components/TopBar";
 import { HostRail } from "./components/HostRail";
@@ -30,6 +13,29 @@ import { ShellWorkspace } from "./components/ShellWorkspace";
 import { TimelineView } from "./components/views/TimelineView";
 import { DiagnosisView } from "./components/views/DiagnosisView";
 import { ArtifactsView } from "./components/views/ArtifactsView";
+import {
+  clearAgentApiKey as clearAgentApiKeyCommand,
+  clearHostPassword as clearHostPasswordCommand,
+  confirmHostTrust as confirmHostTrustCommand,
+  connectSession as connectSessionCommand,
+  deleteHost as deleteHostCommand,
+  disconnectSession as disconnectSessionCommand,
+  getAgentSettings,
+  getLatestContextPacket,
+  getSessionRegistry,
+  getTerminalSnapshot,
+  getWorkspaceState,
+  prepareHostTrust as prepareHostTrustCommand,
+  reconnectSession as reconnectSessionCommand,
+  retryDiagnosis as retryDiagnosisCommand,
+  runSuggestedAction as runSuggestedActionCommand,
+  saveAgentApiKey as saveAgentApiKeyCommand,
+  saveAgentConfiguration as saveAgentConfigurationCommand,
+  saveHostPassword as saveHostPasswordCommand,
+  submitSessionCommand,
+  upsertHost as upsertHostCommand,
+  upsertHostConfig as upsertHostConfigCommand,
+} from "./lib/tauri";
 import "./App.css";
 
 function App() {
@@ -77,14 +83,14 @@ function App() {
   const [isSessionOverrideExpanded, setIsSessionOverrideExpanded] = useState(false);
 
   async function refreshWorkspace() {
-    const state = await invoke<TalonWorkspaceState>("get_workspace_state");
+    const state = await getWorkspaceState();
     setWorkspace(state);
     setSelectedHostId((current) => current ?? state.sessions[0]?.hostId ?? state.hosts[0]?.id ?? null);
     if (state.terminal.lines.length > 0) setTerminalTail(state.terminal.lines);
   }
 
   async function refreshRegistry() {
-    const registry = await invoke<SessionRegistryResponse>("get_session_registry");
+    const registry = await getSessionRegistry();
     setHostConfigs(registry.hostConfigs);
     setBusySessionIds(registry.busySessionIds);
     setActiveConnectionIssue(registry.activeConnectionIssue);
@@ -98,9 +104,9 @@ function App() {
       setIsLoadingState(true);
       try {
         const [state, registry, settingsResponse] = await Promise.all([
-          invoke<TalonWorkspaceState>("get_workspace_state"),
-          invoke<SessionRegistryResponse>("get_session_registry"),
-          invoke<AgentSettingsResponse>("get_agent_settings"),
+          getWorkspaceState(),
+          getSessionRegistry(),
+          getAgentSettings(),
         ]);
         if (cancelled) return;
         setWorkspace(state);
@@ -132,7 +138,7 @@ function App() {
     const interval = window.setInterval(() => {
       void refreshWorkspace();
       void refreshRegistry();
-      void invoke<TerminalSnapshot>("get_terminal_snapshot", { sessionId: workspace.activeSessionId }).then((snapshot) => {
+      void getTerminalSnapshot(workspace.activeSessionId).then((snapshot) => {
         setTerminalTail(snapshot.lines);
       });
     }, 1500);
@@ -238,7 +244,7 @@ function App() {
 
   useEffect(() => {
     if (!workspace?.activeSessionId) return;
-    void invoke<ContextPacketResponse>("get_latest_context_packet", { payload: { sessionId: workspace.activeSessionId } }).then((response) => {
+    void getLatestContextPacket(workspace.activeSessionId).then((response) => {
       setLatestContextPacket(response.packet);
     });
   }, [workspace?.activeSessionId, diagnosis?.contextPacketId]);
@@ -247,19 +253,17 @@ function App() {
     if (!selectedHost) return;
     setIsConnectingSession(true);
     try {
-      const result = await invoke<ConnectSessionResponse>("connect_session", {
-        payload: {
+      const result = await connectSessionCommand({
           hostId: selectedHost.id,
           address: connectionAddress.trim(),
           port: Number(connectionPort) || 22,
           username: connectionUsername.trim(),
           authMethod: connectionAuthMethod,
           password: connectionAuthMethod === "password" ? connectionPassword : undefined,
-        },
-      });
+        });
       setActionSummary(`Managed session ready for ${selectedHost.config.label} in ${result.session.cwd}.`);
       await Promise.all([refreshWorkspace(), refreshRegistry()]);
-      const snapshot = await invoke<TerminalSnapshot>("get_terminal_snapshot", { sessionId: result.session.sessionId });
+      const snapshot = await getTerminalSnapshot(result.session.sessionId);
       setTerminalTail(snapshot.lines);
     } finally {
       setIsConnectingSession(false);
@@ -271,12 +275,11 @@ function App() {
     setIsSubmittingCommand(true);
     setActiveTab("shell");
     try {
-      const result = await invoke<SubmitCommandResponse>("submit_session_command", {
-        payload: {
-          sessionId: activeSession.id,
-          command,
-        },
-      });
+      const result = await submitSessionCommand(activeSession.id, command);
+
+
+
+
       setTerminalTail(result.terminal.lines);
       setActionSummary(result.accepted ? `Command submitted to ${activeSession.id}: ${command}` : result.message);
       await refreshRegistry();
@@ -289,9 +292,7 @@ function App() {
     if (!activeSession) return;
     setIsDisconnectingSession(true);
     try {
-      const result = await invoke<DisconnectSessionResponse>("disconnect_session", {
-        payload: { sessionId: activeSession.id },
-      });
+      const result = await disconnectSessionCommand(activeSession.id);
       setTerminalTail(result.terminal.lines);
       setActionSummary(`Disconnect requested for ${activeSession.id}.`);
       await Promise.all([refreshWorkspace(), refreshRegistry()]);
@@ -304,19 +305,17 @@ function App() {
     if (!selectedHost) return;
     setIsReconnectingSession(true);
     try {
-      const result = await invoke<ConnectSessionResponse>("reconnect_session", {
-        payload: {
+      const result = await reconnectSessionCommand({
           hostId: selectedHost.id,
           address: connectionAddress.trim(),
           port: Number(connectionPort) || 22,
           username: connectionUsername.trim(),
           authMethod: connectionAuthMethod,
           password: connectionAuthMethod === "password" ? connectionPassword : undefined,
-        },
-      });
+        });
       setActionSummary(`Reconnect requested for ${selectedHost.config.label}.`);
       await Promise.all([refreshWorkspace(), refreshRegistry()]);
-      const snapshot = await invoke<TerminalSnapshot>("get_terminal_snapshot", { sessionId: result.session.sessionId });
+      const snapshot = await getTerminalSnapshot(result.session.sessionId);
       setTerminalTail(snapshot.lines);
     } finally {
       setIsReconnectingSession(false);
@@ -330,12 +329,11 @@ function App() {
     setActiveTab("shell");
 
     try {
-      const result = await invoke<RunbookActionResult>("run_suggested_action", {
-        payload: {
-          sessionId: activeSession.id,
-          actionId: action.id,
-        },
-      });
+      const result = await runSuggestedActionCommand(activeSession.id, action);
+
+
+
+
       setTerminalTail((current) => [...current, ...result.appendedTerminalLines]);
       setActionSummary(result.summary);
       setComposerValue(action.command);
@@ -346,9 +344,7 @@ function App() {
 
   async function saveSavedHostPassword() {
     if (!selectedHost || !savedHostPasswordInput.trim()) return;
-    const result = await invoke<HostConfigMutationResponse>("save_host_password", {
-      payload: { hostId: selectedHost.id, password: savedHostPasswordInput },
-    });
+    const result = await saveHostPasswordCommand(selectedHost.id, savedHostPasswordInput);
     setHostConfigs(result.hostConfigs);
     setSavedHostPasswordInput("");
     setActionSummary(`Saved a system-keychain password for ${selectedHost.config.label}.`);
@@ -356,40 +352,34 @@ function App() {
 
   async function clearSavedHostPassword() {
     if (!selectedHost) return;
-    const result = await invoke<HostConfigMutationResponse>("clear_host_password", {
-      payload: { hostId: selectedHost.id },
-    });
+    const result = await clearHostPasswordCommand(selectedHost.id);
     setHostConfigs(result.hostConfigs);
     setSavedHostPasswordInput("");
     setActionSummary(`Cleared the saved password for ${selectedHost.config.label}.`);
   }
 
   async function saveAgentConfiguration() {
-    const settings = await invoke<AgentSettingsResponse>("save_agent_settings", {
-      payload: {
+    const settings = await saveAgentConfigurationCommand({
         providerType: agentSettings?.providerType ?? "openai-compatible",
         baseUrl: agentBaseUrlInput.trim(),
         model: agentModelInput.trim(),
         autoDiagnose: agentAutoDiagnoseInput,
         requestTimeoutSec: agentSettings?.requestTimeoutSec ?? 20,
-      },
-    });
+      });
     setAgentSettings(settings.settings);
     setActionSummary("Saved AI provider settings.");
   }
 
   async function saveAgentApiKey() {
     if (!agentApiKeyInput.trim()) return;
-    const settings = await invoke<AgentSettingsResponse>("save_agent_api_key", {
-      payload: { apiKey: agentApiKeyInput.trim() },
-    });
+    const settings = await saveAgentApiKeyCommand(agentApiKeyInput.trim());
     setAgentSettings(settings.settings);
     setAgentApiKeyInput("");
     setActionSummary("Saved API key to the system credential store.");
   }
 
   async function clearAgentApiKey() {
-    const settings = await invoke<AgentSettingsResponse>("clear_agent_api_key");
+    const settings = await clearAgentApiKeyCommand();
     setAgentSettings(settings.settings);
     setAgentApiKeyInput("");
     setActionSummary("Cleared the saved API key.");
@@ -397,27 +387,21 @@ function App() {
 
   async function prepareHostTrustFlow() {
     if (!activeSession) return;
-    const response = await invoke<{ issue: SessionConnectionIssue }>("prepare_host_trust", {
-      payload: { sessionId: activeSession.id },
-    });
+    const response = await prepareHostTrustCommand(activeSession.id);
     setActiveConnectionIssue(response.issue);
     setActionSummary(`Prepared host trust details for ${selectedHost?.config.label ?? activeSession.id}.`);
   }
 
   async function confirmHostTrustFlow() {
     if (!activeSession || !activeConnectionIssue?.fingerprint) return;
-    await invoke("confirm_host_trust", {
-      payload: { sessionId: activeSession.id, fingerprint: activeConnectionIssue.fingerprint },
-    });
+    await confirmHostTrustCommand(activeSession.id, activeConnectionIssue.fingerprint);
     await Promise.all([refreshWorkspace(), refreshRegistry()]);
     setActionSummary(`Trusted ${activeConnectionIssue.host ?? selectedHost?.config.label ?? activeSession.id} and updated known_hosts.`);
   }
 
   async function rerunDiagnosis() {
     if (!activeSession) return;
-    const nextState = await invoke<TalonWorkspaceState>("retry_diagnosis", {
-      payload: { sessionId: activeSession.id },
-    });
+    const nextState = await retryDiagnosisCommand(activeSession.id);
     setWorkspace(nextState);
     setActionSummary(`Regenerated diagnosis for ${selectedHost?.config.label ?? activeSession.id}.`);
   }
@@ -443,16 +427,14 @@ function App() {
   async function saveHostConfig(hostId: string) {
     setIsSavingHostConfig(true);
     try {
-      const result = await invoke<HostConfigMutationResponse>("upsert_host_config", {
-        payload: {
+      const result = await upsertHostConfigCommand({
           hostId,
           port: Number(hostPortInput) || 22,
           username: hostUsernameInput.trim() || "root",
           authMethod: hostAuthMethodInput,
           fingerprintHint: hostFingerprintHintInput.trim() || "Pending trust",
           privateKeyPath: hostPrivateKeyPathInput.trim() || null,
-        },
-      });
+        });
       setHostConfigs(result.hostConfigs);
       await refreshRegistry();
     } finally {
@@ -464,15 +446,13 @@ function App() {
     const hostId = `host-${crypto.randomUUID().slice(0, 8)}`;
     const label = hostLabelInput.trim() || "new-host";
     const address = hostAddressInput.trim() || `${hostUsernameInput.trim() || "root"}@127.0.0.1`;
-    await invoke<HostMutationResponse>("upsert_host", {
-      payload: {
+    await upsertHostCommand({
         id: hostId,
         label,
         address,
         region: hostRegionInput.trim() || "custom",
         tags: parseTags(hostTagsInput),
-      },
-    });
+      });
     setSelectedHostId(hostId);
     initializedConnectionHostId.current = null;
     await saveHostConfig(hostId);
@@ -489,9 +469,7 @@ function App() {
       region: hostRegionInput.trim() || selectedHost.config.region,
       tags: parseTags(hostTagsInput),
     };
-    await invoke<HostMutationResponse>("upsert_host", {
-      payload: updatedHost,
-    });
+    await upsertHostCommand(updatedHost);
     await saveHostConfig(selectedHost.id);
     await refreshWorkspace();
     setActionSummary(`Saved host config for ${updatedHost.label}.`);
@@ -501,11 +479,9 @@ function App() {
     if (!selectedHost) return;
     setIsDeletingHostConfig(true);
     try {
-      await invoke<HostMutationResponse>("delete_host", {
-        payload: { hostId: selectedHost.id },
-      });
+      await deleteHostCommand(selectedHost.id);
       await refreshWorkspace();
-      const remainingHosts = (await invoke<TalonWorkspaceState>("get_workspace_state")).hosts;
+      const remainingHosts = (await getWorkspaceState()).hosts;
       setSelectedHostId(remainingHosts[0]?.id ?? null);
       initializedConnectionHostId.current = null;
       await refreshRegistry();
@@ -659,4 +635,5 @@ function App() {
 }
 
 export default App;
+
 
