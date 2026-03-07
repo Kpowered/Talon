@@ -23,6 +23,7 @@ type ShellWorkspaceProps = {
   onRecallPreviousCommand: () => void;
   onRecallNextCommand: () => void;
   onInterrupt: () => void;
+  onDisconnect: () => void;
   onOpenInspect: () => void;
   onCloseInspect: () => void;
 };
@@ -47,6 +48,7 @@ export function ShellWorkspace({
   onRecallPreviousCommand,
   onRecallNextCommand,
   onInterrupt,
+  onDisconnect,
   onOpenInspect,
   onCloseInspect,
 }: ShellWorkspaceProps) {
@@ -119,6 +121,11 @@ export function ShellWorkspace({
               Interrupt
             </button>
           ) : null}
+          {activeSession.state !== "disconnected" ? (
+            <button className="ghost-button small terminal-footer-button" onClick={onDisconnect} disabled={activeSession.state === "disconnecting"}>
+              {activeSession.state === "disconnecting" ? "Disconnecting" : "Disconnect"}
+            </button>
+          ) : null}
           <button className={`ghost-button small terminal-footer-button inspect-toggle ${inspectNotice ? "has-signal" : ""}`} onClick={inspectOpen ? onCloseInspect : onOpenInspect}>
             {inspectOpen ? "Hide Inspect" : "Inspect"}
           </button>
@@ -127,4 +134,3 @@ export function ShellWorkspace({
     </section>
   );
 }
-

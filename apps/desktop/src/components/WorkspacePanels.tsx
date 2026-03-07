@@ -39,6 +39,7 @@ type WorkspacePanelsProps = {
   onRecallNextCommand: () => void;
   onToggleSignalFilter: (signal: string) => void;
   onInterrupt: () => void;
+  onDisconnect: () => void;
   onClearSignalFilter: () => void;
   onRerunDiagnosis: () => void;
   onRunAction: (action: SuggestedAction) => void;
@@ -76,8 +77,9 @@ export function WorkspacePanels({
   onRecallPreviousCommand,
   onRecallNextCommand,
   onToggleSignalFilter,
-  onClearSignalFilter,
   onInterrupt,
+  onDisconnect,
+  onClearSignalFilter,
   onRerunDiagnosis,
   onRunAction,
   onOpenInspect,
@@ -115,6 +117,7 @@ export function WorkspacePanels({
         onRecallPreviousCommand={onRecallPreviousCommand}
         onRecallNextCommand={onRecallNextCommand}
         onInterrupt={onInterrupt}
+        onDisconnect={onDisconnect}
         onOpenInspect={onOpenInspect}
         onCloseInspect={onCloseInspect}
       />

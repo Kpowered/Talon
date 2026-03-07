@@ -12,7 +12,7 @@ import { useOperatorActions } from "./hooks/useOperatorActions";
 import { useActionNotice } from "./hooks/useActionNotice";
 import { useTimelineSignals } from "./hooks/useTimelineSignals";
 import { useHostRailState } from "./hooks/useHostRailState";
-import { connectSession, deleteHost, getHostPassword } from "./lib/tauri";
+import { connectSession, deleteHost, getHostPassword, reconnectSession } from "./lib/tauri";
 import "./App.css";
 
 const EMPTY_NEW_HOST_DRAFT: NewHostDraft = {
@@ -328,6 +328,8 @@ function App() {
 
     const hostConfig = hostConfigs.find((entry) => entry.hostId === hostId);
     const authMethod = (hostConfig?.authMethod ?? "agent") as HostConnectionConfig["authMethod"];
+    const existingSession = workspace?.sessions.find((session: Session) => session.hostId === hostId) ?? null;
+    const shouldReconnect = Boolean(existingSession && existingSession.state !== "disconnected");
     let password: string | undefined;
 
     if (authMethod === "password") {
@@ -341,22 +343,64 @@ function App() {
 
     try {
       setSelectedHostId(hostId);
-      const result = await connectSession({
+      const payload = {
         hostId,
         address: host.config.address,
         port: hostConfig?.port ?? 22,
         username: hostConfig?.username ?? "root",
         authMethod: authMethod as "agent" | "private-key" | "password",
         password,
+      };
+      const result = shouldReconnect ? await reconnectSession(payload) : await connectSession(payload);
+
+      setWorkspace((current) => {
+        if (!current) {
+          return current;
+        }
+
+        const nextSessions = current.sessions.some((session: Session) => session.id === result.session.sessionId)
+          ? current.sessions.map((session: Session) => session.id === result.session.sessionId
+            ? {
+                ...session,
+                state: result.session.state,
+                cwd: result.session.cwd,
+                shell: result.session.shell,
+              }
+            : session)
+          : [
+              ...current.sessions,
+              {
+                id: result.session.sessionId,
+                hostId: result.session.hostId,
+                state: result.session.state,
+                shell: result.session.shell,
+                cwd: result.session.cwd,
+                connectedAt: new Date().toISOString(),
+                lastCommandAt: "",
+                autoCaptureEnabled: result.session.autoCaptureEnabled,
+              },
+            ];
+
+        return {
+          ...current,
+          activeSessionId: result.session.sessionId,
+          sessions: nextSessions,
+        };
       });
-      setActionNotice({ kind: "success", message: `Managed session ready for ${host.config.label} in ${result.session.cwd}.` });
+
+      setActionNotice({
+        kind: "success",
+        message: shouldReconnect
+          ? `Reconnect requested for ${host.config.label}.`
+          : `Managed session ready for ${host.config.label} in ${result.session.cwd}.`,
+      });
       await refreshAll();
       await loadTerminalSnapshot(result.session.sessionId);
     } catch (error) {
       const commandError = error as AppCommandError;
       setActionNotice({ kind: "error", message: commandError.message ?? `Failed to connect ${host.config.label}.` });
     }
-  }, [hostConfigs, hosts, loadTerminalSnapshot, refreshAll, setActionNotice, setSelectedHostId]);
+  }, [hostConfigs, hosts, loadTerminalSnapshot, refreshAll, setActionNotice, setSelectedHostId, setWorkspace, workspace?.sessions]);
 
   const openManageHostById = useCallback((hostId: string) => {
     setSelectedHostId(hostId);
@@ -480,6 +524,7 @@ function App() {
             onRecallPreviousCommand={recallPreviousCommand}
             onRecallNextCommand={recallNextCommand}
             onInterrupt={() => void actions.interruptActiveSession()}
+            onDisconnect={() => void actions.disconnectActiveSession()}
             onToggleSignalFilter={(signal) => setActiveSignalFilter((current) => (current === signal ? null : signal))}
             onClearSignalFilter={() => setActiveSignalFilter(null)}
             onRerunDiagnosis={() => void actions.rerunDiagnosis()}
@@ -495,24 +540,4 @@ function App() {
 }
 
 export default App;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
