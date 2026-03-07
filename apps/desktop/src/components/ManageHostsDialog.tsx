@@ -1,4 +1,4 @@
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { Host } from "@talon/core";
 import type { ConnectionAuthMethod, HostConnectionConfig, SavedHostFormState } from "../types/app";
@@ -21,14 +21,6 @@ type WindowBounds = {
   top: number;
   width: number;
   height: number;
-};
-
-type DragState = {
-  pointerId: number;
-  pointerX: number;
-  pointerY: number;
-  left: number;
-  top: number;
 };
 
 function getDefaultBounds(authMethod: ConnectionAuthMethod): WindowBounds {
@@ -58,47 +50,41 @@ export function ManageHostsDialog({
 }: ManageHostsDialogProps) {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [bounds, setBounds] = useState<WindowBounds>(() => getDefaultBounds(savedHostForm.authMethod));
-  const dragStateRef = useRef<DragState | null>(null);
+  const dragStateRef = useRef<{ pointerX: number; pointerY: number; left: number; top: number } | null>(null);
 
   useEffect(() => {
     setBounds(getDefaultBounds(savedHostForm.authMethod));
   }, [savedHostForm.authMethod, selectedHost?.id]);
 
   useEffect(() => {
-    function handlePointerMove(event: PointerEvent) {
+    function handleMouseMove(event: MouseEvent) {
       const dragState = dragStateRef.current;
-      if (!dragState || dragState.pointerId !== event.pointerId) {
+      if (!dragState) {
         return;
       }
 
       const nextLeft = dragState.left + (event.clientX - dragState.pointerX);
       const nextTop = dragState.top + (event.clientY - dragState.pointerY);
-      const minLeft = -bounds.width + 96;
-      const maxLeft = window.innerWidth - 96;
-      const minTop = -12;
-      const maxTop = window.innerHeight - 48;
+      const maxLeft = Math.max(12, window.innerWidth - bounds.width - 12);
+      const maxTop = Math.max(12, window.innerHeight - bounds.height - 12);
       setBounds((current) => ({
         ...current,
-        left: clamp(nextLeft, minLeft, maxLeft),
-        top: clamp(nextTop, minTop, maxTop),
+        left: clamp(nextLeft, 12, maxLeft),
+        top: clamp(nextTop, 12, maxTop),
       }));
     }
 
-    function handlePointerUp(event: PointerEvent) {
-      if (dragStateRef.current?.pointerId === event.pointerId) {
-        dragStateRef.current = null;
-      }
+    function handleMouseUp() {
+      dragStateRef.current = null;
     }
 
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("pointercancel", handlePointerUp);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
     return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", handlePointerUp);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [bounds.height, bounds.width]);
+  }, [bounds.height, bounds.left, bounds.top, bounds.width]);
 
   if (!selectedHost) {
     return null;
@@ -109,16 +95,16 @@ export function ManageHostsDialog({
     await navigator.clipboard.writeText(savedHostForm.savedPassword);
   }
 
-  function handleDragStart(event: ReactPointerEvent<HTMLDivElement>) {
+  function handleDragStart(event: ReactMouseEvent<HTMLDivElement>) {
+    if ((event.target as HTMLElement).closest("button,input,select,textarea")) {
+      return;
+    }
     dragStateRef.current = {
-      pointerId: event.pointerId,
       pointerX: event.clientX,
       pointerY: event.clientY,
       left: bounds.left,
       top: bounds.top,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.preventDefault();
   }
 
   const authMethod = savedHostForm.authMethod;
@@ -133,7 +119,7 @@ export function ManageHostsDialog({
         style={{ left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height }}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="manage-hosts-drag-grip" onPointerDown={handleDragStart} />
+        <div className="manage-hosts-popover-header compact editor editor-actions-only drag-handle" onMouseDown={handleDragStart} />
 
         <div className="manage-hosts-editor-stack">
           <label className="connection-field compact-field">
@@ -232,3 +218,4 @@ export function ManageHostsDialog({
     </div>
   );
 }
+

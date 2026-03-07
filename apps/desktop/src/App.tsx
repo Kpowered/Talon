@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { SetStateAction } from "react";
 import type { Host, Session, SuggestedAction } from "@talon/core";
 import type { AppCommandError, HostConnectionConfig, NewHostDraft, TerminalTab } from "./types/app";
 import { HostRail } from "./components/HostRail";
@@ -7,13 +6,13 @@ import { ActionNoticeBar } from "./components/ActionNoticeBar";
 import { AppEmptyState } from "./components/AppEmptyState";
 import { WorkspacePanels } from "./components/WorkspacePanels";
 import { NewHostDialog } from "./components/NewHostDialog";
+import { ManageHostsDialog } from "./components/ManageHostsDialog";
 import { useWorkspaceRuntime } from "./hooks/useWorkspaceRuntime";
 import { useOperatorActions } from "./hooks/useOperatorActions";
 import { useActionNotice } from "./hooks/useActionNotice";
 import { useTimelineSignals } from "./hooks/useTimelineSignals";
 import { useHostRailState } from "./hooks/useHostRailState";
-import { clearHostPassword, connectSession, deleteHost, getHostPassword, saveHostPassword, upsertHost, upsertHostConfig } from "./lib/tauri";
-import { closeHostEditorWindow, emitHostEditorError, emitHostEditorLoad, listenHostEditorDelete, listenHostEditorReady, listenHostEditorSave, openHostEditorWindow } from "./lib/hostEditorWindow";
+import { connectSession, deleteHost, getHostPassword } from "./lib/tauri";
 import "./App.css";
 
 const EMPTY_NEW_HOST_DRAFT: NewHostDraft = {
@@ -35,7 +34,7 @@ function App() {
   const [commandHistoryCursorBySessionId, setCommandHistoryCursorBySessionId] = useState<Record<string, number | null>>({});
   const [commandHistoryScratchBySessionId, setCommandHistoryScratchBySessionId] = useState<Record<string, string>>({});
   const [isNewHostDialogOpen, setIsNewHostDialogOpen] = useState(false);
-  const [isHostEditorRequested, setIsHostEditorRequested] = useState(false);
+  const [isManageHostsDialogOpen, setIsManageHostsDialogOpen] = useState(false);
   const [newHostDraft, setNewHostDraft] = useState<NewHostDraft>(EMPTY_NEW_HOST_DRAFT);
   const [isSavingNewHost, setIsSavingNewHost] = useState(false);
   const [isConnectingNewHost, setIsConnectingNewHost] = useState(false);
@@ -51,8 +50,7 @@ function App() {
     isLoadingState,
     hostConfigs,
     setHostConfigs,
-    registryActiveSessionId,
-    activeConnectionIssue,
+    registryActiveSessionId,    activeConnectionIssue,
     setActiveConnectionIssue,
     activeCommand,
     terminalTail,
@@ -74,7 +72,7 @@ function App() {
 
   const hosts = workspace?.hosts ?? [];
   const selectedHost = hosts.find((host: Host) => host.id === selectedHostId) ?? hosts[0] ?? null;
-  const selectedHostConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === selectedHost?.id) ?? null;
+  const selectedHostConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === selectedHostId) ?? null;
   const diagnosis = (workspace?.latestDiagnosis ?? null) as (typeof workspace extends null
     ? never
     : NonNullable<typeof workspace>["latestDiagnosis"] & {
@@ -85,8 +83,7 @@ function App() {
   const failure = workspace?.latestFailure ?? null;
   const timeline = workspace?.timeline ?? [];
   const activeAction = diagnosis?.suggestedActions.find((action: SuggestedAction) => action.status === "ready") ?? null;
-  const composerValue = activeSession ? commandDraftBySessionId[activeSession.id] ?? "" : "";
-  const inspectNotice = activeConnectionIssue?.title ?? (failure?.exitCode != null && failure.exitCode !== 0 ? `Exit ${failure.exitCode}` : null);
+  const composerValue = activeSession ? commandDraftBySessionId[activeSession.id] ?? "" : "";  const inspectNotice = activeConnectionIssue?.title ?? (failure?.exitCode != null && failure.exitCode !== 0 ? `Exit ${failure.exitCode}` : null);
   const {
     activeSignalFilter,
     setActiveSignalFilter,
@@ -104,7 +101,7 @@ function App() {
 
 
   const setComposerValue = useCallback(
-    (value: SetStateAction<string>) => {
+    (value: React.SetStateAction<string>) => {
       if (!activeSession) return;
       setCommandDraftBySessionId((current) => {
         const nextValue = typeof value === "function" ? value(current[activeSession.id] ?? "") : value;
@@ -222,8 +219,9 @@ function App() {
     if (agentSettings?.hasApiKey) return;
     hostRail.setAgentForm((current) => ({ ...current, apiKey: "" }));
   }, [agentSettings?.hasApiKey, hostRail.agentForm.apiKey, hostRail.setAgentForm]);
+
   useEffect(() => {
-    if (!isHostEditorRequested || !selectedHost) return;
+    if (!isManageHostsDialogOpen || !selectedHost) return;
 
     let cancelled = false;
     setIsLoadingManageHostPassword(true);
@@ -246,7 +244,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [hostRail.setSavedHostForm, isHostEditorRequested, selectedHost?.id]);
+  }, [hostRail.setSavedHostForm, isManageHostsDialogOpen, selectedHost?.id]);
 
   async function handleCreateHost(connectAfterCreate: boolean) {
     const draft = {
@@ -303,155 +301,19 @@ function App() {
     setCommandHistoryCursorBySessionId((current) => ({ ...current, [activeSession.id]: null }));
     setCommandHistoryScratchBySessionId((current) => ({ ...current, [activeSession.id]: "" }));
   }, [activeSession, actions, composerValue]);
-  const saveHostEditorForm = useCallback(async (hostId: string, form: typeof hostRail.savedHostForm) => {
-    const host = hosts.find((entry) => entry.id === hostId);
-    if (!host) {
-      await emitHostEditorError({ message: "The selected host no longer exists." });
-      return;
+
+  const handleSaveManagedHost = useCallback(async () => {
+    await actions.updateSelectedHost();
+
+    if (hostRail.savedHostForm.savedPassword.trim()) {
+      await actions.saveSavedHostPassword();
+    } else if (selectedHostConfig?.hasSavedPassword) {
+      await actions.clearSavedHostPassword();
     }
 
-    const label = form.label.trim();
-    const address = form.address.trim();
-    const username = form.username.trim();
-    const port = Number.parseInt(form.port, 10);
-    const fingerprintHint = form.fingerprintHint.trim() || "Pending trust";
-    const authMethod = form.authMethod;
-    const privateKeyPath = form.privateKeyPath.trim();
-    const savedPassword = form.savedPassword;
-    const region = form.region.trim() || host.config.region || "custom";
-    const tags = form.tags.split(",").map((tag) => tag.trim()).filter(Boolean);
+    setIsManageHostsDialogOpen(false);
+  }, [actions, hostRail.savedHostForm.savedPassword, selectedHostConfig?.hasSavedPassword]);
 
-    if (!label) {
-      await emitHostEditorError({ message: "Enter a label before saving the host." });
-      return;
-    }
-    if (!address) {
-      await emitHostEditorError({ message: "Enter an address before saving the host." });
-      return;
-    }
-    if (!username) {
-      await emitHostEditorError({ message: "Enter a username before saving the host." });
-      return;
-    }
-    if (!Number.isFinite(port) || port < 1 || port > 65535) {
-      await emitHostEditorError({ message: "Enter a valid port between 1 and 65535." });
-      return;
-    }
-    if (authMethod === "private-key" && !privateKeyPath) {
-      await emitHostEditorError({ message: "Enter a private key path before saving private-key auth." });
-      return;
-    }
-
-    try {
-      await upsertHost({ id: hostId, label, address, region, tags });
-      await upsertHostConfig({
-        hostId,
-        port,
-        username,
-        authMethod,
-        fingerprintHint,
-        privateKeyPath: authMethod === "private-key" ? privateKeyPath : null,
-      });
-
-      if (authMethod === "password") {
-        if (savedPassword.trim()) {
-          await saveHostPassword(hostId, savedPassword);
-        } else {
-          await clearHostPassword(hostId);
-        }
-      } else {
-        await clearHostPassword(hostId);
-      }
-
-      setSelectedHostId(hostId);
-      await refreshAll();
-      setIsHostEditorRequested(false);
-      await closeHostEditorWindow();
-      setActionNotice({ kind: "success", message: `Saved host ${label}.` });
-    } catch (error) {
-      const commandError = error as AppCommandError;
-      const message = commandError.message ?? `Failed to save ${label}.`;
-      setActionNotice({ kind: "error", message });
-      await emitHostEditorError({ message });
-    }
-  }, [hosts, refreshAll, setActionNotice, setSelectedHostId]);
-
-  const deleteHostFromEditor = useCallback(async (hostId: string) => {
-    const host = hosts.find((entry) => entry.id === hostId);
-    if (!host) {
-      await emitHostEditorError({ message: "The selected host no longer exists." });
-      return;
-    }
-
-    if (!window.confirm(`Delete saved host ${host.config.label}?`)) {
-      return;
-    }
-
-    try {
-      await deleteHost(hostId);
-      await refreshAll();
-      if (selectedHostId === hostId) {
-        const nextHost = hosts.find((entry) => entry.id !== hostId) ?? null;
-        setSelectedHostId(nextHost?.id ?? null);
-      }
-      setIsHostEditorRequested(false);
-      await closeHostEditorWindow();
-      setActionNotice({ kind: "success", message: `Deleted host ${host.config.label}.` });
-    } catch (error) {
-      const commandError = error as AppCommandError;
-      const message = commandError.message ?? `Failed to delete ${host.config.label}.`;
-      setActionNotice({ kind: "error", message });
-      await emitHostEditorError({ message });
-    }
-  }, [hosts, refreshAll, selectedHostId, setActionNotice, setSelectedHostId]);
-
-  const syncHostEditorWindow = useCallback(async () => {
-    if (!isHostEditorRequested || !selectedHost) {
-      return;
-    }
-
-    await emitHostEditorLoad({
-      hostId: selectedHost.id,
-      form: hostRail.savedHostForm,
-      hostConfig: selectedHostConfig,
-      isLoadingPassword: isLoadingManageHostPassword,
-    });
-  }, [hostRail.savedHostForm, isHostEditorRequested, isLoadingManageHostPassword, selectedHost, selectedHostConfig]);
-
-  useEffect(() => {
-    if (!isHostEditorRequested || !selectedHost) return;
-    void syncHostEditorWindow();
-  }, [isHostEditorRequested, selectedHost?.id, selectedHostConfig, hostRail.savedHostForm, isLoadingManageHostPassword, syncHostEditorWindow]);
-
-  useEffect(() => {
-    let unlistenReady: (() => void) | undefined;
-    let unlistenSave: (() => void) | undefined;
-    let unlistenDelete: (() => void) | undefined;
-
-    void listenHostEditorReady(() => {
-      void syncHostEditorWindow();
-    }).then((fn) => {
-      unlistenReady = fn;
-    });
-
-    void listenHostEditorSave((payload) => {
-      void saveHostEditorForm(payload.hostId, payload.form);
-    }).then((fn) => {
-      unlistenSave = fn;
-    });
-
-    void listenHostEditorDelete((payload) => {
-      void deleteHostFromEditor(payload.hostId);
-    }).then((fn) => {
-      unlistenDelete = fn;
-    });
-
-    return () => {
-      unlistenReady?.();
-      unlistenSave?.();
-      unlistenDelete?.();
-    };
-  }, [deleteHostFromEditor, saveHostEditorForm, syncHostEditorWindow]);
   function openNewHostDialog() {
     setNewHostDraft(EMPTY_NEW_HOST_DRAFT);
     setNewHostDialogError(null);
@@ -495,18 +357,11 @@ function App() {
       setActionNotice({ kind: "error", message: commandError.message ?? `Failed to connect ${host.config.label}.` });
     }
   }, [hostConfigs, hosts, loadTerminalSnapshot, refreshAll, setActionNotice, setSelectedHostId]);
+
   const openManageHostById = useCallback((hostId: string) => {
     setSelectedHostId(hostId);
-    setIsHostEditorRequested(true);
-    void openHostEditorWindow()
-      .then(() => {
-        void syncHostEditorWindow();
-      })
-      .catch((error) => {
-        const commandError = error as AppCommandError;
-        setActionNotice({ kind: "error", message: commandError.message ?? "Failed to open the host editor window." });
-      });
-  }, [setActionNotice, setSelectedHostId, syncHostEditorWindow]);
+    setIsManageHostsDialogOpen(true);
+  }, [setSelectedHostId]);
 
   const deleteHostFromRail = useCallback(async (hostId: string) => {
     const host = hosts.find((entry) => entry.id === hostId);
@@ -545,6 +400,23 @@ function App() {
     <main className="app-shell app-shell-terminal-first">
       {actionNotice ? <ActionNoticeBar notice={actionNotice} onDismiss={clearNotice} /> : null}
 
+      {isManageHostsDialogOpen ? (
+        <ManageHostsDialog
+          selectedHost={selectedHost}
+          selectedHostConfig={selectedHostConfig}
+          savedHostForm={hostRail.savedHostForm}
+          isSavingHostConfig={actions.isSavingHostConfig}
+          isDeletingHostConfig={actions.isDeletingHostConfig}
+          isLoadingPassword={isLoadingManageHostPassword}
+          onSetSavedHostForm={hostRail.setSavedHostForm}
+          onSaveHost={handleSaveManagedHost}
+          onDeleteSelectedHost={() => void actions.deleteSelectedHost()}
+          onClose={() => {
+            setIsManageHostsDialogOpen(false);
+          }}
+        />
+      ) : null}
+
       {isNewHostDialogOpen ? (
         <NewHostDialog
           draft={newHostDraft}
@@ -569,9 +441,7 @@ function App() {
           onSelectHost={setSelectedHostId}
           onCreateHost={openNewHostDialog}
           onManageHosts={() => {
-            if (selectedHost) {
-              openManageHostById(selectedHost.id);
-            }
+            setIsManageHostsDialogOpen(true);
           }}
           onConnectHost={(hostId) => void connectHostFromRail(hostId)}
           onEditHost={openManageHostById}
@@ -625,12 +495,6 @@ function App() {
 }
 
 export default App;
-
-
-
-
-
-
 
 
 
