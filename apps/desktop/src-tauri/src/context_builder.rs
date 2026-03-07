@@ -229,17 +229,53 @@ pub fn build_failure_context(
 }
 
 pub fn build_diagnosis_from_failure(failure: &FailureContext) -> DiagnosisResponse {
+    let interrupted = failure.exit_code == 130;
     let stderr_class = failure.stderr_class.as_deref();
-    let likely_causes = stderr_class_causes(stderr_class);
-    let (next_title, next_body) = stderr_class_message(stderr_class);
-    let suggested_actions = stderr_class_actions(stderr_class);
-
-    DiagnosisResponse {
-        id: format!("diag-{}", failure.id),
-        session_id: failure.session_id.clone(),
-        status: failure.severity.clone(),
-        confidence: 72,
-        summary: format!(
+    let likely_causes = if interrupted {
+        vec![
+            "The managed command was interrupted by the operator before normal completion.".into(),
+            "Review the partial stdout/stderr tail to decide whether the command should be rerun or whether the current shell state is already sufficient.".into(),
+        ]
+    } else {
+        stderr_class_causes(stderr_class)
+    };
+    let (next_title, next_body) = if interrupted {
+        (
+            "Operator interrupt recorded".into(),
+            "No remediation is required just because the command was interrupted. Decide whether to rerun the command, inspect process state, or continue working in the same shell.".into(),
+        )
+    } else {
+        stderr_class_message(stderr_class)
+    };
+    let suggested_actions = if interrupted {
+        vec![
+            SuggestedAction {
+                id: "action-review-shell-context".into(),
+                label: "Review shell context".into(),
+                command: "pwd && whoami && history | tail -n 5".into(),
+                rationale: "Confirm session state before deciding whether to rerun the interrupted command.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+            SuggestedAction {
+                id: "action-check-process-tail".into(),
+                label: "Check process tail".into(),
+                command: "ps -ef | tail -n 20".into(),
+                rationale: "Inspect whether the interrupted command left related processes behind.".into(),
+                safety_level: "read-only".into(),
+                status: "ready".into(),
+            },
+        ]
+    } else {
+        stderr_class_actions(stderr_class)
+    };
+    let summary = if interrupted {
+        format!(
+            "Talon recorded an operator interrupt for {} in {}.",
+            failure.host_id, failure.cwd
+        )
+    } else {
+        format!(
             "Talon captured a live non-zero exit for {} in {}{}.",
             failure.host_id,
             failure.cwd,
@@ -248,29 +284,50 @@ pub fn build_diagnosis_from_failure(failure: &FailureContext) -> DiagnosisRespon
                 .as_ref()
                 .map(|class| format!(" with {} stderr signals", class))
                 .unwrap_or_default()
-        ),
+        )
+    };
+    let capture_title = if interrupted {
+        "Operator interrupt captured".into()
+    } else {
+        "Live failure captured".into()
+    };
+    let capture_body = if interrupted {
+        format!(
+            "Talon recorded exit code 130, cwd {}, and the latest stdout/stderr tails after the operator interrupted the managed command.",
+            failure.cwd
+        )
+    } else {
+        format!(
+            "Talon packaged exit code {}, cwd {}, and the latest stdout/stderr tails from the managed SSH session{}{}.",
+            failure.exit_code,
+            failure.cwd,
+            failure
+                .stderr_class
+                .as_ref()
+                .map(|class| format!(", including '{}' stderr classification", class))
+                .unwrap_or_default(),
+            failure
+                .stderr_evidence
+                .as_ref()
+                .map(|evidence| format!(" Evidence: {}", evidence))
+                .unwrap_or_default()
+        )
+    };
+
+    DiagnosisResponse {
+        id: format!("diag-{}", failure.id),
+        session_id: failure.session_id.clone(),
+        status: failure.severity.clone(),
+        confidence: if interrupted { 91 } else { 72 },
+        summary,
         likely_causes,
         messages: vec![
             DiagnosisMessage {
                 id: format!("message-{}-capture", failure.id),
                 source: "system".into(),
                 tone: failure.severity.clone(),
-                title: "Live failure captured".into(),
-                body: format!(
-                    "Talon packaged exit code {}, cwd {}, and the latest stdout/stderr tails from the managed SSH session{}{}.",
-                    failure.exit_code,
-                    failure.cwd,
-                    failure
-                        .stderr_class
-                        .as_ref()
-                        .map(|class| format!(", including '{}' stderr classification", class))
-                        .unwrap_or_default(),
-                    failure
-                        .stderr_evidence
-                        .as_ref()
-                        .map(|evidence| format!(" Evidence: {}", evidence))
-                        .unwrap_or_default()
-                ),
+                title: capture_title,
+                body: capture_body,
             },
             DiagnosisMessage {
                 id: format!("message-{}-next", failure.id),
@@ -547,3 +604,4 @@ mod tests {
         );
     }
 }
+
