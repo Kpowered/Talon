@@ -358,7 +358,13 @@ export function useOperatorActions(options: OperatorActionsOptions) {
       privateKeyPath: null,
     });
 
-    setHostConfigs(configResult.hostConfigs);
+    let nextHostConfigs = configResult.hostConfigs;
+    if (draft.authMethod === "password" && draft.password.trim()) {
+      const passwordResult = await saveHostPassword(hostId, draft.password.trim());
+      nextHostConfigs = passwordResult.hostConfigs;
+    }
+
+    setHostConfigs(nextHostConfigs);
     setSelectedHostId(hostId);
 
     if (!connectAfterCreate) {
@@ -468,6 +474,7 @@ export function useOperatorActions(options: OperatorActionsOptions) {
     deleteSelectedHost,
   };
 }
+
 
 
 
