@@ -3,17 +3,12 @@
     "identifier":  "default",
     "description":  "Capability for the main window",
     "windows":  [
-                    "main",
-                    "host-editor"
+                    "main"
                 ],
     "permissions":  [
                         "core:default",
                         "opener:default",
                         "core:webview:allow-create-webview",
-                        "core:webview:allow-create-webview-window",
-                        "core:window:allow-show",
-                        "core:window:allow-close",
-                        "core:window:allow-set-focus",
-                        "core:window:allow-get-all-windows"
+                        "core:webview:allow-create-webview-window"
                     ]
 }

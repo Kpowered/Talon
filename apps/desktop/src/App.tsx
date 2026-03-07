@@ -504,7 +504,7 @@ function App() {
       })
       .catch((error) => {
         const commandError = error as AppCommandError;
-        setActionNotice({ kind: "error", message: commandError.message ?? String(error) ?? "Failed to open the host editor window." });
+        setActionNotice({ kind: "error", message: commandError.message ?? "Failed to open the host editor window." });
       });
   }, [setActionNotice, setSelectedHostId, syncHostEditorWindow]);
 
@@ -625,7 +625,6 @@ function App() {
 }
 
 export default App;
-
 
 
 
