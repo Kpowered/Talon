@@ -172,7 +172,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [hostRail.setSavedHostForm, isManageHostsDialogOpen, selectedHost]);
+  }, [hostRail.setSavedHostForm, isManageHostsDialogOpen, selectedHost?.id]);
 
   async function handleCreateHost(connectAfterCreate: boolean) {
     const draft = {
@@ -367,3 +367,4 @@ function App() {
 }
 
 export default App;
+
