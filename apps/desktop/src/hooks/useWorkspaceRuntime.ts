@@ -134,9 +134,6 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
         const liveSessionId = registry.activeSessionId || state.activeSessionId;
         if (liveSessionId) {
           void loadTerminalSnapshot(liveSessionId);
-        } else {
-          setTerminalSessionId(null);
-          setTerminalTail([]);
         }
       } catch (error) {
         if (!cancelled) {
@@ -151,13 +148,11 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     return () => {
       cancelled = true;
     };
-  }, [applyRegistry, applyWorkspace, reportError]);
+  }, [applyRegistry, applyWorkspace, loadTerminalSnapshot, reportError]);
 
   useEffect(() => {
     const liveSessionId = registryActiveSessionId || workspace?.activeSessionId;
     if (!liveSessionId) {
-      setTerminalSessionId(null);
-      setTerminalTail([]);
       return;
     }
 
@@ -211,6 +206,7 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     loadTerminalSnapshot,
   };
 }
+
 
 
 
