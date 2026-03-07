@@ -379,16 +379,8 @@ function App() {
         />
 
         <section className="workspace-shell">
-          <TopBar
-            isConnected={activeSession.state === "connected"}
-            isConnectingSession={actions.isConnectingSession || isConnectingNewHost || activeSession.state === "connecting"}
-            isDisconnectingSession={actions.isDisconnectingSession}
-            isReconnectingSession={actions.isReconnectingSession}
-            onManageHosts={() => setIsManageHostsDialogOpen(true)}
-            onReconnect={() => void actions.reconnectActiveSession()}
-            onDisconnect={() => void actions.disconnectActiveSession()}
-            onConnect={() => void actions.connectSelectedHost()}
-          />
+          <TopBar />
+
 
           <WorkspacePanels
             activeTab={activeTab}
@@ -434,6 +426,7 @@ function App() {
 }
 
 export default App;
+
 
 
 

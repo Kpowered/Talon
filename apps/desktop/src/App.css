@@ -2371,3 +2371,93 @@ button {
   font-size: 0.7rem;
   color: #7d879d;
 }
+
+.app-layout {
+  grid-template-columns: 206px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.sidebar-shell-nav {
+  padding: 8px 6px;
+  border-radius: 12px;
+  border-color: rgba(255, 255, 255, 0.035);
+  background: linear-gradient(180deg, rgba(15, 18, 25, 0.92), rgba(11, 13, 19, 0.92));
+  box-shadow: none;
+}
+
+.sidebar-brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+}
+
+.sidebar-primary-action,
+.sidebar-ghost-action {
+  padding: 8px 9px;
+  font-size: 0.8rem;
+}
+
+.sidebar-host-row {
+  min-height: 38px;
+  padding: 5px 6px;
+  border-radius: 8px;
+}
+
+.workspace-topbar-gone {
+  display: none;
+}
+
+.workspace-shell {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.workspace-main.inspect-open {
+  grid-template-columns: minmax(0, 1fr) 274px;
+}
+
+.terminal-stage-clean {
+  min-height: 0;
+  height: 100%;
+  padding: 8px;
+  border-radius: 12px;
+  gap: 6px;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.terminal-stage-header-clean {
+  min-height: 24px;
+}
+
+.terminal-stage-copy-clean h2 {
+  font-size: 0.9rem;
+}
+
+.terminal-stage-hints-clean {
+  font-size: 0.63rem;
+  gap: 4px 8px;
+}
+
+.terminal-stage-body {
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-stage-body .xterm-shell,
+.terminal-stage-body .managed-terminal {
+  flex: 1;
+  min-height: 0;
+}
+
+.terminal-statusline-clean {
+  margin-top: auto;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  justify-content: flex-start;
+}
+
+.inspect-drawer {
+  padding: 10px;
+  border-radius: 14px;
+}
