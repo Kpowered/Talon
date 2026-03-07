@@ -118,7 +118,7 @@ button {
 .title-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -159,7 +159,7 @@ button {
 .composer-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -257,7 +257,7 @@ button {
   border-radius: 14px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -275,13 +275,13 @@ button {
   margin-top: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .connection-grid {
   display: grid;
   grid-template-columns: 96px 1fr;
-  gap: 10px;
+  gap: 8px;
 }
 
 .connection-field {
@@ -310,7 +310,7 @@ button {
 
 .host-config-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -624,7 +624,7 @@ button {
 
 .timeline-signal-summary {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   margin-top: -4px;
 }
@@ -650,7 +650,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   color: #b7c7dc;
   font-size: 0.84rem;
@@ -680,7 +680,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -782,13 +782,13 @@ button {
   padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .action-button {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 
 .primary-button,
@@ -899,7 +899,7 @@ button {
 .status-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .status-chip {
@@ -939,7 +939,7 @@ button {
 .compact-panel-header,
 .compact-section-title,
 .terminal-header-row {
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
@@ -984,7 +984,7 @@ button {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   background: transparent;
   border: none;
   padding: 0;
@@ -1105,11 +1105,11 @@ button {
 }
 
 .panel-hosts.compact-panel {
-  gap: 10px;
+  gap: 8px;
 }
 
 .main-workspace {
-  gap: 10px;
+  gap: 8px;
 }
 
 .compact-panel .panel-kicker {
@@ -1150,7 +1150,7 @@ button {
 .workspace-stack {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-height: 0;
 }
 
@@ -1230,7 +1230,7 @@ button {
 .shell-pane {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-height: 0;
   flex: 1;
 }
@@ -1249,13 +1249,13 @@ button {
 }
 
 .terminal-composer-inline {
-  gap: 10px;
+  gap: 8px;
 }
 
 .composer-meta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   color: #7f8aa3;
   font-size: 0.75rem;
   letter-spacing: 0.04em;
@@ -1270,7 +1270,7 @@ button {
 .composer-input-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -1285,7 +1285,7 @@ button {
 }
 
 .shell-pane-xterm {
-  gap: 10px;
+  gap: 8px;
 }
 
 .terminal-command-bar {
@@ -1411,7 +1411,7 @@ button {
 }
 
 .dialog-error {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid rgba(255, 130, 130, 0.28);
@@ -1537,7 +1537,7 @@ button {
 .shell-header-actions {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
@@ -1651,7 +1651,7 @@ button {
 }
 
 .rail-summary-block {
-  gap: 10px;
+  gap: 8px;
 }
 
 .rail-facts {
@@ -1754,7 +1754,7 @@ button {
 .sidebar-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .sidebar-actions {
@@ -1808,8 +1808,8 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 11px;
+  gap: 8px;
+  padding: 8px 9px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   background: rgba(255, 255, 255, 0.025);
@@ -1825,7 +1825,7 @@ button {
 .sidebar-host-item-main {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -1911,7 +1911,7 @@ button {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .workspace-topbar-copy h1 {
@@ -2079,13 +2079,13 @@ button {
 }
 
 .sidebar-shell {
-  gap: 10px;
+  gap: 8px;
   padding: 12px 10px;
   border-radius: 18px;
 }
 
 .sidebar-brand {
-  gap: 10px;
+  gap: 8px;
   padding-bottom: 4px;
 }
 
@@ -2114,11 +2114,11 @@ button {
 }
 
 .workspace-shell {
-  gap: 10px;
+  gap: 8px;
 }
 
 .workspace-main {
-  gap: 10px;
+  gap: 8px;
 }
 
 .workspace-main.inspect-open {
@@ -2126,14 +2126,14 @@ button {
 }
 
 .terminal-stage-compact {
-  gap: 10px;
+  gap: 8px;
   padding: 12px;
   border-radius: 18px;
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
 }
 
 .terminal-stage-header-compact {
-  gap: 10px;
+  gap: 8px;
 }
 
 .terminal-stage-copy-compact h2 {
@@ -2214,7 +2214,7 @@ button {
 }
 
 .inspect-drawer {
-  gap: 10px;
+  gap: 8px;
   padding: 12px;
   border-radius: 18px;
 }
@@ -2374,7 +2374,7 @@ button {
 
 .app-layout {
   grid-template-columns: 206px minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 
 .sidebar-shell-nav {
@@ -2636,7 +2636,7 @@ button {
 }
 
 .manage-host-item-compact {
-  padding: 10px 11px;
+  padding: 8px 9px;
   border-radius: 12px;
 }
 
@@ -2650,7 +2650,7 @@ button {
 }
 
 .manage-hosts-form-compact {
-  gap: 10px;
+  gap: 8px;
 }
 
 .manage-hosts-form-compact .connection-field span {
@@ -2691,10 +2691,10 @@ button {
 }
 
 .manage-hosts-drawer {
-  width: min(760px, 78vw);
+  width: min(560px, 56vw);
   height: 100%;
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 160px minmax(0, 1fr);
   background: rgba(9, 12, 19, 0.98);
   border-left: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: -18px 0 36px rgba(0, 0, 0, 0.28);
@@ -2704,8 +2704,8 @@ button {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 18px 14px;
+  gap: 8px;
+  padding: 14px 10px;
   border-right: 1px solid rgba(255, 255, 255, 0.04);
   background: rgba(14, 17, 25, 0.98);
 }
@@ -2714,7 +2714,7 @@ button {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 
 .manage-hosts-drawer-header h2 {
@@ -2736,7 +2736,7 @@ button {
 }
 
 .manage-hosts-search input {
-  min-height: 36px;
+  min-height: 32px;
   border-radius: 10px;
 }
 
@@ -2746,22 +2746,22 @@ button {
 }
 
 .manage-host-item-drawer {
-  padding: 10px 11px;
+  padding: 8px 9px;
   border-radius: 10px;
 }
 
 .manage-hosts-drawer-editor {
   min-height: 0;
   overflow: auto;
-  padding: 18px 18px 20px;
+  padding: 14px 14px 16px;
 }
 
 .manage-hosts-summary-drawer {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .manage-hosts-form-drawer {
-  gap: 10px;
+  gap: 8px;
 }
 
 .manage-hosts-form-drawer input,
@@ -2772,3 +2772,4 @@ button {
 .manage-host-actions-drawer {
   margin-top: 14px;
 }
+
