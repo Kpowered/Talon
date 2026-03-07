@@ -4,7 +4,7 @@
 Build Talon into an AI-native SSH troubleshooting desktop app that captures failed commands, packages incident context, and keeps remediation operator-confirmed.
 
 ## Current Stage
-As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed SSH desktop app with a real transport path, direct terminal typing through xterm, and a split between Talon-managed command mode and raw-input fallback mode.
+As of 2026-03-07, the repository has moved from a scenario demo to a backend-managed SSH desktop app with a real transport path and direct terminal typing through xterm on a single Talon-managed input path.
 
 ## Completed
 - Connected the local workspace to `origin/main` and synced the repository.
@@ -83,14 +83,14 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Restored and expanded Rust regression coverage for context shaping, stream-tail truncation, command marker parsing, non-zero failure capture, and connection-issue classification; `cargo test` now passes again.
 - Hardened the managed command input so operators can submit with `Enter`, navigate per-session history with `Up/Down`, clear with `Esc`, and stay focused on the active session without relying on the `Send` button.
 - Replaced the shell tail viewer with an `xterm.js`-backed terminal surface so operators now type directly inside the terminal pane instead of a detached form field.
-- Added explicit `Managed` and `Raw` terminal input modes: managed mode keeps Talon command framing and non-zero exit capture, while raw mode writes keystrokes directly to SSH stdin and clearly warns that capture is limited.
-- Added a dedicated backend `write_session_input` Tauri command so raw terminal input can pass through the existing SSH transport without disturbing Talon wrapped-command tracking.
+- Reworked the xterm shell back to a single operator-facing input mode so terminal typing stays direct while Talon command framing, non-zero exit capture, and failure packaging remain the default path.
+- Kept the lower-level raw stdin write path internal-only for now rather than exposing it as a first-class operator mode before PTY-grade behavior exists.
 ## In Progress
-- Hardening the new xterm terminal surface around resize behavior, bundle size, and any remaining edge cases in raw-mode operator guidance.
+- Hardening the new xterm terminal surface around resize behavior, bundle size, and any remaining edge cases in prompt rendering and incremental replay.
 
 ## Next Steps
 1. Tighten xterm rendering so the shell pane can move from full replay to incremental append where it improves responsiveness.
-2. Add deeper Rust-side coverage around raw input writes, diagnosis cache invalidation, and trust-confirmation state transitions.
+2. Add deeper Rust-side coverage around stdin passthrough helpers, diagnosis cache invalidation, and trust-confirmation state transitions.
 3. Continue UI cleanup only where it improves operation of the provider, host management, trust, credential, command, and failure-context flows.
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.

@@ -1327,60 +1327,13 @@ button {
 
 .terminal-command-bar {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 12px;
   align-items: center;
   padding: 10px 12px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
   background: rgba(6, 10, 17, 0.78);
-}
-
-.terminal-mode-toggle {
-  display: inline-flex;
-  gap: 6px;
-}
-
-.mode-chip {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: #8f9ab1;
-  border-radius: 999px;
-  padding: 7px 12px;
-  font-size: 0.82rem;
-}
-
-.mode-chip.active {
-  border-color: rgba(122, 139, 255, 0.28);
-  background: rgba(122, 139, 255, 0.14);
-  color: #dce4ff;
-}
-
-.mode-chip:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.terminal-hints-row {
-  justify-content: center;
-}
-
-.terminal-inline-actions {
-  justify-content: flex-end;
-}
-
-.terminal-inline-status {
-  color: #8f9ab1;
-  font-size: 0.8rem;
-}
-
-.terminal-mode-banner {
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 211, 123, 0.24);
-  background: rgba(69, 46, 10, 0.24);
-  color: #f6d489;
-  font-size: 0.86rem;
 }
 
 .xterm-shell {
@@ -1596,4 +1549,8 @@ button {
   .terminal-inline-actions {
     justify-content: flex-start;
   }
+}
+
+.terminal-command-bar.single-mode {
+  grid-template-columns: 1fr auto;
 }

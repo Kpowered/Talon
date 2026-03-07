@@ -2,90 +2,101 @@ import { useEffect, useRef } from "react";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
-import type { TerminalInputMode } from "../types/app";
 
 type XtermShellProps = {
   sessionId: string;
   terminalTail: string[];
   draft: string;
-  inputMode: TerminalInputMode;
   isBusy: boolean;
   onDraftChange: (value: string) => void;
   onSubmitCommand: () => void;
   onRecallPreviousCommand: () => void;
   onRecallNextCommand: () => void;
   onClearDraft: () => void;
-  onWriteRawInput: (data: string) => void;
+};
+
+type RenderState = {
+  sessionId: string | null;
+  renderedTailCount: number;
+  promptText: string;
+  promptCursor: number;
+  promptVisible: boolean;
 };
 
 function isPrintableInput(data: string) {
   return data.length > 0 && !data.startsWith("\u001b") && data !== "\r" && data !== "\u007f";
 }
 
-function renderTerminal(
-  terminal: Terminal,
-  terminalTail: string[],
-  inputMode: TerminalInputMode,
-  isBusy: boolean,
-  draft: string,
-  cursor: number,
-) {
-  terminal.reset();
-  for (const line of terminalTail) {
-    terminal.writeln(line);
+function promptTextForState(draft: string, isBusy: boolean) {
+  return isBusy ? "[managed command in flight]" : `$ ${draft}`;
+}
+
+function clearPromptLine(terminal: Terminal, state: RenderState) {
+  if (!state.promptVisible) {
+    return;
   }
-  if (inputMode === "managed") {
-    if (isBusy) {
-      terminal.write("[managed command in flight]");
-    } else {
-      terminal.write(`$ ${draft}`);
-      const moveLeft = draft.length - cursor;
-      if (moveLeft > 0) {
-        terminal.write(`\u001b[${moveLeft}D`);
-      }
+  terminal.write("\u001b[2K\r");
+  state.promptVisible = false;
+}
+
+function drawPromptLine(terminal: Terminal, state: RenderState, draft: string, isBusy: boolean, cursor: number) {
+  const text = promptTextForState(draft, isBusy);
+  terminal.write("\u001b[2K\r");
+  terminal.write(text);
+  if (!isBusy) {
+    const moveLeft = Math.max(0, draft.length - cursor);
+    if (moveLeft > 0) {
+      terminal.write(`\u001b[${moveLeft}D`);
     }
   }
-  terminal.scrollToBottom();
+  state.promptText = text;
+  state.promptCursor = cursor;
+  state.promptVisible = true;
+}
+
+function appendTailLines(terminal: Terminal, lines: string[]) {
+  for (const line of lines) {
+    terminal.writeln(line);
+  }
 }
 
 export function XtermShell({
   sessionId,
   terminalTail,
   draft,
-  inputMode,
   isBusy,
   onDraftChange,
   onSubmitCommand,
   onRecallPreviousCommand,
   onRecallNextCommand,
   onClearDraft,
-  onWriteRawInput,
 }: XtermShellProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const renderStateRef = useRef<RenderState>({
+    sessionId: null,
+    renderedTailCount: 0,
+    promptText: "",
+    promptCursor: 0,
+    promptVisible: false,
+  });
   const cursorRef = useRef(0);
   const draftRef = useRef(draft);
-  const modeRef = useRef(inputMode);
   const busyRef = useRef(isBusy);
   const draftChangeRef = useRef(onDraftChange);
   const submitCommandRef = useRef(onSubmitCommand);
   const recallPreviousRef = useRef(onRecallPreviousCommand);
   const recallNextRef = useRef(onRecallNextCommand);
   const clearDraftRef = useRef(onClearDraft);
-  const writeRawInputRef = useRef(onWriteRawInput);
-  const terminalTailRef = useRef(terminalTail);
 
   draftRef.current = draft;
-  modeRef.current = inputMode;
   busyRef.current = isBusy;
   draftChangeRef.current = onDraftChange;
   submitCommandRef.current = onSubmitCommand;
   recallPreviousRef.current = onRecallPreviousCommand;
   recallNextRef.current = onRecallNextCommand;
   clearDraftRef.current = onClearDraft;
-  writeRawInputRef.current = onWriteRawInput;
-  terminalTailRef.current = terminalTail;
 
   useEffect(() => {
     cursorRef.current = draft.length;
@@ -136,10 +147,6 @@ export function XtermShell({
     terminal.focus();
 
     const dataDisposable = terminal.onData((data) => {
-      if (modeRef.current === "raw") {
-        writeRawInputRef.current(data);
-        return;
-      }
       if (busyRef.current) {
         return;
       }
@@ -167,22 +174,18 @@ export function XtermShell({
       }
       if (data === "\u001b[D") {
         cursorRef.current = Math.max(0, cursorRef.current - 1);
-        renderTerminal(terminal, terminalTailRef.current, modeRef.current, busyRef.current, draftRef.current, cursorRef.current);
         return;
       }
       if (data === "\u001b[C") {
         cursorRef.current = Math.min(draftRef.current.length, cursorRef.current + 1);
-        renderTerminal(terminal, terminalTailRef.current, modeRef.current, busyRef.current, draftRef.current, cursorRef.current);
         return;
       }
       if (data === "\u001b[H" || data === "\u001bOH") {
         cursorRef.current = 0;
-        renderTerminal(terminal, terminalTailRef.current, modeRef.current, busyRef.current, draftRef.current, cursorRef.current);
         return;
       }
       if (data === "\u001b[F" || data === "\u001bOF") {
         cursorRef.current = draftRef.current.length;
-        renderTerminal(terminal, terminalTailRef.current, modeRef.current, busyRef.current, draftRef.current, cursorRef.current);
         return;
       }
       if (data === "\u001b") {
@@ -206,7 +209,6 @@ export function XtermShell({
 
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
-    renderTerminal(terminal, terminalTail, inputMode, isBusy, draft, cursorRef.current);
 
     return () => {
       dataDisposable.dispose();
@@ -215,17 +217,58 @@ export function XtermShell({
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [onClearDraft, onDraftChange, onRecallNextCommand, onRecallPreviousCommand, onSubmitCommand, onWriteRawInput]);
+  }, [onClearDraft, onDraftChange, onRecallNextCommand, onRecallPreviousCommand, onSubmitCommand]);
 
   useEffect(() => {
     const terminal = terminalRef.current;
     if (!terminal) {
       return;
     }
-    renderTerminal(terminal, terminalTail, inputMode, isBusy, draft, cursorRef.current);
-    fitAddonRef.current?.fit();
-    terminal.focus();
-  }, [draft, inputMode, isBusy, sessionId, terminalTail]);
+
+    const state = renderStateRef.current;
+    const sessionChanged = state.sessionId !== sessionId;
+
+    if (sessionChanged) {
+      terminal.clear();
+      state.sessionId = sessionId;
+      state.renderedTailCount = 0;
+      state.promptVisible = false;
+      state.promptText = "";
+      state.promptCursor = 0;
+      cursorRef.current = draft.length;
+      appendTailLines(terminal, terminalTail);
+      state.renderedTailCount = terminalTail.length;
+      drawPromptLine(terminal, state, draft, isBusy, cursorRef.current);
+      fitAddonRef.current?.fit();
+      terminal.focus();
+      return;
+    }
+
+    const tailShrank = terminalTail.length < state.renderedTailCount;
+    const tailReset = !tailShrank && terminalTail.some((line, index) => index < state.renderedTailCount && line !== terminalTail[index]);
+
+    if (tailShrank || tailReset) {
+      clearPromptLine(terminal, state);
+      terminal.clear();
+      appendTailLines(terminal, terminalTail);
+      state.renderedTailCount = terminalTail.length;
+      drawPromptLine(terminal, state, draft, isBusy, cursorRef.current);
+      return;
+    }
+
+    if (terminalTail.length > state.renderedTailCount) {
+      clearPromptLine(terminal, state);
+      appendTailLines(terminal, terminalTail.slice(state.renderedTailCount));
+      state.renderedTailCount = terminalTail.length;
+      drawPromptLine(terminal, state, draft, isBusy, cursorRef.current);
+      return;
+    }
+
+    const nextPromptText = promptTextForState(draft, isBusy);
+    if (state.promptText !== nextPromptText || state.promptCursor !== cursorRef.current || !state.promptVisible) {
+      drawPromptLine(terminal, state, draft, isBusy, cursorRef.current);
+    }
+  }, [draft, isBusy, sessionId, terminalTail]);
 
   return <div className="xterm-shell" ref={containerRef} />;
 }

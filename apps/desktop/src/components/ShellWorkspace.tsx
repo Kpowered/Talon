@@ -1,5 +1,5 @@
 import type { Session, SuggestedAction, TalonWorkspaceState } from "@talon/core";
-import type { TerminalInputMode, TerminalTab } from "../types/app";
+import type { TerminalTab } from "../types/app";
 import { statusLabel } from "../lib/formatters";
 import { XtermShell } from "./XtermShell";
 
@@ -17,7 +17,6 @@ type ShellWorkspaceProps = {
   isSubmittingCommand: boolean;
   composerValue: string;
   commandHistorySize: number;
-  inputMode: TerminalInputMode;
   activeAction: SuggestedAction | null;
   onSetActiveTab: (tab: TerminalTab) => void;
   onSetComposerValue: (value: string) => void;
@@ -26,8 +25,6 @@ type ShellWorkspaceProps = {
   onUseSuggestedCommand: () => void;
   onRecallPreviousCommand: () => void;
   onRecallNextCommand: () => void;
-  onSetInputMode: (mode: TerminalInputMode) => void;
-  onWriteRawInput: (data: string) => void;
 };
 
 export function ShellWorkspace({
@@ -44,7 +41,6 @@ export function ShellWorkspace({
   isSubmittingCommand,
   composerValue,
   commandHistorySize,
-  inputMode,
   activeAction,
   onSetActiveTab,
   onSetComposerValue,
@@ -53,8 +49,6 @@ export function ShellWorkspace({
   onUseSuggestedCommand,
   onRecallPreviousCommand,
   onRecallNextCommand,
-  onSetInputMode,
-  onWriteRawInput,
 }: ShellWorkspaceProps) {
   const managedBusy = isSubmittingCommand || activeSessionBusy;
 
@@ -104,52 +98,20 @@ export function ShellWorkspace({
 
       {activeTab === "shell" ? (
         <div className="shell-pane shell-pane-xterm">
-          <div className="terminal-command-bar">
-            <div className="terminal-mode-toggle" role="tablist" aria-label="Terminal input mode">
-              <button
-                type="button"
-                className={`mode-chip ${inputMode === "managed" ? "active" : ""}`}
-                onClick={() => onSetInputMode("managed")}
-              >
-                Managed
-              </button>
-              <button
-                type="button"
-                className={`mode-chip ${inputMode === "raw" ? "active" : ""}`}
-                onClick={() => onSetInputMode("raw")}
-                disabled={managedBusy}
-              >
-                Raw
-              </button>
-            </div>
+          <div className="terminal-command-bar single-mode">
             <div className="composer-meta-row terminal-hints-row">
-              {inputMode === "managed" ? (
-                <>
-                  <span className="composer-shortcut">Direct terminal input</span>
-                  <span className="composer-shortcut">Enter submits</span>
-                  <span className="composer-shortcut">Up/Down history {commandHistorySize > 0 ? `(${commandHistorySize})` : ""}</span>
-                </>
-              ) : (
-                <>
-                  <span className="composer-shortcut">Raw input beta</span>
-                  <span className="composer-shortcut">Output remains line-buffered</span>
-                  <span className="composer-shortcut">Auto-capture limited</span>
-                </>
-              )}
+              <span className="composer-shortcut">Direct terminal input</span>
+              <span className="composer-shortcut">Enter submits</span>
+              <span className="composer-shortcut">Up/Down history {commandHistorySize > 0 ? `(${commandHistorySize})` : ""}</span>
+              <span className="composer-shortcut">Esc clears</span>
             </div>
             <div className="composer-actions terminal-inline-actions">
-              <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={!activeAction || inputMode !== "managed"}>
+              <button className="ghost-button small" onClick={onUseSuggestedCommand} disabled={!activeAction || managedBusy}>
                 Use suggested
               </button>
-              {managedBusy && inputMode === "managed" ? <span className="terminal-inline-status">Waiting for command completion</span> : null}
+              {managedBusy ? <span className="terminal-inline-status">Waiting for command completion</span> : null}
             </div>
           </div>
-
-          {inputMode === "raw" ? (
-            <div className="terminal-mode-banner warning">
-              Raw terminal mode is enabled. Keystrokes go directly to SSH stdin, but Talon command completion and failure capture stay limited until you switch back to Managed mode.
-            </div>
-          ) : null}
 
           <XtermShell
             sessionId={activeSession.id}
@@ -159,14 +121,12 @@ export function ShellWorkspace({
               ...(isSubmittingCommand ? ["...submitting command to managed session"] : []),
             ]}
             draft={composerValue}
-            inputMode={inputMode}
             isBusy={managedBusy}
             onDraftChange={onSetComposerValue}
             onSubmitCommand={onSubmitCommand}
             onRecallPreviousCommand={onRecallPreviousCommand}
             onRecallNextCommand={onRecallNextCommand}
             onClearDraft={onClearComposerValue}
-            onWriteRawInput={onWriteRawInput}
           />
         </div>
       ) : null}

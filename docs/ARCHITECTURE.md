@@ -143,7 +143,8 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the desktop shell now has two primary presentation states: disconnected sessions render a terminal-first layout with a compact host picker and a single main terminal surface, while connected sessions expand only a narrow host rail alongside that same main workspace
   - diagnosis, timeline, and artifacts now share the main workspace tabs instead of rendering as separate always-visible panels, keeping the connected layout focused on one primary work surface
   - the shell surface is now `xterm.js`, not a static tail-only div; frontend keyboard input is captured directly inside the terminal pane
-  - terminal input has two explicit modes: `Managed` submits full commands through Talon wrapping and preserves command completion / exit-code capture, while `Raw` writes bytes directly to the SSH stdin handle and warns that capture guarantees are reduced
+  - the operator-facing terminal now uses one Talon-managed direct-input mode: typing happens inside xterm, but `Enter` still submits through Talon command wrapping so command completion and exit-code capture remain intact
+  - a lower-level stdin passthrough helper still exists in the backend as scaffolding, but it is no longer exposed as a primary UI mode until a fuller PTY model exists
   - saved config persists address, port, username, auth method, and fingerprint hint
   - passwords are still operator-entered at connect time rather than persisted
 - Command framing:
@@ -195,9 +196,9 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 
 ### Terminal rendering
 - `xterm.js` is now the desktop shell surface
-- Managed mode redraws the current terminal tail plus a local editable command line inside xterm
-- Raw mode uses the same xterm surface but sends incoming keystrokes directly to the backend stdin writer
-- Current limitation: backend output is still projected as line-oriented terminal snapshots, so raw mode is useful for direct shell typing but not yet a full PTY/TUI implementation
+- The current shell path is single-mode and Talon-managed: backend output is appended into xterm while the current input line is rendered locally inside the terminal surface
+- xterm rendering now prefers incremental append over full reset/replay to reduce visible flashing during polling refreshes
+- A lower-level stdin passthrough helper exists in the backend but is intentionally not surfaced as a normal operator mode until fuller PTY/TUI behavior is implemented
 
 ### SSH layer
 - To be evaluated:
