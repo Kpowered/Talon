@@ -197,6 +197,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ### Terminal rendering
 - `xterm.js` is now the desktop shell surface
 - The current shell path is single-mode and Talon-managed: backend output is appended into xterm while the current input line is rendered locally inside the terminal surface
+- The transport now forces PTY allocation instead of `ssh -T`, because Talon is acting as a persistent shell session rather than a one-shot non-interactive command pipe
 - xterm rendering now prefers incremental append over full reset/replay to reduce visible flashing during polling refreshes
 - A lower-level stdin passthrough helper exists in the backend but is intentionally not surfaced as a normal operator mode until fuller PTY/TUI behavior is implemented
 

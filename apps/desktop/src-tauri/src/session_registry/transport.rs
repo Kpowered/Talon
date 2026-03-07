@@ -142,7 +142,7 @@ fn launch_runtime(
     let mut command = Command::new("ssh");
 
     command
-        .arg("-T")
+        .arg("-tt")
         .arg("-o")
         .arg("StrictHostKeyChecking=yes")
         .arg("-o")
