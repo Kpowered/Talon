@@ -24,14 +24,14 @@ type WindowBounds = {
 };
 
 const DEFAULT_BOUNDS: WindowBounds = {
-  left: 228,
-  top: 20,
-  width: 408,
-  height: 590,
+  left: 236,
+  top: 24,
+  width: 386,
+  height: 498,
 };
 
-const MIN_WIDTH = 360;
-const MIN_HEIGHT = 500;
+const MIN_WIDTH = 340;
+const MIN_HEIGHT = 430;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -144,6 +144,8 @@ export function ManageHostsDialog({
     };
   }
 
+  const authMethod = savedHostForm.authMethod;
+
   return (
     <div className="manage-hosts-popover-shell" role="presentation" onClick={onClose}>
       <section
@@ -176,46 +178,52 @@ export function ManageHostsDialog({
             <input value={savedHostForm.port} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, port: event.target.value }))} inputMode="numeric" />
           </label>
 
-          <label className="connection-field compact-field span-auth">
-            <span>Auth</span>
-            <select
-              value={savedHostForm.authMethod}
-              onChange={(event) => onSetSavedHostForm((current) => ({ ...current, authMethod: event.target.value as ConnectionAuthMethod }))}
-            >
-              <option value="agent">agent</option>
-              <option value="private-key">private-key</option>
-              <option value="password">password</option>
-            </select>
-          </label>
-
-          <label className="connection-field compact-field span-2">
-            <span>Tags</span>
-            <input value={savedHostForm.tags} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, tags: event.target.value }))} placeholder="production, hk" />
-          </label>
-
-          <label className="connection-field compact-field span-2">
-            <span>Fingerprint</span>
-            <input
-              value={savedHostForm.fingerprintHint}
-              onChange={(event) => onSetSavedHostForm((current) => ({ ...current, fingerprintHint: event.target.value }))}
-              placeholder="Pending trust"
-            />
-          </label>
-
-          <div className="triple-credentials-row span-2">
-            <label className="connection-field compact-field">
+          <div className="operator-line span-2">
+            <label className="connection-field compact-field operator-user">
               <span>User</span>
               <input value={savedHostForm.username} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, username: event.target.value }))} />
             </label>
 
-            <label className="connection-field compact-field">
-              <span>Password</span>
+            <label className="connection-field compact-field operator-auth">
+              <span>Auth</span>
+              <select
+                value={authMethod}
+                onChange={(event) => onSetSavedHostForm((current) => ({ ...current, authMethod: event.target.value as ConnectionAuthMethod }))}
+              >
+                <option value="agent">agent</option>
+                <option value="private-key">private-key</option>
+                <option value="password">password</option>
+              </select>
+            </label>
+          </div>
+
+          <details className="compact-details span-2" open>
+            <summary>Identity</summary>
+            <div className="compact-details-body two-up">
+              <label className="connection-field compact-field">
+                <span>Tags</span>
+                <input value={savedHostForm.tags} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, tags: event.target.value }))} placeholder="production, hk" />
+              </label>
+              <label className="connection-field compact-field">
+                <span>Fingerprint</span>
+                <input
+                  value={savedHostForm.fingerprintHint}
+                  onChange={(event) => onSetSavedHostForm((current) => ({ ...current, fingerprintHint: event.target.value }))}
+                  placeholder="Pending trust"
+                />
+              </label>
+            </div>
+          </details>
+
+          {authMethod === "password" ? (
+            <div className="auth-box span-2">
+              <div className="auth-box-title">Password auth</div>
               <div className="password-field-row compact inline-tools">
                 <input
                   type={isPasswordVisible ? "text" : "password"}
                   value={savedHostForm.savedPassword}
                   onChange={(event) => onSetSavedHostForm((current) => ({ ...current, savedPassword: event.target.value }))}
-                  placeholder={isLoadingPassword ? "Loading..." : selectedHostConfig?.hasSavedPassword ? "Saved password" : "Blank removes"}
+                  placeholder={isLoadingPassword ? "Loading..." : selectedHostConfig?.hasSavedPassword ? "Saved password" : "Enter password"}
                 />
                 <button className="ghost-button small" onClick={() => setIsPasswordVisible((current) => !current)} type="button">
                   {isPasswordVisible ? "Hide" : "Show"}
@@ -224,17 +232,23 @@ export function ManageHostsDialog({
                   Copy
                 </button>
               </div>
-            </label>
+            </div>
+          ) : null}
 
-            <label className="connection-field compact-field">
-              <span>Private key</span>
-              <input
-                value={savedHostForm.privateKeyPath}
-                onChange={(event) => onSetSavedHostForm((current) => ({ ...current, privateKeyPath: event.target.value }))}
-                placeholder="C:\\Users\\...\\id_ed25519"
-              />
-            </label>
-          </div>
+          {authMethod === "private-key" ? (
+            <div className="auth-box span-2">
+              <div className="auth-box-title">Private key auth</div>
+              <label className="connection-field compact-field">
+                <span>Key path</span>
+                <input
+                  value={savedHostForm.privateKeyPath}
+                  onChange={(event) => onSetSavedHostForm((current) => ({ ...current, privateKeyPath: event.target.value }))}
+                  placeholder="C:\\Users\\...\\id_ed25519"
+                />
+              </label>
+              <p className="auth-box-note">Current backend stores a real key path. Inline pasted key support needs a backend model change.</p>
+            </div>
+          ) : null}
         </div>
 
         <div className="dialog-actions manage-host-actions manage-host-actions-drawer compact">

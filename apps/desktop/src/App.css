@@ -2901,11 +2901,11 @@ button {
 
 .manage-hosts-editor-grid {
   min-height: 0;
-  overflow: visible;
+  overflow: auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 82px;
+  grid-template-columns: minmax(0, 1fr) 78px;
   gap: 6px 8px;
-  padding-right: 0;
+  padding-right: 2px;
 }
 
 .manage-hosts-editor-grid.compact-grid .span-2 {
@@ -2920,15 +2920,10 @@ button {
   grid-column: 2 / 3;
 }
 
-.manage-hosts-editor-grid.compact-grid .span-auth {
-  grid-column: 1 / -1;
-}
-
-.triple-credentials-row {
+.operator-line {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1.3fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 120px;
   gap: 8px;
-  align-items: start;
 }
 
 .connection-field.compact-field {
@@ -2936,7 +2931,7 @@ button {
 }
 
 .connection-field.compact-field span {
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   letter-spacing: 0.07em;
 }
 
@@ -2945,17 +2940,62 @@ button {
   min-height: 28px;
   padding: 4px 8px;
   border-radius: 8px;
-  font-size: 0.75rem;
+  font-size: 0.74rem;
+}
+
+.compact-details {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 4px 6px 6px;
+}
+
+.compact-details summary {
+  cursor: pointer;
+  color: #8f9bb4;
+  font-size: 0.66rem;
+  list-style: none;
+  user-select: none;
+}
+
+.compact-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.compact-details-body.two-up {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.auth-box {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 6px;
+  display: grid;
+  gap: 6px;
+}
+
+.auth-box-title {
+  color: #aeb9d0;
+  font-size: 0.67rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.auth-box-note {
+  margin: 0;
+  color: #7987a2;
+  font-size: 0.68rem;
+  line-height: 1.35;
 }
 
 .password-field-row.compact {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 4px;
-}
-
-.password-field-row.compact.inline-tools input {
-  min-width: 0;
 }
 
 .password-field-row.compact .ghost-button.small,
@@ -2988,8 +3028,10 @@ button {
 }
 
 .compact-close {
-  min-width: 28px;
-  width: 28px;
+  min-width: 24px;
+  width: 24px;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .manage-hosts-resize-handle {
