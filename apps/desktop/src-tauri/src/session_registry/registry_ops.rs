@@ -320,7 +320,8 @@ fn next_command_id(registry: &mut SessionRegistry, session_id: &str) -> String {
 }
 
 fn parse_command_end(line: &str) -> Option<(String, i32, String)> {
-    let payload = line.strip_prefix(CMD_END_PREFIX)?;
+    let marker_index = line.find(CMD_END_PREFIX)?;
+    let payload = &line[(marker_index + CMD_END_PREFIX.len())..];
     let mut parts = payload.splitn(3, "__");
     let command_id = parts.next()?.to_string();
     let exit_code = parts.next()?.parse::<i32>().ok()?;
@@ -615,4 +616,5 @@ mod registry_ops_tests {
         assert_eq!(tail.last().map(String::as_str), Some("line-80"));
     }
 }
+
 

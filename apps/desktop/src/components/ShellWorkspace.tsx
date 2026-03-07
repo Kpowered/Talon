@@ -13,7 +13,6 @@ type ShellWorkspaceProps = {
   activeConnectionIssueSummary: string | null;
   showOperationalPanels: boolean;
   terminalTail: string[];
-  isRunningAction: string | null;
   isSubmittingCommand: boolean;
   composerValue: string;
   commandHistorySize: number;
@@ -37,7 +36,6 @@ export function ShellWorkspace({
   activeConnectionIssueSummary,
   showOperationalPanels,
   terminalTail,
-  isRunningAction,
   isSubmittingCommand,
   composerValue,
   commandHistorySize,
@@ -115,11 +113,7 @@ export function ShellWorkspace({
 
           <XtermShell
             sessionId={activeSession.id}
-            terminalTail={[
-              ...terminalTail,
-              ...(isRunningAction ? ["...running suggested action through Tauri backend"] : []),
-              ...(isSubmittingCommand ? ["...submitting command to managed session"] : []),
-            ]}
+            terminalTail={terminalTail}
             draft={composerValue}
             isBusy={managedBusy}
             onDraftChange={onSetComposerValue}
@@ -133,4 +127,7 @@ export function ShellWorkspace({
     </section>
   );
 }
+
+
+
 

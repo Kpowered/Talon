@@ -90,12 +90,14 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
                     }
 
                     let mut state = lock_registry();
-                    if let Some(shell) = line.strip_prefix(META_SHELL_PREFIX) {
+                    if let Some(marker_index) = line.find(META_SHELL_PREFIX) {
+                        let shell = &line[(marker_index + META_SHELL_PREFIX.len())..];
                         update_session_metadata(&mut state, &session_id, Some(shell.trim()), None);
                         continue;
                     }
 
-                    if let Some(cwd) = line.strip_prefix(META_CWD_PREFIX) {
+                    if let Some(marker_index) = line.find(META_CWD_PREFIX) {
+                        let cwd = &line[(marker_index + META_CWD_PREFIX.len())..];
                         let cwd = cwd.trim();
                         update_session_metadata(&mut state, &session_id, None, Some(cwd));
                         promote_session_connected(&mut state, &session_id);
@@ -113,7 +115,8 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
                         continue;
                     }
 
-                    if let Some(command_id) = line.strip_prefix(CMD_START_PREFIX) {
+                    if let Some(marker_index) = line.find(CMD_START_PREFIX) {
+                        let command_id = &line[(marker_index + CMD_START_PREFIX.len())..];
                         push_event(
                             &mut state,
                             &session_id,
@@ -689,6 +692,7 @@ mod transport_tests {
         assert_eq!(registry.command_history[0].command, "false");
     }
 }
+
 
 
 

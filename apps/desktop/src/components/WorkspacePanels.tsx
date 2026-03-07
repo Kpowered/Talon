@@ -92,7 +92,6 @@ export function WorkspacePanels({
         activeConnectionIssueSummary={activeConnectionIssueSummary}
         showOperationalPanels={showOperationalPanels}
         terminalTail={terminalTail}
-        isRunningAction={isRunningAction}
         isSubmittingCommand={isSubmittingCommand}
         composerValue={composerValue}
         commandHistorySize={commandHistorySize}
