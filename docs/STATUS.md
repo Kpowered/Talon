@@ -65,6 +65,8 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Split the Rust backend session registry into internal `session_registry/` modules (`state`, `registry_ops`, `trust`, `transport`, `projection`, `types`) while keeping the existing Tauri command surface unchanged.
 - Split desktop-only frontend concerns out of `App.tsx` by extracting shared app types, formatter helpers, and dedicated timeline / diagnosis / artifacts view components while preserving the existing Tauri-driven behavior.
 - Continued shrinking App.tsx by extracting the remaining top bar, host rail, and shell workspace UI into focused React components, and tightened the desktop layout to keep the terminal-first surface denser with less vertical waste.
+- Added friendlier frontend Tauri error normalization so auth, host-trust, network, agent, validation, and transport failures now surface with operator-oriented guidance instead of raw command strings.
+- Added dismissible top notices with auto-expiring success/error timing so transient action feedback stays visible without permanently consuming vertical space.
 - Restored and expanded Rust regression coverage for context shaping, stream-tail truncation, command marker parsing, non-zero failure capture, and connection-issue classification; `cargo test` now passes again.
 ## In Progress
 - Continuing to reduce the remaining size of `App.tsx` and to harden diagnosis/trust UX now that backend internals and core test coverage are stable.
@@ -72,7 +74,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 ## Next Steps
 1. Continue splitting the remaining terminal/connectivity controls out of `App.tsx` so the root component is mostly orchestration.
 2. Add deeper Rust-side coverage around diagnosis cache invalidation and trust-confirmation state transitions.
-3. Continue UI cleanup only where it improves operation of the new provider, trust, and credential flows.
+3. Continue UI cleanup only where it improves operation of the new provider, trust, credential, and error-feedback flows.
 ## Risks And Open Questions
 - `ssh.exe` is now the selected transport for the first real backend path, which avoids new Rust SSH crate dependencies but creates Windows/OpenSSH-specific assumptions that may need abstraction later.
 - Strict host key checking remains enabled; Talon now has an explicit operator-confirmed trust flow, but fingerprint refresh and repeat-trust UX still need more hardening.

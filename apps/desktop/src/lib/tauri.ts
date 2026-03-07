@@ -38,13 +38,42 @@ function classifyError(message: string): AppCommandError["kind"] {
   return "unknown";
 }
 
+function friendlyMessage(kind: AppCommandError["kind"], source: string, raw: string) {
+  const detail = raw.trim();
+  const withDetail = (prefix: string) => (detail ? `${prefix} ${detail}` : prefix);
+
+  if (kind === "auth") {
+    return withDetail("Authentication failed. Confirm the username, password, agent state, or selected key and try again.");
+  }
+  if (kind === "host-trust") {
+    return withDetail("Host trust verification needs operator attention before Talon can continue.");
+  }
+  if (kind === "network") {
+    return withDetail("Network reachability to the SSH target failed.");
+  }
+  if (kind === "agent") {
+    return withDetail("AI provider configuration or credentials need attention.");
+  }
+  if (kind === "validation") {
+    return withDetail("The requested desktop action is missing required data or refers to a resource that is no longer available.");
+  }
+  if (kind === "transport") {
+    return withDetail("The SSH transport could not complete the requested operation.");
+  }
+  if (source.startsWith("workspace.") || source.startsWith("registry.") || source.startsWith("terminal.")) {
+    return withDetail("The desktop app could not refresh live session state.");
+  }
+  return withDetail("The requested action failed.");
+}
+
 function normalizeError(error: unknown, source: string): AppCommandError {
-  const message = rawErrorMessage(error).trim() || "Unknown command failure.";
+  const raw = rawErrorMessage(error).trim() || "Unknown command failure.";
+  const kind = classifyError(raw);
   return {
-    message,
-    kind: classifyError(message),
+    message: friendlyMessage(kind, source, raw),
+    kind,
     source,
-    raw: typeof error === "string" ? error : undefined,
+    raw,
   };
 }
 

@@ -160,6 +160,18 @@ function App() {
     setIsSessionOverrideExpanded(true);
   }, [activeConnectionIssue]);
 
+  useEffect(() => {
+    if (!actionNotice) return;
+
+    const timeout = window.setTimeout(() => {
+      setActionNotice((current) => (current === actionNotice ? null : current));
+    }, actionNotice.kind === "error" ? 6500 : 4200);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [actionNotice]);
+
   function resetConnectionOverride() {
     if (!selectedHost) return;
     const nextConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === selectedHost.id) ?? null;
@@ -238,7 +250,14 @@ function App() {
         onConnect={() => void actions.connectSelectedHost()}
       />
 
-      {actionNotice ? <div className={`action-notice notice-${actionNotice.kind}`}>{actionNotice.message}</div> : null}
+      {actionNotice ? (
+        <div className={`action-notice notice-${actionNotice.kind}`}>
+          <div className="action-notice-body">{actionNotice.message}</div>
+          <button className="action-notice-close" onClick={() => setActionNotice(null)} aria-label="Dismiss notice">
+            Dismiss
+          </button>
+        </div>
+      ) : null}
 
       <section className={`workspace-grid ${showOperationalPanels ? "connected" : "session-first"}`}>
         {showOperationalPanels ? (
@@ -357,3 +376,5 @@ function App() {
 }
 
 export default App;
+
+

@@ -1303,6 +1303,28 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 0.9rem;
   line-height: 1.4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.action-notice-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.action-notice-close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.8;
+  font: inherit;
+}
+
+.action-notice-close:hover {
+  opacity: 1;
 }
 
 .notice-success {
@@ -1316,3 +1338,5 @@ button {
   border-color: rgba(255, 130, 130, 0.28);
   color: #ffd9d9;
 }
+
+
