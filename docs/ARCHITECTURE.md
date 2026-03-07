@@ -45,6 +45,9 @@ As of 2026-03-06:
 - The root app component now also delegates top-level operator shell chrome to src/components/TopBar.tsx, src/components/HostRail.tsx, and src/components/ShellWorkspace.tsx, leaving App.tsx primarily responsible for state orchestration and Tauri command handlers.
 - `apps/desktop/src/lib/tauri.ts` now wraps every Tauri invoke behind a typed command helper that classifies common backend/runtime failures into operator-facing auth, host-trust, network, agent, validation, and transport error messages before they reach React state.
 - Top-level action feedback in the desktop shell is delivered through a transient notice banner that supports manual dismiss and timed expiry, keeping command/configuration feedback visible without adding another permanent panel.
+- Root-shell orchestration is now further split through `src/hooks/useActionNotice.ts`, `src/hooks/useTimelineSignals.ts`, `src/components/ActionNoticeBar.tsx`, `src/components/AppEmptyState.tsx`, and `src/components/WorkspacePanels.tsx`, so `App.tsx` mostly wires runtime state, form inputs, and operator actions together.
+- The timeline, diagnosis, and artifact views now render explicit empty or partial-evidence states instead of collapsing to blank panels when filters exclude events or when no structured packet / diagnosis messages are available yet.
+- Frontend command-error normalization is now source-aware: the same backend failure can surface different operator hints depending on whether it happened during connect, command submission, host trust, host config mutation, agent configuration, or live-state refresh.
 - Registry and SSH-stdin lock access now goes through local recovery helpers instead of `expect(...)` so a poisoned lock degrades more safely during long-lived desktop sessions.
 - Real session connection management is now handled by backend-spawned `ssh.exe` child processes with piped stdin/stdout/stderr and reader threads owned by the registry layer.
 
@@ -201,6 +204,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+
 
 
 

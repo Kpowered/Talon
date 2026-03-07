@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Host, Session, SuggestedAction } from "@talon/core";
-import type { ActionNotice, ConnectionAuthMethod, HostConnectionConfig, TerminalTab } from "./types/app";
+import type { ConnectionAuthMethod, HostConnectionConfig, TerminalTab } from "./types/app";
 import { TopBar } from "./components/TopBar";
 import { HostRail } from "./components/HostRail";
-import { ShellWorkspace } from "./components/ShellWorkspace";
-import { TimelineView } from "./components/views/TimelineView";
-import { DiagnosisView } from "./components/views/DiagnosisView";
-import { ArtifactsView } from "./components/views/ArtifactsView";
+import { ActionNoticeBar } from "./components/ActionNoticeBar";
+import { AppEmptyState } from "./components/AppEmptyState";
+import { WorkspacePanels } from "./components/WorkspacePanels";
 import { useWorkspaceRuntime } from "./hooks/useWorkspaceRuntime";
 import { useOperatorActions } from "./hooks/useOperatorActions";
+import { useActionNotice } from "./hooks/useActionNotice";
+import { useTimelineSignals } from "./hooks/useTimelineSignals";
 import "./App.css";
 
 function App() {
   const [activeTab, setActiveTab] = useState<TerminalTab>("shell");
-  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
+  const { notice: actionNotice, setNotice: setActionNotice, clearNotice } = useActionNotice();
   const [connectionAddress, setConnectionAddress] = useState("");
   const [connectionPort, setConnectionPort] = useState("22");
   const [connectionUsername, setConnectionUsername] = useState("");
@@ -35,7 +36,6 @@ function App() {
   const [agentAutoDiagnoseInput, setAgentAutoDiagnoseInput] = useState(true);
   const [agentApiKeyInput, setAgentApiKeyInput] = useState("");
   const [composerValue, setComposerValue] = useState("");
-  const [activeTimelineSignalFilter, setActiveTimelineSignalFilter] = useState<string | null>(null);
   const [isSavedConfigExpanded, setIsSavedConfigExpanded] = useState(false);
   const [isSessionOverrideExpanded, setIsSessionOverrideExpanded] = useState(false);
 
@@ -70,16 +70,25 @@ function App() {
   const hosts = workspace?.hosts ?? [];
   const selectedHost = hosts.find((host: Host) => host.id === selectedHostId) ?? hosts[0] ?? null;
   const selectedHostConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === selectedHostId) ?? null;
-  const diagnosis = (workspace?.latestDiagnosis ?? null) as (typeof workspace extends null ? never : NonNullable<typeof workspace>['latestDiagnosis'] & {
-    provider?: string;
-    errorMessage?: string | null;
-    contextPacketId?: string;
-  }) | null;
+  const diagnosis = (workspace?.latestDiagnosis ?? null) as (typeof workspace extends null
+    ? never
+    : NonNullable<typeof workspace>["latestDiagnosis"] & {
+        provider?: string;
+        errorMessage?: string | null;
+        contextPacketId?: string;
+      }) | null;
   const failure = workspace?.latestFailure ?? null;
   const timeline = workspace?.timeline ?? [];
   const activeAction = diagnosis?.suggestedActions.find((action: SuggestedAction) => action.status === "ready") ?? null;
   const activeSessionBusy = activeSession ? busySessionIds.includes(activeSession.id) : false;
   const showOperationalPanels = activeSession?.state !== "disconnected";
+  const {
+    activeSignalFilter,
+    setActiveSignalFilter,
+    repeatedSignalCounts,
+    signalSummary: timelineSignalSummary,
+    visibleTimeline,
+  } = useTimelineSignals(timeline);
 
   useEffect(() => {
     if (!agentSettings) return;
@@ -100,14 +109,6 @@ function App() {
     setConnectionUsername(nextConfig?.username ?? derivedUsername);
     setConnectionAuthMethod((nextConfig?.authMethod as ConnectionAuthMethod) ?? "agent");
     setConnectionPassword("");
-    initializedConnectionHostId.current = nextHost.id;
-  }, [workspace?.hosts, selectedHostId, hostConfigs]);
-
-  useEffect(() => {
-    const nextHost = workspace?.hosts.find((host: Host) => host.id === selectedHostId) ?? workspace?.hosts[0];
-    if (!nextHost) return;
-    const nextConfig = hostConfigs.find((config: HostConnectionConfig) => config.hostId === nextHost.id) ?? null;
-    const derivedUsername = nextHost.config.address.includes("@") ? nextHost.config.address.split("@")[0] : nextConfig?.username ?? "";
     setHostLabelInput(nextHost.config.label);
     setHostAddressInput(nextHost.config.address);
     setHostRegionInput(nextHost.config.region);
@@ -118,59 +119,13 @@ function App() {
     setHostFingerprintHintInput(nextConfig?.fingerprintHint ?? "Pending trust");
     setHostPrivateKeyPathInput(nextConfig?.privateKeyPath ?? "");
     setSavedHostPasswordInput("");
-  }, [workspace?.hosts, selectedHostId, hostConfigs]);
-
-  const repeatedSignalCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const item of timeline) {
-      if (!item.stderrClass) continue;
-      counts.set(item.stderrClass, (counts.get(item.stderrClass) ?? 0) + 1);
-    }
-    return counts;
-  }, [timeline]);
-
-  const repeatedSignals = useMemo(
-    () =>
-      Array.from(repeatedSignalCounts.entries())
-        .filter(([, count]) => count >= 2)
-        .sort((left, right) => right[1] - left[1]),
-    [repeatedSignalCounts],
-  );
-
-  const timelineSignalSummary = useMemo(() => {
-    if (!activeTimelineSignalFilter) return repeatedSignals;
-    if (!repeatedSignalCounts.has(activeTimelineSignalFilter)) return repeatedSignals;
-    if (repeatedSignals.some(([signal]) => signal === activeTimelineSignalFilter)) return repeatedSignals;
-    return [[activeTimelineSignalFilter, repeatedSignalCounts.get(activeTimelineSignalFilter) ?? 1] as [string, number], ...repeatedSignals];
-  }, [repeatedSignals, repeatedSignalCounts, activeTimelineSignalFilter]);
-
-  const visibleTimeline = useMemo(
-    () => (activeTimelineSignalFilter ? timeline.filter((item) => item.stderrClass === activeTimelineSignalFilter) : timeline),
-    [timeline, activeTimelineSignalFilter],
-  );
-
-  useEffect(() => {
-    if (!activeTimelineSignalFilter) return;
-    if (timeline.some((item) => item.stderrClass === activeTimelineSignalFilter)) return;
-    setActiveTimelineSignalFilter(null);
-  }, [timeline, activeTimelineSignalFilter]);
+    initializedConnectionHostId.current = nextHost.id;
+  }, [hostConfigs, selectedHostId, workspace]);
 
   useEffect(() => {
     if (!activeConnectionIssue) return;
     setIsSessionOverrideExpanded(true);
   }, [activeConnectionIssue]);
-
-  useEffect(() => {
-    if (!actionNotice) return;
-
-    const timeout = window.setTimeout(() => {
-      setActionNotice((current) => (current === actionNotice ? null : current));
-    }, actionNotice.kind === "error" ? 6500 : 4200);
-
-    return () => {
-      window.clearTimeout(timeout);
-    };
-  }, [actionNotice]);
 
   function resetConnectionOverride() {
     if (!selectedHost) return;
@@ -224,14 +179,7 @@ function App() {
   });
 
   if (!workspace || !diagnosis || !failure || !activeSession || !selectedHost) {
-    return (
-      <main className="app-shell loading-state">
-        <section className="panel empty-panel">
-          <p className="panel-kicker">Talon</p>
-          <h2>{isLoadingState ? "Loading workspace state" : "No workspace state available"}</h2>
-        </section>
-      </main>
-    );
+    return <AppEmptyState isLoading={isLoadingState} />;
   }
 
   return (
@@ -250,14 +198,7 @@ function App() {
         onConnect={() => void actions.connectSelectedHost()}
       />
 
-      {actionNotice ? (
-        <div className={`action-notice notice-${actionNotice.kind}`}>
-          <div className="action-notice-body">{actionNotice.message}</div>
-          <button className="action-notice-close" onClick={() => setActionNotice(null)} aria-label="Dismiss notice">
-            Dismiss
-          </button>
-        </div>
-      ) : null}
+      {actionNotice ? <ActionNoticeBar notice={actionNotice} onDismiss={clearNotice} /> : null}
 
       <section className={`workspace-grid ${showOperationalPanels ? "connected" : "session-first"}`}>
         {showOperationalPanels ? (
@@ -325,12 +266,13 @@ function App() {
           />
         ) : null}
 
-        <ShellWorkspace
+        <WorkspacePanels
           activeTab={activeTab}
           activeSession={activeSession}
           activeSessionBusy={activeSessionBusy}
           selectedHost={selectedHost}
           failure={failure}
+          diagnosis={diagnosis}
           activeConnectionIssueTitle={activeConnectionIssue?.title ?? null}
           activeConnectionIssueSummary={activeConnectionIssue?.summary ?? null}
           showOperationalPanels={showOperationalPanels}
@@ -339,42 +281,24 @@ function App() {
           isSubmittingCommand={actions.isSubmittingCommand}
           composerValue={composerValue}
           activeAction={activeAction}
+          actionSummary={actionNotice?.kind === "success" ? actionNotice.message : null}
+          agentSettings={agentSettings}
+          latestContextPacket={latestContextPacket}
+          timelineSignalSummary={timelineSignalSummary}
+          activeTimelineSignalFilter={activeSignalFilter}
+          visibleTimeline={visibleTimeline}
+          repeatedSignalCounts={repeatedSignalCounts}
           onSetActiveTab={setActiveTab}
           onSetComposerValue={setComposerValue}
           onSubmitCommand={() => void actions.submitCommand(composerValue)}
+          onToggleSignalFilter={(signal) => setActiveSignalFilter((current) => (current === signal ? null : signal))}
+          onClearSignalFilter={() => setActiveSignalFilter(null)}
+          onRerunDiagnosis={() => void actions.rerunDiagnosis()}
+          onRunAction={(action) => void actions.runAction(action)}
         />
-
-        {activeTab === "timeline" ? (
-          <TimelineView
-            failure={failure}
-            timelineSignalSummary={timelineSignalSummary}
-            activeTimelineSignalFilter={activeTimelineSignalFilter}
-            onToggleSignalFilter={(signal) => setActiveTimelineSignalFilter((current) => (current === signal ? null : signal))}
-            onClearSignalFilter={() => setActiveTimelineSignalFilter(null)}
-            visibleTimeline={visibleTimeline}
-            repeatedSignalCounts={repeatedSignalCounts}
-          />
-        ) : null}
-
-        {activeTab === "diagnosis" ? (
-          <DiagnosisView
-            actionSummary={actionNotice?.kind === "success" ? actionNotice.message : null}
-            diagnosis={diagnosis}
-            failure={failure}
-            agentSettings={agentSettings}
-            selectedHost={selectedHost}
-            isRunningAction={actions.isRunningAction}
-            onRerunDiagnosis={() => void actions.rerunDiagnosis()}
-            onRunAction={(action) => void actions.runAction(action)}
-          />
-        ) : null}
-
-        {activeTab === "artifacts" ? <ArtifactsView failure={failure} latestContextPacket={latestContextPacket} /> : null}
       </section>
     </main>
   );
 }
 
 export default App;
-
-

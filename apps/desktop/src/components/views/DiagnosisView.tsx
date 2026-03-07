@@ -23,6 +23,9 @@ export function DiagnosisView({
   onRerunDiagnosis,
   onRunAction,
 }: DiagnosisViewProps) {
+  const hasMessages = diagnosis.messages.length > 0;
+  const hasActions = diagnosis.suggestedActions.length > 0;
+
   return (
     <div className="workspace-stack diagnosis-view">
       <article className="incident-hero compact-hero">
@@ -56,15 +59,25 @@ export function DiagnosisView({
       </div>
 
       <div className="diagnosis-feed compact-diagnosis-feed">
-        {diagnosis.messages.map((message: DiagnosisMessage) => (
-          <article key={message.id} className={`diagnosis-card tone-${message.tone}`}>
+        {hasMessages ? (
+          diagnosis.messages.map((message: DiagnosisMessage) => (
+            <article key={message.id} className={`diagnosis-card tone-${message.tone}`}>
+              <div className="diagnosis-meta">
+                <span>{sourceLabel(message.source)}</span>
+                <strong>{message.title}</strong>
+              </div>
+              <p>{message.body}</p>
+            </article>
+          ))
+        ) : (
+          <article className="diagnosis-card tone-neutral">
             <div className="diagnosis-meta">
-              <span>{sourceLabel(message.source)}</span>
-              <strong>{message.title}</strong>
+              <span>Talon</span>
+              <strong>No diagnosis narrative available yet</strong>
             </div>
-            <p>{message.body}</p>
+            <p>Run another diagnosis pass after a fresh command failure or connection issue so Talon can rebuild operator-facing incident notes.</p>
           </article>
-        ))}
+        )}
       </div>
 
       <div className="action-box compact-action-box">
@@ -72,17 +85,21 @@ export function DiagnosisView({
           Regenerate diagnosis
         </button>
         <p className="action-label">Suggested actions</p>
-        {diagnosis.suggestedActions.map((action: SuggestedAction) => (
-          <button
-            key={action.id}
-            className="ghost-button full action-button"
-            onClick={() => onRunAction(action)}
-            disabled={isRunningAction !== null}
-          >
-            <span>{action.label}</span>
-            <span>{action.safetyLevel}</span>
-          </button>
-        ))}
+        {hasActions ? (
+          diagnosis.suggestedActions.map((action: SuggestedAction) => (
+            <button
+              key={action.id}
+              className="ghost-button full action-button"
+              onClick={() => onRunAction(action)}
+              disabled={isRunningAction !== null}
+            >
+              <span>{action.label}</span>
+              <span>{action.safetyLevel}</span>
+            </button>
+          ))
+        ) : (
+          <p className="empty-copy">No suggested actions are available for the current evidence set yet.</p>
+        )}
       </div>
     </div>
   );

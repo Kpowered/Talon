@@ -38,32 +38,64 @@ function classifyError(message: string): AppCommandError["kind"] {
   return "unknown";
 }
 
+function operatorHint(source: string, raw: string) {
+  const normalized = raw.toLowerCase();
+
+  if (source === "session.command.submit") {
+    if (normalized.includes("in flight") || normalized.includes("busy")) {
+      return "Wait for the current remote command to finish before sending another one.";
+    }
+    if (normalized.includes("no active ssh transport") || normalized.includes("not ready")) {
+      return "Reconnect the SSH session before submitting another command.";
+    }
+  }
+
+  if (source === "session.connect" || source === "session.reconnect") {
+    if (normalized.includes("permission denied")) {
+      return "Confirm the selected auth method matches the target host and that the credentials are still valid.";
+    }
+    if (normalized.includes("timed out") || normalized.includes("connection refused") || normalized.includes("resolve")) {
+      return "Check host reachability, port, and any VPN or firewall path before retrying.";
+    }
+  }
+
+  if (source === "host.trust.prepare" || source === "host.trust.confirm") {
+    return "Verify the fingerprint out of band before trusting the host entry from Talon.";
+  }
+
+  if (source.startsWith("agent.")) {
+    return "Review the provider base URL, model, timeout, and API key configuration in the host rail.";
+  }
+
+  if (source.startsWith("workspace.") || source.startsWith("registry.") || source.startsWith("terminal.")) {
+    return "Retry the refresh. If the state still does not recover, restart the desktop app so the backend session registry can resync.";
+  }
+
+  if (source.startsWith("host.")) {
+    return "Review the saved host defaults and make sure the selected host record still exists before retrying.";
+  }
+
+  return null;
+}
+
+function friendlyPrefix(kind: AppCommandError["kind"], source: string) {
+  if (kind === "auth") return "Authentication failed.";
+  if (kind === "host-trust") return "Host trust verification needs operator attention.";
+  if (kind === "network") return "Network reachability to the SSH target failed.";
+  if (kind === "agent") return "AI provider configuration or credentials need attention.";
+  if (kind === "validation") return source.startsWith("host.") ? "The selected host record is incomplete or no longer available." : "The requested desktop action is missing required data or refers to a stale resource.";
+  if (kind === "transport") return "The SSH transport could not complete the requested operation.";
+  if (source.startsWith("workspace.") || source.startsWith("registry.") || source.startsWith("terminal.")) {
+    return "The desktop app could not refresh live session state.";
+  }
+  return "The requested action failed.";
+}
+
 function friendlyMessage(kind: AppCommandError["kind"], source: string, raw: string) {
   const detail = raw.trim();
-  const withDetail = (prefix: string) => (detail ? `${prefix} ${detail}` : prefix);
-
-  if (kind === "auth") {
-    return withDetail("Authentication failed. Confirm the username, password, agent state, or selected key and try again.");
-  }
-  if (kind === "host-trust") {
-    return withDetail("Host trust verification needs operator attention before Talon can continue.");
-  }
-  if (kind === "network") {
-    return withDetail("Network reachability to the SSH target failed.");
-  }
-  if (kind === "agent") {
-    return withDetail("AI provider configuration or credentials need attention.");
-  }
-  if (kind === "validation") {
-    return withDetail("The requested desktop action is missing required data or refers to a resource that is no longer available.");
-  }
-  if (kind === "transport") {
-    return withDetail("The SSH transport could not complete the requested operation.");
-  }
-  if (source.startsWith("workspace.") || source.startsWith("registry.") || source.startsWith("terminal.")) {
-    return withDetail("The desktop app could not refresh live session state.");
-  }
-  return withDetail("The requested action failed.");
+  const prefix = friendlyPrefix(kind, source);
+  const hint = operatorHint(source, raw);
+  return [prefix, detail, hint].filter(Boolean).join(" ");
 }
 
 function normalizeError(error: unknown, source: string): AppCommandError {

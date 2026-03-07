@@ -57,6 +57,19 @@ export function TimelineView({
       ) : null}
 
       <div className="timeline compact-timeline">
+        {visibleTimeline.length === 0 ? (
+          <article className="timeline-item timeline-empty-state">
+            <div className="timeline-content">
+              <div className="timeline-command-row">
+                <div className="timeline-command">No timeline events match the current filter</div>
+              </div>
+              <p>
+                Talon is still retaining the underlying failure context. Clear the active signal filter to inspect the full incident window again.
+              </p>
+            </div>
+          </article>
+        ) : null}
+
         {visibleTimeline.map((item) => (
           <article
             key={item.id}
