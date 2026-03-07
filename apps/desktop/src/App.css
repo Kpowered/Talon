@@ -2892,27 +2892,43 @@ button {
 }
 
 .manage-hosts-editor-popover.compact {
-  left: 214px;
-  width: 430px;
-  height: 720px;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 4px;
+  gap: 2px;
   overflow: hidden;
-  padding: 10px 12px 8px;
+  padding: 6px 8px 6px;
 }
 
 .manage-hosts-editor-grid {
   min-height: 0;
   overflow: visible;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 10px;
+  grid-template-columns: minmax(0, 1fr) 82px;
+  gap: 6px 8px;
   padding-right: 0;
 }
 
-.manage-hosts-editor-grid .span-2 {
-  grid-column: span 2;
+.manage-hosts-editor-grid.compact-grid .span-2 {
+  grid-column: 1 / -1;
+}
+
+.manage-hosts-editor-grid.compact-grid .span-address {
+  grid-column: 1 / 2;
+}
+
+.manage-hosts-editor-grid.compact-grid .span-port {
+  grid-column: 2 / 3;
+}
+
+.manage-hosts-editor-grid.compact-grid .span-auth {
+  grid-column: 1 / -1;
+}
+
+.triple-credentials-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
 }
 
 .connection-field.compact-field {
@@ -2920,46 +2936,47 @@ button {
 }
 
 .connection-field.compact-field span {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   letter-spacing: 0.07em;
 }
 
 .connection-field.compact-field input,
 .connection-field.compact-field select {
-  min-height: 30px;
-  padding: 5px 8px;
+  min-height: 28px;
+  padding: 4px 8px;
   border-radius: 8px;
-  font-size: 0.76rem;
+  font-size: 0.75rem;
 }
 
 .password-field-row.compact {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 6px;
+  gap: 4px;
+}
+
+.password-field-row.compact.inline-tools input {
+  min-width: 0;
 }
 
 .password-field-row.compact .ghost-button.small,
 .manage-hosts-popover .ghost-button.small {
-  min-height: 30px;
-  padding: 5px 8px;
+  min-height: 28px;
+  padding: 4px 7px;
   border-radius: 8px;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
 }
 
 .manage-host-actions.compact {
   justify-content: flex-end;
   gap: 6px;
-  margin-top: 0;
+  margin-top: 2px;
 }
-
-
 
 .manage-hosts-popover-header.compact.editor-actions-only {
   justify-content: flex-end;
-  min-height: 12px;
+  min-height: 0;
+  margin-bottom: 2px;
 }
-
-
 
 .manage-hosts-editor-popover.movable {
   position: fixed;
@@ -2970,21 +2987,18 @@ button {
   user-select: none;
 }
 
-.manage-hosts-window-hint {
-  color: #72809c;
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.compact-close {
+  min-width: 28px;
+  width: 28px;
 }
 
 .manage-hosts-resize-handle {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
-  width: 16px;
-  height: 16px;
+  right: 6px;
+  bottom: 6px;
+  width: 14px;
+  height: 14px;
   border-right: 2px solid rgba(255,255,255,0.18);
   border-bottom: 2px solid rgba(255,255,255,0.18);
   cursor: nwse-resize;
 }
-

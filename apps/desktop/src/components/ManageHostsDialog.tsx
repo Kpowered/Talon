@@ -24,14 +24,14 @@ type WindowBounds = {
 };
 
 const DEFAULT_BOUNDS: WindowBounds = {
-  left: 214,
-  top: 24,
-  width: 430,
-  height: 720,
+  left: 228,
+  top: 20,
+  width: 408,
+  height: 590,
 };
 
 const MIN_WIDTH = 360;
-const MIN_HEIGHT = 600;
+const MIN_HEIGHT = 500;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -52,7 +52,7 @@ export function ManageHostsDialog({
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [bounds, setBounds] = useState<WindowBounds>(DEFAULT_BOUNDS);
   const dragStateRef = useRef<{ pointerX: number; pointerY: number; left: number; top: number } | null>(null);
-  const resizeStateRef = useRef<{ pointerX: number; pointerY: number; width: number; height: number; ratio: number } | null>(null);
+  const resizeStateRef = useRef<{ pointerX: number; width: number; height: number; ratio: number } | null>(null);
 
   useEffect(() => {
     setBounds(DEFAULT_BOUNDS);
@@ -76,27 +76,22 @@ export function ManageHostsDialog({
 
       const resizeState = resizeStateRef.current;
       if (resizeState) {
-        const widthFromPointer = resizeState.width + (event.clientX - resizeState.pointerX);
-        let nextWidth = clamp(widthFromPointer, MIN_WIDTH, window.innerWidth - bounds.left - 12);
+        let nextWidth = clamp(resizeState.width + (event.clientX - resizeState.pointerX), MIN_WIDTH, window.innerWidth - bounds.left - 12);
         let nextHeight = nextWidth / resizeState.ratio;
-
         if (nextHeight < MIN_HEIGHT) {
           nextHeight = MIN_HEIGHT;
           nextWidth = nextHeight * resizeState.ratio;
         }
-
         const maxHeight = Math.max(MIN_HEIGHT, window.innerHeight - bounds.top - 12);
         if (nextHeight > maxHeight) {
           nextHeight = maxHeight;
           nextWidth = nextHeight * resizeState.ratio;
         }
-
         const maxWidth = Math.max(MIN_WIDTH, window.innerWidth - bounds.left - 12);
         if (nextWidth > maxWidth) {
           nextWidth = maxWidth;
           nextHeight = nextWidth / resizeState.ratio;
         }
-
         setBounds((current) => ({
           ...current,
           width: Math.round(nextWidth),
@@ -143,7 +138,6 @@ export function ManageHostsDialog({
     event.stopPropagation();
     resizeStateRef.current = {
       pointerX: event.clientX,
-      pointerY: event.clientY,
       width: bounds.width,
       height: bounds.height,
       ratio: bounds.width / bounds.height,
@@ -161,34 +155,28 @@ export function ManageHostsDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="manage-hosts-popover-header compact editor editor-actions-only drag-handle" onMouseDown={handleDragStart}>
-          <div className="manage-hosts-window-hint">Drag to move</div>
-          <button className="ghost-button small" onClick={onClose} type="button">
+          <button className="ghost-button small compact-close" onClick={onClose} type="button">
             x
           </button>
         </div>
 
-        <div className="manage-hosts-editor-grid">
+        <div className="manage-hosts-editor-grid compact-grid">
           <label className="connection-field compact-field span-2">
             <span>Label</span>
             <input value={savedHostForm.label} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, label: event.target.value }))} />
           </label>
-          <label className="connection-field compact-field span-2">
+
+          <label className="connection-field compact-field span-address">
             <span>Address</span>
             <input value={savedHostForm.address} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, address: event.target.value }))} />
           </label>
-          <label className="connection-field compact-field">
+
+          <label className="connection-field compact-field span-port">
             <span>Port</span>
             <input value={savedHostForm.port} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, port: event.target.value }))} inputMode="numeric" />
           </label>
-          <label className="connection-field compact-field">
-            <span>User</span>
-            <input value={savedHostForm.username} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, username: event.target.value }))} />
-          </label>
-          <label className="connection-field compact-field">
-            <span>Region</span>
-            <input value={savedHostForm.region} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, region: event.target.value }))} />
-          </label>
-          <label className="connection-field compact-field">
+
+          <label className="connection-field compact-field span-auth">
             <span>Auth</span>
             <select
               value={savedHostForm.authMethod}
@@ -199,10 +187,12 @@ export function ManageHostsDialog({
               <option value="password">password</option>
             </select>
           </label>
+
           <label className="connection-field compact-field span-2">
             <span>Tags</span>
             <input value={savedHostForm.tags} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, tags: event.target.value }))} placeholder="production, hk" />
           </label>
+
           <label className="connection-field compact-field span-2">
             <span>Fingerprint</span>
             <input
@@ -211,31 +201,40 @@ export function ManageHostsDialog({
               placeholder="Pending trust"
             />
           </label>
-          <label className="connection-field compact-field span-2">
-            <span>Private key</span>
-            <input
-              value={savedHostForm.privateKeyPath}
-              onChange={(event) => onSetSavedHostForm((current) => ({ ...current, privateKeyPath: event.target.value }))}
-              placeholder="C:\\Users\\...\\.ssh\\id_ed25519"
-            />
-          </label>
-          <label className="connection-field compact-field span-2">
-            <span>Password</span>
-            <div className="password-field-row compact">
+
+          <div className="triple-credentials-row span-2">
+            <label className="connection-field compact-field">
+              <span>User</span>
+              <input value={savedHostForm.username} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, username: event.target.value }))} />
+            </label>
+
+            <label className="connection-field compact-field">
+              <span>Password</span>
+              <div className="password-field-row compact inline-tools">
+                <input
+                  type={isPasswordVisible ? "text" : "password"}
+                  value={savedHostForm.savedPassword}
+                  onChange={(event) => onSetSavedHostForm((current) => ({ ...current, savedPassword: event.target.value }))}
+                  placeholder={isLoadingPassword ? "Loading..." : selectedHostConfig?.hasSavedPassword ? "Saved password" : "Blank removes"}
+                />
+                <button className="ghost-button small" onClick={() => setIsPasswordVisible((current) => !current)} type="button">
+                  {isPasswordVisible ? "Hide" : "Show"}
+                </button>
+                <button className="ghost-button small" onClick={() => void copyPassword()} type="button" disabled={!savedHostForm.savedPassword}>
+                  Copy
+                </button>
+              </div>
+            </label>
+
+            <label className="connection-field compact-field">
+              <span>Private key</span>
               <input
-                type={isPasswordVisible ? "text" : "password"}
-                value={savedHostForm.savedPassword}
-                onChange={(event) => onSetSavedHostForm((current) => ({ ...current, savedPassword: event.target.value }))}
-                placeholder={isLoadingPassword ? "Loading saved password..." : selectedHostConfig?.hasSavedPassword ? "Saved password loaded" : "Leave blank to remove password"}
+                value={savedHostForm.privateKeyPath}
+                onChange={(event) => onSetSavedHostForm((current) => ({ ...current, privateKeyPath: event.target.value }))}
+                placeholder="C:\\Users\\...\\id_ed25519"
               />
-              <button className="ghost-button small" onClick={() => setIsPasswordVisible((current) => !current)} type="button">
-                {isPasswordVisible ? "Hide" : "Show"}
-              </button>
-              <button className="ghost-button small" onClick={() => void copyPassword()} type="button" disabled={!savedHostForm.savedPassword}>
-                Copy
-              </button>
-            </div>
-          </label>
+            </label>
+          </div>
         </div>
 
         <div className="dialog-actions manage-host-actions manage-host-actions-drawer compact">
