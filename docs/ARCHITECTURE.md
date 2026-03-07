@@ -143,7 +143,7 @@ The current real backend path uses the platform OpenSSH client instead of a Rust
   - the desktop shell now has two primary presentation states: disconnected sessions render a terminal-first layout with a compact host picker and a single main terminal surface, while connected sessions expand only a narrow host rail alongside that same main workspace
   - diagnosis, timeline, and artifacts now live in an on-demand Inspect drawer so the terminal remains the default primary workspace and analysis opens only when requested or when the operator notices a signal
   - the desktop layout no longer switches panel structure at narrower window widths; the connected host rail, shell workspace, and Inspect drawer keep the same arrangement and rely on overflow/wrapping instead of breakpoint-driven reflow
-  - the Tauri shell currently opens at a fixed `1008x644` desktop footprint with resizing disabled, so operators see the same workspace composition each launch while the UI is still being tuned
+  - the Tauri shell currently opens at a fixed `1024x768` desktop footprint with resizing disabled, so operators see the same workspace composition each launch while the UI is still being tuned
   - the connected-session Host Rail is intentionally minimal and defers detailed host editing, password management, and provider settings to dedicated dialogs
   - the shell surface is now a managed terminal transcript view; frontend keyboard input is captured directly inside the terminal pane and rendered by React rather than `xterm.js`
 - session state is now explicitly lifecycle-based: `connecting` at spawn time, `connected` only after live shell output, `disconnected` on transport exit, and `degraded` on stream/wait failures
@@ -228,6 +228,7 @@ The implementation is no longer transport-only: the real SSH path, structured fa
 ## Principle
 
 Talon should feel like **a terminal with incident memory**, not a chatbot bolted onto a shell.
+
 
 
 
