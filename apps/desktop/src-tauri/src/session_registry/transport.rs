@@ -71,6 +71,28 @@ fn promote_session_connected(state: &mut SessionRegistry, session_id: &str) {
         ),
     );
 }
+fn should_suppress_managed_shell_echo(state: &SessionRegistry, session_id: &str, line: &str) -> bool {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    if trimmed.contains("talon_exit=$?")
+        || trimmed.contains("talon_cwd=$(pwd)")
+        || trimmed.contains(CMD_START_PREFIX)
+        || trimmed.contains(CMD_END_PREFIX)
+    {
+        return true;
+    }
+
+    state
+        .active_commands
+        .get(session_id)
+        .map(|command| {
+            trimmed.ends_with(&command.command)
+                && (trimmed.contains("# ") || trimmed.contains("$ "))
+        })
+        .unwrap_or(false)
+}
 fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
     thread::spawn(move || {
         let mut reader = BufReader::new(stdout);
@@ -128,6 +150,10 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
 
                     if let Some((command_id, exit_code, cwd)) = parse_command_end(&line) {
                         complete_active_command(&mut state, &session_id, &command_id, exit_code, cwd.trim());
+                        continue;
+                    }
+
+                    if should_suppress_managed_shell_echo(&state, &session_id, &line) {
                         continue;
                     }
 
@@ -692,6 +718,7 @@ mod transport_tests {
         assert_eq!(registry.command_history[0].command, "false");
     }
 }
+
 
 
 
