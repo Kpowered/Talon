@@ -2601,3 +2601,82 @@ button {
 .host-context-menu button.destructive {
   color: #ffb5b5;
 }
+
+.dialog-backdrop-soft {
+  align-items: flex-start;
+  justify-content: center;
+  padding: 42px 24px 24px;
+  background: rgba(2, 5, 12, 0.36);
+}
+
+.manage-hosts-dialog-compact {
+  width: min(780px, 100%);
+  max-height: calc(100vh - 72px);
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.dialog-header-compact {
+  margin-bottom: 10px;
+}
+
+.dialog-header-compact h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.manage-hosts-layout-compact {
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+.manage-hosts-list-compact {
+  gap: 6px;
+}
+
+.manage-host-item-compact {
+  padding: 10px 11px;
+  border-radius: 12px;
+}
+
+.manage-hosts-editor-compact {
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.manage-hosts-summary-compact {
+  margin-bottom: 10px;
+}
+
+.manage-hosts-form-compact {
+  gap: 10px;
+}
+
+.manage-hosts-form-compact .connection-field span {
+  font-size: 0.74rem;
+}
+
+.manage-hosts-form-compact input,
+.manage-hosts-form-compact select {
+  min-height: 40px;
+}
+
+.manage-host-actions-compact {
+  margin-top: 12px;
+}
+
+.host-context-menu {
+  min-width: 120px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.045);
+  background: rgba(12, 16, 24, 0.985);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.24);
+}
+
+.host-context-menu button {
+  padding: 7px 9px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+}

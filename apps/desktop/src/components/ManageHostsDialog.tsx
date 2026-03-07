@@ -39,24 +39,24 @@ export function ManageHostsDialog({
   }
 
   return (
-    <div className="dialog-backdrop" role="presentation">
-      <section className="dialog-card manage-hosts-dialog" role="dialog" aria-modal="true" aria-labelledby="manage-hosts-title">
-        <div className="dialog-header">
+    <div className="dialog-backdrop dialog-backdrop-soft" role="presentation" onClick={onClose}>
+      <section className="dialog-card manage-hosts-dialog manage-hosts-dialog-compact" role="dialog" aria-modal="true" aria-labelledby="manage-hosts-title" onClick={(event) => event.stopPropagation()}>
+        <div className="dialog-header dialog-header-compact">
           <div>
             <p className="panel-kicker">Hosts</p>
-            <h2 id="manage-hosts-title">Manage saved hosts</h2>
+            <h2 id="manage-hosts-title">Edit host</h2>
           </div>
           <button className="ghost-button small" onClick={onClose}>
             Close
           </button>
         </div>
 
-        <div className="manage-hosts-layout">
-          <aside className="manage-hosts-list">
+        <div className="manage-hosts-layout manage-hosts-layout-compact">
+          <aside className="manage-hosts-list manage-hosts-list-compact">
             {hosts.map((host) => (
               <button
                 key={host.id}
-                className={`manage-host-item ${selectedHost?.id === host.id ? "active" : ""}`}
+                className={`manage-host-item manage-host-item-compact ${selectedHost?.id === host.id ? "active" : ""}`}
                 onClick={() => onSelectHost(host.id)}
               >
                 <strong>{host.config.label}</strong>
@@ -65,16 +65,16 @@ export function ManageHostsDialog({
             ))}
           </aside>
 
-          <div className="manage-hosts-editor">
+          <div className="manage-hosts-editor manage-hosts-editor-compact">
             {selectedHost ? (
               <>
-                <div className="manage-hosts-summary">
-                  <p className="panel-kicker">Selected host</p>
+                <div className="manage-hosts-summary manage-hosts-summary-compact">
+                  <p className="panel-kicker">Selected</p>
                   <h3>{selectedHost.config.label}</h3>
                   <p>{selectedHost.config.address}</p>
                 </div>
 
-                <div className="connection-form compact-form dialog-form">
+                <div className="connection-form compact-form dialog-form manage-hosts-form-compact">
                   <label className="connection-field">
                     <span>Label</span>
                     <input value={savedHostForm.label} onChange={(event) => onSetSavedHostForm((current) => ({ ...current, label: event.target.value }))} />
@@ -146,18 +146,15 @@ export function ManageHostsDialog({
                         Copy
                       </button>
                     </div>
-                    <p className="section-note manage-password-note">
-                      Clear the password field and save the host if you want to remove the stored password from the system keychain.
-                    </p>
                   </label>
                 </div>
 
-                <div className="dialog-actions manage-host-actions">
+                <div className="dialog-actions manage-host-actions manage-host-actions-compact">
                   <button className="ghost-button small" onClick={onSaveHost} disabled={isSavingHostConfig || isLoadingPassword}>
-                    {isSavingHostConfig ? "Saving..." : "Save host"}
+                    {isSavingHostConfig ? "Saving..." : "Save"}
                   </button>
                   <button className="ghost-button small destructive" onClick={onDeleteSelectedHost} disabled={isDeletingHostConfig}>
-                    {isDeletingHostConfig ? "Deleting..." : "Delete host"}
+                    {isDeletingHostConfig ? "Deleting..." : "Delete"}
                   </button>
                 </div>
               </>
