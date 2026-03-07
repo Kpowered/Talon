@@ -909,7 +909,7 @@ button {
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .status-chip strong {
@@ -2832,7 +2832,7 @@ button {
 .manage-hosts-editor-title {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
 }
 
@@ -2894,9 +2894,9 @@ button {
 .manage-hosts-editor-popover.compact {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 2px;
+  gap: 1px;
   overflow: hidden;
-  padding: 6px 8px 6px;
+  padding: 5px 8px 5px;
 }
 
 .manage-hosts-editor-grid {
@@ -2904,7 +2904,7 @@ button {
   overflow: auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 78px;
-  gap: 6px 8px;
+  gap: 2px 8px;
   padding-right: 2px;
 }
 
@@ -2927,7 +2927,7 @@ button {
 }
 
 .connection-field.compact-field {
-  gap: 2px;
+  gap: 1px;
 }
 
 .connection-field.compact-field span {
@@ -3044,3 +3044,8 @@ button {
   border-bottom: 2px solid rgba(255,255,255,0.18);
   cursor: nwse-resize;
 }
+
+.compact-details-plain {
+  margin-top: 0;
+}
+
