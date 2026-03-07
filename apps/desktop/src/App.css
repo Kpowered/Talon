@@ -3020,3 +3020,15 @@ button {
 
 
 
+
+.drag-surface {
+  cursor: move;
+}
+
+.drag-surface input,
+.drag-surface select,
+.drag-surface button,
+.drag-surface textarea {
+  cursor: auto;
+}
+
