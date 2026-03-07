@@ -22,11 +22,15 @@ function shouldApplyTerminalSnapshot(
   if (nextSessionId !== currentSessionId) {
     return true;
   }
-  if (nextLines.length > 0) {
-    return true;
+  if (nextLines.length === 0) {
+    return currentLines.length === 0;
   }
-  return currentLines.length === 0;
+  if (nextLines.length < currentLines.length) {
+    return false;
+  }
+  return true;
 }
+
 
 export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
   const [workspace, setWorkspace] = useState<TalonWorkspaceState | null>(null);
@@ -202,6 +206,9 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     loadTerminalSnapshot,
   };
 }
+
+
+
 
 
 

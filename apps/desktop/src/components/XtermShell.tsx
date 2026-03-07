@@ -229,7 +229,7 @@ export function XtermShell({
     const sessionChanged = state.sessionId !== sessionId;
 
     if (sessionChanged) {
-      terminal.clear();
+      terminal.reset();
       state.sessionId = sessionId;
       state.renderedTailCount = 0;
       state.promptVisible = false;
@@ -245,13 +245,8 @@ export function XtermShell({
     }
 
     const tailShrank = terminalTail.length < state.renderedTailCount;
-    const tailReset = !tailShrank && terminalTail.some((line, index) => index < state.renderedTailCount && line !== terminalTail[index]);
 
-    if (tailShrank || tailReset) {
-      clearPromptLine(terminal, state);
-      terminal.clear();
-      appendTailLines(terminal, terminalTail);
-      state.renderedTailCount = terminalTail.length;
+    if (tailShrank) {
       drawPromptLine(terminal, state, draft, isBusy, cursorRef.current);
       return;
     }
@@ -272,3 +267,5 @@ export function XtermShell({
 
   return <div className="xterm-shell" ref={containerRef} />;
 }
+
+
