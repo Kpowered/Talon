@@ -118,6 +118,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Removed the last top-right host/connect control strip from the main workspace and pinned the terminal status line to the bottom edge so session state now reads like terminal chrome instead of floating page furniture.
 - Continued the same cleanup pass by fully removing the top workspace bar, narrowing the left rail again, and reducing the remaining terminal/drawer chrome so the main surface reads closer to a native SSH terminal.
 - Added direct host-list interaction for saved servers: double-clicking a host row now connects immediately, and right-click opens a host action menu with connect, edit, and delete.
+- Compressed the Inspect drawer again for the fixed 1024x768 shell: timeline, artifacts, and diagnosis now use denser rows, smaller typography, and a single-column diagnosis summary layout to reduce overflow in narrow side panels.
 - Refined host management presentation: the right-click host menu is now styled as a lighter context menu, and the edit-host dialog has been resized into a smaller management card instead of a near full-screen overlay.
 - Reworked saved-host management into a scale-oriented side drawer with a searchable host list on the left and a dedicated edit panel on the right, so managing dozens of hosts no longer depends on a blocking center modal.
 - Split the same host-management drawer into two levels: opening Manage now defaults to the narrow searchable list, and detailed editing only expands when the operator explicitly opens host details.

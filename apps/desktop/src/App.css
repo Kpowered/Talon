@@ -3628,3 +3628,256 @@ button {
   padding: 1px 5px;
   font-size: 0.6rem;
 }
+/* Inspect timeline compaction */
+.inspect-drawer .compact-timeline {
+  gap: 4px;
+}
+
+.inspect-drawer .timeline-item {
+  padding: 5px 7px;
+  border-radius: 7px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: start;
+}
+
+.inspect-drawer .timeline-time {
+  min-width: 44px;
+  font-size: 0.56rem;
+  line-height: 1.1;
+}
+
+.inspect-drawer .timeline-content {
+  min-width: 0;
+}
+
+.inspect-drawer .timeline-command-row {
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.inspect-drawer .timeline-command {
+  margin-bottom: 2px;
+  font-size: 0.62rem;
+  line-height: 1.15;
+}
+
+.inspect-drawer .timeline-item p {
+  margin: 0;
+  font-size: 0.58rem;
+  line-height: 1.2;
+}
+
+.inspect-drawer .timeline-signal-badge {
+  padding: 2px 5px;
+  font-size: 0.54rem;
+}
+
+.inspect-drawer .exit-code {
+  min-width: 42px;
+  min-height: 16px;
+  padding: 0 4px;
+  font-size: 0.54rem;
+  line-height: 1.1;
+}
+
+.inspect-drawer .timeline-summary-pill {
+  padding: 3px 6px;
+  font-size: 0.56rem;
+}
+
+.inspect-drawer .timeline-filter-state {
+  gap: 4px;
+  font-size: 0.58rem;
+  line-height: 1.2;
+}
+/* Diagnosis overflow fix */
+.inspect-drawer .diagnosis-view,
+.inspect-drawer .compact-action-box {
+  overflow-x: hidden;
+}
+
+.inspect-drawer .action-button {
+  width: 100%;
+  min-width: 0;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.inspect-drawer .action-button span {
+  min-width: 0;
+}
+
+.inspect-drawer .action-button span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspect-drawer .action-button span:last-child {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+/* Artifacts compaction */
+.inspect-drawer .artifacts-view .compact-panel-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  align-items: start;
+}
+
+.inspect-drawer .artifacts-view .compact-panel-header > div:first-child {
+  min-width: 0;
+}
+
+.inspect-drawer .artifacts-view .terminal-status-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.inspect-drawer .artifacts-view .ghost-button.small {
+  min-height: 18px;
+  padding: 0 5px;
+  font-size: 0.56rem;
+}
+
+.inspect-drawer .artifacts-view .panel-kicker {
+  margin-bottom: 1px;
+}
+
+.inspect-drawer .artifacts-view .artifact-card {
+  padding: 4px 6px;
+}
+
+.inspect-drawer .artifacts-view .artifact-card strong,
+.inspect-drawer .artifacts-view .artifact-details summary {
+  font-size: 0.62rem;
+  line-height: 1.1;
+}
+
+.inspect-drawer .artifacts-view .artifact-card pre {
+  margin-top: 4px;
+  font-size: 0.56rem;
+  line-height: 1.16;
+}
+
+.inspect-drawer .artifacts-view .empty-copy {
+  font-size: 0.56rem;
+}
+/* Diagnosis hero and summary overflow fix */
+.inspect-drawer .diagnosis-view {
+  overflow-x: hidden;
+}
+
+.inspect-drawer .compact-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3px;
+}
+
+.inspect-drawer .compact-hero > div:first-child {
+  min-width: 0;
+}
+
+.inspect-drawer .compact-hero h3 {
+  margin: 0;
+  font-size: 0.64rem;
+  line-height: 1.06;
+  overflow-wrap: anywhere;
+}
+
+.inspect-drawer .compact-hero p {
+  margin: 1px 0 0;
+  font-size: 0.55rem;
+  line-height: 1.14;
+  overflow-wrap: anywhere;
+}
+
+.inspect-drawer .hero-badges {
+  justify-content: flex-start;
+  gap: 3px;
+}
+
+.inspect-drawer .diagnosis-hero-badges {
+  flex-wrap: wrap;
+}
+
+.inspect-drawer .confidence-badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspect-drawer .compact-insight-grid-two {
+  gap: 4px;
+}
+
+.inspect-drawer .insight-card {
+  min-width: 0;
+}
+
+.inspect-drawer .insight-card strong,
+.inspect-drawer .insight-card p {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inspect-drawer .insight-card strong {
+  white-space: nowrap;
+}
+
+.inspect-drawer .insight-card p {
+  white-space: nowrap;
+}
+/* Diagnosis summary list */
+.inspect-drawer .diagnosis-summary-list {
+  display: grid;
+  gap: 3px;
+}
+
+.inspect-drawer .diagnosis-summary-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 1px 6px;
+  align-items: start;
+  padding: 4px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.025);
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.inspect-drawer .diagnosis-summary-row span {
+  grid-row: span 2;
+  color: #7f8aa3;
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.inspect-drawer .diagnosis-summary-row strong {
+  min-width: 0;
+  font-size: 0.59rem;
+  line-height: 1.06;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inspect-drawer .diagnosis-summary-row p {
+  min-width: 0;
+  margin: 0;
+  font-size: 0.53rem;
+  line-height: 1.12;
+  color: #9aa7bf;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

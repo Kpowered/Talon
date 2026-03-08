@@ -99,30 +99,29 @@ export function DiagnosisView({
           <h3>{finding.title}</h3>
           <p>{finding.summary}</p>
         </div>
-        <div className="hero-badges">
+        <div className="hero-badges diagnosis-hero-badges">
           <span className="confidence-badge">{finding.badge}</span>
-          <span className="confidence-badge">{activeSession.mode}</span>
-          <span className="confidence-badge">{diagnosis.provider}</span>
+          <span className="confidence-badge">{activeSession.state}</span>
         </div>
       </article>
 
-      <div className="insight-grid compact-insight-grid compact-insight-grid-two">
-        <article className="insight-card">
+      <div className="diagnosis-summary-list">
+        <article className="diagnosis-summary-row">
           <span>Host</span>
           <strong>{selectedHost.config.label}</strong>
           <p>{selectedHost.config.address}</p>
         </article>
-        <article className="insight-card">
+        <article className="diagnosis-summary-row">
           <span>Session</span>
           <strong>{activeSession.state}</strong>
           <p>{activeSession.shell} in {activeSession.cwd}</p>
         </article>
-        <article className="insight-card">
+        <article className="diagnosis-summary-row">
           <span>Capture</span>
           <strong>{outcomeLabel(failure.outcomeType)}</strong>
           <p>Exit {failure.exitCode} ¡¤ {stderrClassLabel(failure.stderrClass)}</p>
         </article>
-        <article className="insight-card">
+        <article className="diagnosis-summary-row">
           <span>Provider</span>
           <strong>{diagnosis.provider}</strong>
           <p>{diagnosis.errorMessage ?? (agentSettings?.hasApiKey ? "Using configured model access" : "Using local rule fallback")}</p>
@@ -183,3 +182,5 @@ export function DiagnosisView({
     </div>
   );
 }
+
+
