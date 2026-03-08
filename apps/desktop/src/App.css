@@ -3475,12 +3475,27 @@ button {
 }
 
 .inspect-drawer-header.compact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 4px;
   margin-bottom: 3px;
 }
 
+.inspect-drawer-header.compact h2 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .inspect-drawer-copy.compact {
   margin-bottom: 4px;
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .terminal-status-actions {
@@ -3906,6 +3921,7 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 
 
 
