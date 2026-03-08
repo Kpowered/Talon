@@ -107,24 +107,32 @@ export function DiagnosisView({
 
       <div className="diagnosis-summary-list">
         <article className="diagnosis-summary-row">
-          <span>Host</span>
-          <strong>{selectedHost.config.label}</strong>
-          <p>{selectedHost.config.address}</p>
+          <span className="diagnosis-summary-label">Host</span>
+          <div className="diagnosis-summary-copy">
+            <strong>{selectedHost.config.label}</strong>
+            <p>{selectedHost.config.address}</p>
+          </div>
         </article>
         <article className="diagnosis-summary-row">
-          <span>Session</span>
-          <strong>{activeSession.state}</strong>
-          <p>{activeSession.shell} in {activeSession.cwd}</p>
+          <span className="diagnosis-summary-label">Session</span>
+          <div className="diagnosis-summary-copy">
+            <strong>{activeSession.state}</strong>
+            <p>{activeSession.shell} in {activeSession.cwd}</p>
+          </div>
         </article>
         <article className="diagnosis-summary-row">
-          <span>Capture</span>
-          <strong>{outcomeLabel(failure.outcomeType)}</strong>
-          <p>Exit {failure.exitCode} ¡¤ {stderrClassLabel(failure.stderrClass)}</p>
+          <span className="diagnosis-summary-label">Capture</span>
+          <div className="diagnosis-summary-copy">
+            <strong>{outcomeLabel(failure.outcomeType)}</strong>
+            <p>Exit {failure.exitCode} - {stderrClassLabel(failure.stderrClass)}</p>
+          </div>
         </article>
         <article className="diagnosis-summary-row">
-          <span>Provider</span>
-          <strong>{diagnosis.provider}</strong>
-          <p>{diagnosis.errorMessage ?? (agentSettings?.hasApiKey ? "Using configured model access" : "Using local rule fallback")}</p>
+          <span className="diagnosis-summary-label">Provider</span>
+          <div className="diagnosis-summary-copy">
+            <strong>{diagnosis.provider}</strong>
+            <p>{diagnosis.errorMessage ?? (agentSettings?.hasApiKey ? "Using configured model access" : "Using local rule fallback")}</p>
+          </div>
         </article>
       </div>
 
@@ -182,5 +190,6 @@ export function DiagnosisView({
     </div>
   );
 }
+
 
 

@@ -3843,41 +3843,52 @@ button {
 
 .inspect-drawer .diagnosis-summary-row {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
-  gap: 1px 6px;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 6px;
   align-items: start;
-  padding: 4px 6px;
+  padding: 5px 6px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   background: rgba(255, 255, 255, 0.025);
   border-radius: 6px;
   min-width: 0;
 }
 
-.inspect-drawer .diagnosis-summary-row span {
-  grid-row: span 2;
+.inspect-drawer .diagnosis-summary-label {
+  display: block;
+  padding-top: 1px;
   color: #7f8aa3;
   font-size: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
-.inspect-drawer .diagnosis-summary-row strong {
+.inspect-drawer .diagnosis-summary-copy {
   min-width: 0;
-  font-size: 0.59rem;
-  line-height: 1.06;
+  display: grid;
+  gap: 1px;
+}
+
+.inspect-drawer .diagnosis-summary-copy strong {
+  display: block;
+  min-width: 0;
+  font-size: 0.6rem;
+  line-height: 1.08;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.inspect-drawer .diagnosis-summary-row p {
+.inspect-drawer .diagnosis-summary-copy p {
+  display: block;
   min-width: 0;
   margin: 0;
   font-size: 0.53rem;
-  line-height: 1.12;
+  line-height: 1.14;
   color: #9aa7bf;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
+
 
