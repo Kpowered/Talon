@@ -39,6 +39,14 @@ fn strip_terminal_control_sequences(line: &str) -> String {
     sanitized
 }
 
+fn extract_prefixed_metadata_value<'a>(line: &'a str, prefix: &str) -> Option<&'a str> {
+    let trimmed = line.trim_start();
+    trimmed
+        .strip_prefix(prefix)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
 fn promote_session_connected(state: &mut SessionRegistry, session_id: &str) {
     let already_connected = state
         .managed_sessions
@@ -240,15 +248,12 @@ fn start_stdout_reader(session_id: String, stdout: ChildStdout) {
                     }
 
                     let mut state = lock_registry();
-                    if let Some(marker_index) = line.find(META_SHELL_PREFIX) {
-                        let shell = &line[(marker_index + META_SHELL_PREFIX.len())..];
-                        update_session_metadata(&mut state, &session_id, Some(shell.trim()), None);
+                    if let Some(shell) = extract_prefixed_metadata_value(&line, META_SHELL_PREFIX) {
+                        update_session_metadata(&mut state, &session_id, Some(shell), None);
                         continue;
                     }
 
-                    if let Some(marker_index) = line.find(META_CWD_PREFIX) {
-                        let cwd = &line[(marker_index + META_CWD_PREFIX.len())..];
-                        let cwd = cwd.trim();
+                    if let Some(cwd) = extract_prefixed_metadata_value(&line, META_CWD_PREFIX) {
                         update_session_metadata(&mut state, &session_id, None, Some(cwd));
                         promote_session_connected(&mut state, &session_id);
                         push_event(
@@ -928,7 +933,7 @@ mod transport_tests {
     use super::{
         build_wrapped_command, complete_active_command, interrupt_active_command,
         lock_registry, mark_operator_disconnect, mark_remote_exit, mark_session_degraded, now_iso,
-        parse_command_end, prime_connection_attempt, run_with_test_registry, submit_command,
+        extract_prefixed_metadata_value, parse_command_end, prime_connection_attempt, run_with_test_registry, submit_command,
         ActiveCommandState, CommandHistoryEntry, Host, HostConnectionConfig, HostObservedState,
         HostRecordConfig, ManagedSessionRecord, SessionRegistry,
     };
@@ -977,6 +982,26 @@ mod transport_tests {
             event_counter: 0,
             command_counter: 0,
         }
+    }
+
+    #[test]
+    fn extracts_metadata_only_when_marker_starts_the_line() {
+        assert_eq!(
+            extract_prefixed_metadata_value("__TALON_META_CWD__/root", "__TALON_META_CWD__"),
+            Some("/root")
+        );
+        assert_eq!(
+            extract_prefixed_metadata_value("  __TALON_META_SHELL__/bin/bash", "__TALON_META_SHELL__"),
+            Some("/bin/bash")
+        );
+        assert_eq!(
+            extract_prefixed_metadata_value("root@host:~# pwd | sed 's#^#__TALON_META_CWD__#'", "__TALON_META_CWD__"),
+            None
+        );
+        assert_eq!(
+            extract_prefixed_metadata_value("root@host:~# printf '__TALON_META_SHELL__%s\\n' \"${SHELL:-sh}\"", "__TALON_META_SHELL__"),
+            None
+        );
     }
 
     #[test]
@@ -1179,3 +1204,6 @@ mod transport_tests {
         });
     }
 }
+
+
+
