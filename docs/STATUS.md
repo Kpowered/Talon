@@ -137,6 +137,8 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added a second hardening pass across the Rust backend tests so `cargo test` now passes without forcing `--test-threads=1`, using a test-only registry isolation helper for the global session registry.
 - Expanded backend regression coverage to include reconnect request priming, stream-failure degradation, and host-trust confirmation persistence, and fixed the host-trust fingerprint writeback so it updates the real host config instead of deriving a host id from the session id prefix.
 - Performed another small operator-density trim in the desktop shell by narrowing the inspect drawer and shrinking the host-editor default bounds and action chrome without changing workflows.
+- Stabilized the desktop dev launch path by moving Vite config onto a plain `.mjs` file and keeping the Vite scripts on `--configLoader runner`, which avoids the fragile Windows config-bundling path that was leaving `tauri dev` without a visible window in this environment.
+- Tightened Inspect again at the drawer-wide level: headings, badges, helper copy, cards, and tool buttons now all scale down together so the fixed `1024x768` operator window no longer feels oversized or crowded when Inspect is open.
 ## In Progress
 - Tightening the terminal-first shell after the layout rewrite, with the core SSH, mode, and operator-packet paths now largely real and the remaining work focused on polish, targeted bug fixes, and deeper verification.
 

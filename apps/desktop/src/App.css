@@ -3487,3 +3487,144 @@ button {
 .manage-host-actions.compact {
   gap: 3px;
 }
+/* Inspect readability trim */
+.inspect-drawer .panel-kicker {
+  font-size: 0.56rem;
+  letter-spacing: 0.12em;
+}
+
+.inspect-drawer-header.compact h2 {
+  font-size: 0.74rem;
+  line-height: 1.1;
+}
+
+.inspect-drawer-copy.compact {
+  font-size: 0.64rem;
+  line-height: 1.25;
+}
+
+.inspect-tabbar.compact .tab {
+  min-height: 22px;
+  font-size: 0.66rem;
+}
+
+.inspect-drawer .workspace-stack {
+  gap: 4px;
+}
+
+.inspect-drawer .timeline-header h2,
+.inspect-drawer .compact-panel-header h2,
+.inspect-drawer .compact-hero h3 {
+  font-size: 0.8rem;
+  line-height: 1.15;
+}
+
+.inspect-drawer .compact-hero,
+.inspect-drawer .compact-action-box,
+.inspect-drawer .artifact-card,
+.inspect-drawer .diagnosis-card,
+.inspect-drawer .insight-card {
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.inspect-drawer .insight-card span,
+.inspect-drawer .diagnosis-meta span,
+.inspect-drawer .action-label,
+.inspect-drawer .empty-copy {
+  font-size: 0.58rem;
+}
+
+.inspect-drawer .insight-card strong,
+.inspect-drawer .diagnosis-meta strong,
+.inspect-drawer .artifact-card strong,
+.inspect-drawer .compact-panel-header strong {
+  font-size: 0.68rem;
+  line-height: 1.15;
+}
+
+.inspect-drawer .insight-card p,
+.inspect-drawer .diagnosis-card p,
+.inspect-drawer .artifact-card pre,
+.inspect-drawer .empty-copy {
+  font-size: 0.62rem;
+  line-height: 1.25;
+}
+
+.inspect-drawer .confidence-badge {
+  min-height: 18px;
+  padding: 1px 5px;
+  font-size: 0.58rem;
+}
+
+.inspect-drawer .ghost-button.small,
+.inspect-drawer .action-button {
+  min-height: 22px;
+  padding: 2px 6px;
+  font-size: 0.63rem;
+}
+
+.inspect-drawer .terminal-status-actions {
+  gap: 3px;
+}
+/* Inspect global density reset */
+.inspect-drawer {
+  font-size: 11px;
+}
+
+.inspect-drawer .panel-kicker {
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+}
+
+.inspect-drawer-header.compact h2,
+.inspect-drawer .timeline-header h2,
+.inspect-drawer .compact-panel-header h2,
+.inspect-drawer .compact-hero h3 {
+  font-size: 0.74rem;
+  line-height: 1.1;
+}
+
+.inspect-drawer-copy.compact,
+.inspect-drawer .insight-card p,
+.inspect-drawer .diagnosis-card p,
+.inspect-drawer .artifact-card pre,
+.inspect-drawer .empty-copy {
+  font-size: 0.6rem;
+  line-height: 1.2;
+}
+
+.inspect-drawer .insight-card span,
+.inspect-drawer .diagnosis-meta span,
+.inspect-drawer .action-label {
+  font-size: 0.55rem;
+}
+
+.inspect-drawer .insight-card strong,
+.inspect-drawer .diagnosis-meta strong,
+.inspect-drawer .artifact-card strong {
+  font-size: 0.65rem;
+  line-height: 1.1;
+}
+
+.inspect-drawer .compact-hero,
+.inspect-drawer .compact-action-box,
+.inspect-drawer .artifact-card,
+.inspect-drawer .diagnosis-card,
+.inspect-drawer .insight-card {
+  padding: 5px 7px;
+  border-radius: 7px;
+}
+
+.inspect-drawer .confidence-badge {
+  min-height: 16px;
+  padding: 0 4px;
+  font-size: 0.54rem;
+}
+
+.inspect-drawer .ghost-button.small,
+.inspect-drawer .action-button {
+  min-height: 20px;
+  padding: 1px 5px;
+  font-size: 0.6rem;
+}

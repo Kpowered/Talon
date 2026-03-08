@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
+    "dev": "vite --configLoader runner",
+    "build": "tsc && vite build --configLoader runner",
+    "preview": "vite preview --configLoader runner",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -26,3 +26,4 @@
     "vite": "^7.0.4"
   }
 }
+
