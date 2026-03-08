@@ -120,6 +120,7 @@ As of 2026-03-07, the repository has moved from a scenario demo to a backend-man
 - Added direct host-list interaction for saved servers: double-clicking a host row now connects immediately, and right-click opens a host action menu with connect, edit, and delete.
 - Compressed the Inspect drawer again for the fixed 1024x768 shell: timeline, artifacts, and diagnosis now use denser rows, smaller typography, and a single-column diagnosis summary layout to reduce overflow in narrow side panels.
 - Refined the diagnosis summary rows to use explicit label and content columns so host, session, capture, and provider values stay readable in the narrow Inspect drawer instead of visually collapsing together.
+- Hardened the Inspect tab switcher into a fixed three-column compact bar so Timeline, Diagnosis, and Artifacts remain horizontal pills instead of collapsing into tall vertical buttons under drawer density tweaks.
 - Refined host management presentation: the right-click host menu is now styled as a lighter context menu, and the edit-host dialog has been resized into a smaller management card instead of a near full-screen overlay.
 - Reworked saved-host management into a scale-oriented side drawer with a searchable host list on the left and a dedicated edit panel on the right, so managing dozens of hosts no longer depends on a blocking center modal.
 - Split the same host-management drawer into two levels: opening Manage now defaults to the narrow searchable list, and detailed editing only expands when the operator explicitly opens host details.
