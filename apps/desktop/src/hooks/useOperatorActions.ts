@@ -1,6 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { SuggestedAction, TalonWorkspaceState } from "@talon/core";
-import type { ActionNotice, AgentSettings, AppCommandError, ConnectionAuthMethod, HostConnectionConfig, NewHostDraft, SessionConnectionIssue } from "../types/app";
+import type { ActionNotice, ActiveCommandSummary, AgentSettings, AppCommandError, ConnectionAuthMethod, HostConnectionConfig, NewHostDraft, SessionConnectionIssue } from "../types/app";
 import {
   clearAgentApiKey,
   clearHostPassword,
@@ -36,6 +36,7 @@ type OperatorActionsOptions = {
   selectedHost: TalonWorkspaceState["hosts"][number] | null;
   activeSession: TalonWorkspaceState["sessions"][number] | null;
   activeConnectionIssue: SessionConnectionIssue | null;
+  activeCommand: ActiveCommandSummary | null;
   connectionAddress: string;
   connectionPort: string;
   connectionUsername: string;
@@ -77,6 +78,7 @@ export function useOperatorActions(options: OperatorActionsOptions) {
     selectedHost,
     activeSession,
     activeConnectionIssue,
+    activeCommand,
     connectionAddress,
     connectionPort,
     connectionUsername,
@@ -120,6 +122,23 @@ export function useOperatorActions(options: OperatorActionsOptions) {
   const [isReconnectingSession, setIsReconnectingSession] = useState(false);
   const [isSavingHostConfig, setIsSavingHostConfig] = useState(false);
   const [isDeletingHostConfig, setIsDeletingHostConfig] = useState(false);
+  const [interruptingSessionId, setInterruptingSessionId] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    if (!interruptingSessionId) {
+      return;
+    }
+
+    if (!activeSession || activeSession.id !== interruptingSessionId || activeSession.mode !== "managed") {
+      setInterruptingSessionId(null);
+      return;
+    }
+
+    if (!activeCommand || activeCommand.sessionId !== interruptingSessionId) {
+      setInterruptingSessionId(null);
+    }
+  }, [activeCommand, activeSession, interruptingSessionId]);
 
   const reportError = useCallback(
     (error: unknown) => {
@@ -211,15 +230,35 @@ export function useOperatorActions(options: OperatorActionsOptions) {
 
   const interruptActiveSession = useCallback(async () => {
     if (!activeSession) return;
+
+    if (activeSession.mode === "raw") {
+      try {
+        await writeSessionInput(activeSession.id, "\u0003");
+        await refreshRegistry();
+      } catch (error) {
+        reportError(error);
+      }
+      return;
+    }
+
+    if (!activeCommand || activeCommand.sessionId !== activeSession.id) {
+      return;
+    }
+
+    if (interruptingSessionId === activeSession.id) {
+      return;
+    }
+
+    setInterruptingSessionId(activeSession.id);
     try {
       await writeSessionInput(activeSession.id, "\u0003");
-      setTerminalTail((current) => [...current, "^C", "Interrupt sent to remote shell..."]);
       setActionNotice({ kind: "success", message: `Sent Ctrl+C to ${activeSession.id}.` });
       await refreshRegistry();
     } catch (error) {
+      setInterruptingSessionId(null);
       reportError(error);
     }
-  }, [activeSession, refreshRegistry, reportError, setActionNotice, setTerminalTail]);
+  }, [activeCommand, activeSession, interruptingSessionId, refreshRegistry, reportError, setActionNotice]);
   const disconnectActiveSession = useCallback(async () => {
     if (!activeSession) return;
     setIsDisconnectingSession(true);
@@ -536,3 +575,7 @@ export function useOperatorActions(options: OperatorActionsOptions) {
     deleteSelectedHost,
   };
 }
+
+
+
+

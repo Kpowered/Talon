@@ -51,7 +51,8 @@ function App() {
     isLoadingState,
     hostConfigs,
     setHostConfigs,
-    registryActiveSessionId,    activeConnectionIssue,
+    registryActiveSessionId,
+    activeConnectionIssue,
     setActiveConnectionIssue,
     activeCommand,
     terminalTail,
@@ -174,6 +175,7 @@ function App() {
     selectedHost,
     activeSession,
     activeConnectionIssue,
+    activeCommand,
     connectionAddress: hostRail.sessionOverride.address,
     connectionPort: hostRail.sessionOverride.port,
     connectionUsername: hostRail.sessionOverride.username,
@@ -578,6 +580,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 

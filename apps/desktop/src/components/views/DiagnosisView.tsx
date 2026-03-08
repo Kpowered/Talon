@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { Host, Session, SuggestedAction, TalonWorkspaceState } from "@talon/core";
 import type { AgentSettings, SessionConnectionIssue } from "../../types/app";
 
@@ -16,6 +17,14 @@ type DiagnosisViewProps = {
   isRunningAction: string | null;
   onRerunDiagnosis: () => void;
   onRunAction: (action: SuggestedAction) => void;
+};
+
+type DiagnosisFeedItem = {
+  id: string;
+  source: string;
+  tone: string;
+  title: string;
+  body: string;
 };
 
 function stderrClassLabel(value?: string | null) {
@@ -87,9 +96,45 @@ export function DiagnosisView({
   onRerunDiagnosis,
   onRunAction,
 }: DiagnosisViewProps) {
-  const hasMessages = diagnosis.messages.length > 0;
   const hasActions = diagnosis.suggestedActions.length > 0;
   const finding = primaryFinding(actionSummary, diagnosis.summary, activeConnectionIssue, activeSession, failure);
+  const feedItems = useMemo<DiagnosisFeedItem[]>(() => {
+    const items: DiagnosisFeedItem[] = [];
+
+    if (activeConnectionIssue) {
+      items.push({
+        id: `${activeConnectionIssue.kind}-issue`,
+        source: "System",
+        tone: "warning",
+        title: activeConnectionIssue.operatorAction,
+        body: activeConnectionIssue.suggestedCommand
+          ? `Suggested next check: ${activeConnectionIssue.suggestedCommand}`
+          : "No in-band command was suggested for this transport issue.",
+      });
+    }
+
+    if (diagnosis.messages.length > 0) {
+      items.push(
+        ...diagnosis.messages.map((message) => ({
+          id: message.id,
+          source: sourceLabel(message.source),
+          tone: message.tone,
+          title: message.title,
+          body: message.body,
+        })),
+      );
+      return items;
+    }
+
+    items.push({
+      id: "diagnosis-empty",
+      source: "Talon",
+      tone: "neutral",
+      title: "No diagnosis narrative available yet",
+      body: "Run another diagnosis pass after a fresh command failure or transport issue so Talon can rebuild operator-facing incident notes.",
+    });
+    return items;
+  }, [activeConnectionIssue, diagnosis.messages]);
 
   return (
     <div className="workspace-stack diagnosis-view">
@@ -136,41 +181,22 @@ export function DiagnosisView({
         </article>
       </div>
 
-      <div className="diagnosis-feed compact-diagnosis-feed">
-        {activeConnectionIssue ? (
-          <article className="diagnosis-card tone-warning">
-            <div className="diagnosis-meta">
-              <span>System</span>
-              <strong>{activeConnectionIssue.operatorAction}</strong>
+      <div className="diagnosis-feed compact-diagnosis-feed diagnosis-feed-log">
+        {feedItems.map((item) => (
+          <article key={item.id} className={`diagnosis-feed-row tone-${item.tone}`}>
+            <div className="diagnosis-feed-meta">
+              <span>{item.source}</span>
+              <span>{item.tone}</span>
             </div>
-            <p>
-              {activeConnectionIssue.suggestedCommand
-                ? `Suggested next check: ${activeConnectionIssue.suggestedCommand}`
-                : "No in-band command was suggested for this transport issue."}
-            </p>
-          </article>
-        ) : null}
-
-        {hasMessages ? diagnosis.messages.map((message) => (
-          <article key={message.id} className={`diagnosis-card tone-${message.tone}`}>
-            <div className="diagnosis-meta">
-              <span>{sourceLabel(message.source)}</span>
-              <strong>{message.title}</strong>
+            <div className="diagnosis-feed-copy">
+              <strong>{item.title}</strong>
+              <p>{item.body}</p>
             </div>
-            <p>{message.body}</p>
           </article>
-        )) : (
-          <article className="diagnosis-card tone-neutral">
-            <div className="diagnosis-meta">
-              <span>Talon</span>
-              <strong>No diagnosis narrative available yet</strong>
-            </div>
-            <p>Run another diagnosis pass after a fresh command failure or transport issue so Talon can rebuild operator-facing incident notes.</p>
-          </article>
-        )}
+        ))}
       </div>
 
-      <div className="action-box compact-action-box">
+      <div className="action-box compact-action-box diagnosis-actions-box">
         <button className="ghost-button small" onClick={onRerunDiagnosis}>
           Regenerate diagnosis
         </button>
@@ -190,6 +216,3 @@ export function DiagnosisView({
     </div>
   );
 }
-
-
-
