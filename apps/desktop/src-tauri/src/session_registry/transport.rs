@@ -201,6 +201,8 @@ fn should_suppress_managed_shell_echo(state: &SessionRegistry, session_id: &str,
         || trimmed.contains(CMD_START_PREFIX)
         || trimmed.contains(CMD_END_PREFIX)
         || trimmed.contains("if [ \"$talon_done\" -eq 0 ]")
+        || trimmed.contains("printf '__TALON_META_SHELL__%s")
+        || trimmed.contains("pwd | sed 's#^#__TALON_META_CWD__#'")
     {
         return true;
     }
@@ -933,7 +935,7 @@ mod transport_tests {
     use super::{
         build_wrapped_command, complete_active_command, interrupt_active_command,
         lock_registry, mark_operator_disconnect, mark_remote_exit, mark_session_degraded, now_iso,
-        extract_prefixed_metadata_value, parse_command_end, prime_connection_attempt, run_with_test_registry, submit_command,
+        extract_prefixed_metadata_value, parse_command_end, prime_connection_attempt, run_with_test_registry, should_suppress_managed_shell_echo, submit_command,
         ActiveCommandState, CommandHistoryEntry, Host, HostConnectionConfig, HostObservedState,
         HostRecordConfig, ManagedSessionRecord, SessionRegistry,
     };
@@ -986,6 +988,20 @@ mod transport_tests {
 
     #[test]
     fn extracts_metadata_only_when_marker_starts_the_line() {
+        let registry = test_registry();
+
+        assert!(should_suppress_managed_shell_echo(
+            &registry,
+            "session-1",
+            "root@host:~# printf '__TALON_META_SHELL__%s\\n' \"${SHELL:-sh}\""
+        ));
+        assert!(should_suppress_managed_shell_echo(
+            &registry,
+            "session-1",
+            "root@host:~# pwd | sed 's#^#__TALON_META_CWD__#'"
+        ));
+        assert!(!should_suppress_managed_shell_echo(&registry, "session-1", "root@host:~# pwd"));
+
         assert_eq!(
             extract_prefixed_metadata_value("__TALON_META_CWD__/root", "__TALON_META_CWD__"),
             Some("/root")
@@ -1204,6 +1220,8 @@ mod transport_tests {
         });
     }
 }
+
+
 
 
 
