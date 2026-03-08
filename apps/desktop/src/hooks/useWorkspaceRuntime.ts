@@ -14,6 +14,27 @@ type WorkspaceRuntimeOptions = {
   onError: (notice: ActionNotice) => void;
 };
 
+const STARTUP_RETRY_DELAYS_MS = [120, 260, 520] as const;
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function retryWorkspaceLoad(load: () => Promise<TalonWorkspaceState>) {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= STARTUP_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      return await load();
+    } catch (error) {
+      lastError = error;
+      if (attempt === STARTUP_RETRY_DELAYS_MS.length) {
+        throw error;
+      }
+      await delay(STARTUP_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+  throw lastError ?? new Error("Workspace state did not load.");
+}
 function shouldApplyTerminalSnapshot(
   nextSessionId: string,
   nextLines: string[],
@@ -125,16 +146,31 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     async function loadWorkspace() {
       setIsLoadingState(true);
       try {
-        const [state, registry, settingsResponse] = await Promise.all([
-          getWorkspaceState(),
+        const state = await retryWorkspaceLoad(() => getWorkspaceState());
+        if (cancelled) return;
+        applyWorkspace(state);
+
+        const [registryResult, settingsResult] = await Promise.allSettled([
           getSessionRegistry(),
           getAgentSettings(),
         ]);
         if (cancelled) return;
-        applyWorkspace(state);
-        applyRegistry(registry);
-        setAgentSettings(settingsResponse.settings);
-        const liveSessionId = registry.activeSessionId || state.activeSessionId;
+
+        let liveSessionId = state.activeSessionId || null;
+
+        if (registryResult.status === "fulfilled") {
+          applyRegistry(registryResult.value);
+          liveSessionId = registryResult.value.activeSessionId || liveSessionId;
+        } else {
+          reportError(registryResult.reason);
+        }
+
+        if (settingsResult.status === "fulfilled") {
+          setAgentSettings(settingsResult.value.settings);
+        } else {
+          reportError(settingsResult.reason);
+        }
+
         if (liveSessionId) {
           void loadTerminalSnapshot(liveSessionId);
         }
@@ -210,3 +246,5 @@ export function useWorkspaceRuntime({ onError }: WorkspaceRuntimeOptions) {
     loadTerminalSnapshot,
   };
 }
+
+
