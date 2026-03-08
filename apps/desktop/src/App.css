@@ -3926,3 +3926,31 @@ button {
 
 
 
+.empty-workspace-shell {
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-workspace-panel {
+  width: min(440px, 100%);
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px;
+}
+
+.empty-workspace-panel h2 {
+  margin: 0;
+  font-size: 1.9rem;
+  line-height: 1.05;
+}
+
+.empty-workspace-panel p {
+  margin: 0;
+  color: #8f9ab1;
+}
+
+.empty-workspace-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}

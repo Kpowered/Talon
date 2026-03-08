@@ -4,6 +4,7 @@ import type { AppCommandError, HostConnectionConfig, NewHostDraft, TerminalTab }
 import { HostRail } from "./components/HostRail";
 import { ActionNoticeBar } from "./components/ActionNoticeBar";
 import { AppEmptyState } from "./components/AppEmptyState";
+import { EmptyWorkspace } from "./components/EmptyWorkspace";
 import { WorkspacePanels } from "./components/WorkspacePanels";
 import { NewHostDialog } from "./components/NewHostDialog";
 import { ManageHostsDialog } from "./components/ManageHostsDialog";
@@ -438,8 +439,40 @@ function App() {
     setNewHostDraft(EMPTY_NEW_HOST_DRAFT);
     setNewHostDialogError(null);
   }
-  if (!workspace || !diagnosis || !failure || !activeSession || !selectedHost) {
+  if (!workspace) {
     return <AppEmptyState isLoading={isLoadingState} />;
+  }
+
+  const resolvedDiagnosis = workspace.latestDiagnosis;
+  const resolvedFailure = workspace.latestFailure;
+
+  if (!selectedHost || !activeSession) {
+    return (
+      <>
+        {actionNotice ? <ActionNoticeBar notice={actionNotice} onDismiss={clearNotice} /> : null}
+
+        {isNewHostDialogOpen ? (
+          <NewHostDialog
+            draft={newHostDraft}
+            errorMessage={newHostDialogError}
+            isSaving={isSavingNewHost}
+            isConnecting={isConnectingNewHost}
+            onChange={(updater) => {
+              setNewHostDialogError(null);
+              setNewHostDraft((current) => updater(current));
+            }}
+            onCancel={closeNewHostDialog}
+            onSave={() => void handleCreateHost(false)}
+            onConnect={() => void handleCreateHost(true)}
+          />
+        ) : null}
+
+        <EmptyWorkspace
+          onCreateHost={openNewHostDialog}
+          onManageHosts={openNewHostDialog}
+        />
+      </>
+    );
   }
 
   return (
@@ -501,8 +534,8 @@ function App() {
             activeTab={activeTab}
             activeSession={activeSession}
             selectedHost={selectedHost}
-            failure={failure}
-            diagnosis={diagnosis}
+            failure={resolvedFailure}
+            diagnosis={resolvedDiagnosis}
             activeConnectionIssue={activeConnectionIssue}
             activeConnectionIssueTitle={activeConnectionIssue?.title ?? null}
             activeConnectionIssueSummary={activeConnectionIssue?.summary ?? null}
@@ -545,4 +578,7 @@ function App() {
 }
 
 export default App;
+
+
+
 
